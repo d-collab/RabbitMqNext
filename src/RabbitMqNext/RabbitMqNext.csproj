@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{48FF9289-A49D-48E9-AF6C-89CB85E934D0}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>RabbitMqNext</RootNamespace>
+    <AssemblyName>RabbitMqNext</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AmqpChannel.cs" />
+    <Compile Include="Internals\AmqpChannelLevelFrameWriter.cs" />
+    <Compile Include="Internals\AmqpClassMethodConstants.cs" />
+    <Compile Include="Internals\AmqpError.cs" />
+    <Compile Include="Internals\AmqpConnectionFrameWriter.cs" />
+    <Compile Include="Internals\AmqpConstants.cs" />
+    <Compile Include="Internals\CommandToSend.cs" />
+    <Compile Include="Internals\ConnectionStateMachine.cs" />
+    <Compile Include="Internals\FrameReader.cs" />
+    <Compile Include="IBasicProperties.cs" />
+    <Compile Include="Internals\AmqpPrimitivesReader.cs" />
+    <Compile Include="Internals\AmqpPrimitivesWriter.cs" />
+    <Compile Include="Internals\AsyncManualResetEvent.cs" />
+    <Compile Include="Buffers\ArrayPool.cs" />
+    <Compile Include="Buffers\ArrayPoolBucket.cs" />
+    <Compile Include="Buffers\DefaultArrayPool.cs" />
+    <Compile Include="Buffers\Utilities.cs" />
+    <Compile Include="Connection.cs" />
+    <Compile Include="Internals\InternalBigEndianReader.cs" />
+    <Compile Include="Internals\InternalBigEndianWriter.cs" />
+    <Compile Include="Internals\FrameProcessor.cs" />
+    <Compile Include="Internals\ObjectPool.cs" />
+    <Compile Include="Properties\AsmInfo.cs" />
+    <Compile Include="Internals\RingBufferStream.cs" />
+    <Compile Include="Internals\Sockets\SocketExtensions.cs" />
+    <Compile Include="Internals\Protocol.cs" />
+    <Compile Include="Internals\SocketStreams.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
