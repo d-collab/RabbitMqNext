@@ -4,8 +4,11 @@
 
 	internal class CommandToSend
 	{
-		public Action<AmqpPrimitivesWriter> commandGenerator;
-		public Action<ushort, int> ReplyAction;
+		public ushort Channel;
+		public ushort ClassId;
+		public ushort MethodId;
+		public Action<AmqpPrimitivesWriter, ushort, ushort, ushort> commandGenerator;
+		public Action<ushort, int, AmqpError> ReplyAction2;
 		public bool ExpectsReply;
 	}
 }

@@ -1,8 +1,6 @@
 ﻿namespace RabbitMqNext
 {
 	using System;
-	using System.Buffers;
-	using System.Collections.Concurrent;
 	using System.Diagnostics;
 	using System.Net;
 	using System.Net.Sockets;
@@ -18,7 +16,7 @@
 	// + support recover
 	// + support multiple hosts
 
-	public class Connection // : FrameProcessor
+	public class Connection
 	{
 		private readonly CancellationTokenSource _cancellationTokenSrc;
 
@@ -61,10 +59,12 @@
 
 		private int _channelNumbers;
 
-		public AmqpChannel CreateChannel()
+		public async Task<IAmqpChannel> CreateChannel()
 		{
-			var channelNum = Interlocked.Increment(ref _channelNumbers);
-			return new AmqpChannel(channelNum);
+			var channelNum = (ushort) Interlocked.Increment(ref _channelNumbers);
+			var channel = new AmqpChannel(channelNum, _connectionState);
+			await channel.Open();
+			return channel;
 		}
 
 		private async Task InternalConnect(string hostname, int port)
@@ -127,12 +127,12 @@
 						}
 						
 						// writes to socket
-						cmdToSend.commandGenerator(_amqpWriter);
+						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId);
 						
 						// if writing to socket is enough, set as complete
 						if (!cmdToSend.ExpectsReply)
 						{
-							cmdToSend.ReplyAction(0, 0);
+							cmdToSend.ReplyAction2(0, 0, null);
 						}
 					}
 				}

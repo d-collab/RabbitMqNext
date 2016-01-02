@@ -18,7 +18,9 @@
 
 				Console.WriteLine("[Connected]");
 
-				conn.Close();
+				var newChannel = await conn.CreateChannel();
+
+				Console.WriteLine("[channel created] " + newChannel.ChannelNumber);
 			}
 			catch (AggregateException ex)
 			{

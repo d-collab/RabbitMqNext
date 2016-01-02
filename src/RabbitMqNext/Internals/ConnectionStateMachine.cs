@@ -1,6 +1,7 @@
 ﻿namespace RabbitMqNext.Internals
 {
 	using System;
+	using System.Buffers;
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.Text;
@@ -56,16 +57,34 @@
 			var err = new AmqpError() { ReplyText = "connection closed" };
 			Volatile.Write(ref _lastError, err);
 
-			DrainMethodsWithError();
+			DrainMethodsWithError(_lastError, 0, 0, 0);
 		}
 
-		private void DrainMethodsWithError()
+		private void DrainMethodsWithError(AmqpError amqpError, ushort channel, ushort classId, ushort methodId)
 		{
+			// releases every task awaiting
 			CommandToSend sent;
 			while (_awaitingReplyQueue.TryDequeue(out sent))
 			{
-				sent.ReplyAction(0, -1); // releases every task awaiting on this
+				if (sent.Channel == channel && sent.ClassId == classId && sent.MethodId == methodId)
+				{
+					// if we find the "offending" command, then it gets a better error message
+					sent.ReplyAction2(0, -1, amqpError); 
+				}
+				else
+				{
+					// any other task dies with a generic error.
+					sent.ReplyAction2(0, -1, null);
+				}
 			}
+		}
+
+		public override Task DispatchCloseMethod(ushort channel, ushort replyCode, 
+												 string replyText, ushort classId, ushort methodId)
+		{
+			DrainMethodsWithError(new AmqpError() { }, channel, classId, methodId);
+
+			return null;
 		}
 
 		public override async Task DispatchMethod(ushort channel, int classMethodId)
@@ -74,7 +93,7 @@
 
 			if (_awaitingReplyQueue.TryDequeue(out sent))
 			{
-				sent.ReplyAction(channel, classMethodId);
+				sent.ReplyAction2(channel, classMethodId, null);
 			}
 			else
 			{
@@ -105,16 +124,19 @@
 			}
 		}
 
-		private void SendCommand(Action<AmqpPrimitivesWriter> commandWriter,
-								 Action<ushort, int> reply,
-								 bool expectsReply)
+		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
+								  Action<AmqpPrimitivesWriter, ushort, ushort, ushort> commandWriter,
+								  Action<ushort, int, AmqpError> reply, bool expectsReply)
 		{
 			ThrowIfErrorPending();
 
 			// TODO: objpool
 			_commandOutbox.Enqueue(new CommandToSend()
 			{
-				ReplyAction = reply,
+				Channel = channel,
+				ClassId = classId, 
+				MethodId = methodId,
+				ReplyAction2 = reply,
 				commandGenerator = commandWriter,
 				ExpectsReply = expectsReply
 			});
@@ -134,8 +156,9 @@
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
-			SendCommand(AmqpConnectionFrameWriter.Greeting(),
-				reply: async (channel, classMethodId) =>
+			SendCommand(0, 0, 0, 
+				AmqpConnectionFrameWriter.Greeting(),
+				reply: async (channel, classMethodId, _) =>
 				{
 					if (classMethodId == AmqpClassMethodConstants.ConnectionStart)
 					{
@@ -162,8 +185,10 @@
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
-			SendCommand(AmqpConnectionFrameWriter.ConnectionTuneOk(channelMax, frameMax + 100, heartbeat),
-				reply: (channel, classMethodId) =>
+			var writer = AmqpConnectionFrameWriter.ConnectionTuneOk(channelMax, frameMax, heartbeat);
+
+			SendCommand(0, 10, 31, writer,
+				reply: (channel, classMethodId, _) =>
 				{
 					// there's no reply to this method, so we 
 					// dont really know if it worked or not until 
@@ -181,8 +206,8 @@
 			var tcs = new TaskCompletionSource<string>();
 			var writer = AmqpConnectionFrameWriter.ConnectionOpen(vhost, string.Empty, false);
 
-			SendCommand(writer,
-				reply: async (channel, classMethodId) =>
+			SendCommand(0, 10, 40, writer,
+				reply: async (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodConstants.ConnectionOpenOk)
 					{
@@ -191,17 +216,9 @@
 							tcs.SetResult(knowHosts);
 						});
 					}
-					else if (classMethodId == AmqpClassMethodConstants.ConnectionClose)
-					{
-						await _frameReader.Read_ConnectionClose((replyCode, replyText, classId, methodId) =>
-						{
-							tcs.SetException(new Exception("Error: " + replyText));	
-						});
-					}
 					else
 					{
-						// Unexpected
-						tcs.SetException(new Exception("Unexpected result. Got " + classMethodId));
+						Util.SetException(tcs, error, classMethodId);
 					}
 
 				}, expectsReply: true);
@@ -218,7 +235,8 @@
 			var auth = Encoding.UTF8.GetBytes("\0" + username + "\0" + password);
 			var writer = AmqpConnectionFrameWriter.ConnectionStartOk(Protocol.ClientProperties, "PLAIN", auth, "en_US");
 
-			SendCommand(writer, reply: async (channel, classMethodId) =>
+			SendCommand(0, 10, 30, writer, 
+				reply: async (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodConstants.ConnectionTune)
 					{
@@ -233,8 +251,7 @@
 					}
 					else
 					{
-						// Unexpected
-						tcs.SetException(new Exception("Unexpected result. Got " + classMethodId));
+						Util.SetException(tcs, error, classMethodId);
 					}
 					
 				}, expectsReply: true);

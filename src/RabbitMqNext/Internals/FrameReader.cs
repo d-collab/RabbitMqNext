@@ -40,6 +40,11 @@ namespace RabbitMqNext.Internals
 
 				Console.WriteLine("> channel " + channel + " payload " + payloadLength);
 
+				
+				// needs special case for heartbeat, flow, etc.. 
+				// since they are not replies to methods we sent and alter the client's behavior
+
+
 				if (frameType == AmqpConstants.FrameMethod)
 				{
 					ushort classId = await _reader.ReadUInt16();
@@ -47,34 +52,21 @@ namespace RabbitMqNext.Internals
 
 					var classMethodId = classId << 16 | methodId;
 
-					await _frameProcessor.DispatchMethod(channel, classMethodId);
+					Console.WriteLine(" received class " + classId + " method " + methodId + " classMethodId " + classMethodId);
 
-//					Console.WriteLine(" received class " + classId + " method " + methodId + " id " + id);
-//					switch(id)
-//					{
-//						case 655370: // ConnectionStart = 10 10
-//							await Receive_ConnectionStart(channel, payloadLength);
-//							break;
-//
-//						case 655371: 
-//							await Receive_ConnectionStartOk(channel, payloadLength);
-//							break;
-//
-//						case 655390: // Connection Tune
-//							await Receive_ConnectionTune(channel, payloadLength);
-//							break;
-//
-//						case 655410: // Connection close
-//							await Receive_ConnectionClose(channel, payloadLength);
-//							break;
-//
-//						case 655401: // Connection open ok
-//							await Receive_ConnectionOpenOk(channel, payloadLength);
-//							break;
-//
-//						default:
-//							break;
-//					}
+					// needs special 
+
+					if (classMethodId == AmqpClassMethodConstants.ConnectionClose)
+					{
+						await Read_ConnectionClose((replyCode, replyText, oClassId, oMethodId) =>
+						{
+							_frameProcessor.DispatchCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
+						});
+					}
+					else
+					{
+						await _frameProcessor.DispatchMethod(channel, classMethodId);
+					}
 				}
 				else if (frameType == AmqpConstants.FrameHeader)
 				{
@@ -117,9 +109,6 @@ namespace RabbitMqNext.Internals
 			Console.WriteLine("< con_start " + mechanisms + " locales " + locales);
 
 			continuation(versionMajor, versionMinor, serverProperties, mechanisms, locales);
-
-			// this may cause a deadlock, need to test carefully
-			// Task.Factory.StartNew(() => _frameProcessor._ConnectionStart(versionMajor, versionMinor, serverProperties, mechanisms, locales), TaskCreationOptions.PreferFairness);
 		}
 
 		public async Task Read_ConnectionOpenOk(Action<string> continuation)
@@ -152,6 +141,15 @@ namespace RabbitMqNext.Internals
 			Console.WriteLine("< close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
 			continuation(replyCode, replyText, classId, methodId);
+		}
+
+		public async Task Read_ChannelOpenOk(Action<string> continuation)
+		{
+			var reserved = await _amqpReader.ReadLongstr();
+
+			Console.WriteLine("< ChannelOpenOk  " + reserved);
+
+			continuation(reserved);
 		}
 	}
 }

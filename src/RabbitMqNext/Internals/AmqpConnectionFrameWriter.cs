@@ -3,7 +3,7 @@
 	using System;
 	using System.Collections.Generic;
 	using System.Text;
-
+	using WriterDelegate = System.Action<AmqpPrimitivesWriter,ushort, ushort, ushort>;
 
 	static class AmqpConnectionFrameWriter
 	{
@@ -20,19 +20,19 @@
 			GreetingPayload[7] = 1; // revision
 		}
 
-		public static Action<AmqpPrimitivesWriter> Greeting()
+		public static WriterDelegate Greeting()
 		{
-			return writer =>
+			return (writer, channel, classId, methodId) =>
 			{
 				writer.WriteRaw(GreetingPayload, 0, GreetingPayload.Length);
 			};
 		}
 
-		public static Action<AmqpPrimitivesWriter> ConnectionTuneOk(ushort channelMax, uint frameMax, ushort heartbeat)
+		public static WriterDelegate ConnectionTuneOk(ushort channelMax, uint frameMax, ushort heartbeat)
 		{
 			const int payloadSize = 12; // 4 shorts + 1 int
 
-			return writer =>
+			return (writer, channel, classId, methodId) =>
 			{
 				Console.WriteLine("ConnectionTuneOk");
 
@@ -50,11 +50,11 @@
 			};
 		}
 
-		public static Action<AmqpPrimitivesWriter> ConnectionStartOk(
+		public static WriterDelegate ConnectionStartOk(
 			IDictionary<string, object> clientProperties,
 			string mechanism, byte[] response, string locale)
 		{
-			return writer =>
+			return (writer, channel, classId, methodId) =>
 			{
 				Console.WriteLine("ConnectionStartOk");
 
@@ -77,9 +77,9 @@
 			};
 		}
 
-		public static Action<AmqpPrimitivesWriter> ConnectionOpen(string vhost, string caps, bool insist)
+		public static WriterDelegate ConnectionOpen(string vhost, string caps, bool insist)
 		{
-			return writer =>
+			return (writer, channel, classId, methodId) =>
 			{
 				Console.WriteLine("ConnectionOpen");
 
@@ -88,8 +88,8 @@
 
 				writer.WriteWithPayloadFirst((w) =>
 				{
-					w.WriteUShort((ushort)10);
-					w.WriteUShort((ushort)40);
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
 
 					w.WriteShortstr(vhost);
 					w.WriteShortstr(caps);
@@ -100,9 +100,9 @@
 			};
 		}
 
-		public static Action<AmqpPrimitivesWriter> ConnectionCloseOk()
+		public static WriterDelegate ConnectionCloseOk()
 		{
-			return writer =>
+			return (writer, channel, classId, methodId) =>
 			{
 
 			};

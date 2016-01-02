@@ -6,7 +6,6 @@ namespace RabbitMqNext.Internals
 	using System.Collections.Generic;
 	using System.IO;
 	using System.Text;
-	using System.Threading.Tasks;
 
 	internal class AmqpPrimitivesWriter
 	{
@@ -108,7 +107,10 @@ namespace RabbitMqNext.Internals
 				if (len > 255) throw new Exception("Short string too long; UTF-8 encoded length=" + len + ", max=255");
 				
 				_writer.Write((byte)len);
-				_writer.Write(buffer, 0, len);
+				if (len > 0)
+				{
+					_writer.Write(buffer, 0, len);
+				}
 			}
 			finally
 			{
@@ -123,7 +125,11 @@ namespace RabbitMqNext.Internals
 			{
 				var len = Encoding.UTF8.GetBytes(str, 0, str.Length, buffer, 0);
 				_writer.Write((uint)len);
-				_writer.Write(buffer, 0, len);
+
+				if (len > 0)
+				{
+					_writer.Write(buffer, 0, len);
+				}
 			}
 			finally
 			{
@@ -134,7 +140,10 @@ namespace RabbitMqNext.Internals
 		public void WriteLongbyte(byte[] buffer)
 		{
 			_writer.Write((uint)buffer.Length);
-			_writer.Write(buffer, 0, buffer.Length);
+			if (buffer.Length > 0)
+			{
+				_writer.Write(buffer, 0, buffer.Length);
+			}
 		}
 
 		public void WriteBit(bool val)
@@ -231,7 +240,5 @@ namespace RabbitMqNext.Internals
 				throw new Exception("Value cannot appear as table value: " + value);
 			}
 		}
-
-		
 	}
 }

@@ -18,6 +18,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMqNext.Tests", "src\R
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMqNext.IntegrationTests", "src\RabbitMqNext.IntegrationTests\RabbitMqNext.IntegrationTests.csproj", "{75DE4826-7CE9-4FBD-B358-A29198B7E3E9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{7228278D-07F5-4C95-8612-0EF23CB85E75}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,5 +41,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1C5509A6-AE8F-42B8-8E21-C8BE264F1A5C} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
+		{75DE4826-7CE9-4FBD-B358-A29198B7E3E9} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
 	EndGlobalSection
 EndGlobal

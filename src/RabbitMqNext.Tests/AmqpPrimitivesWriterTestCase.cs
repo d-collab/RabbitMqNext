@@ -2,9 +2,6 @@ namespace RabbitMqNext.Tests
 {
 	using System;
 	using System.Collections.Generic;
-	using System.Linq;
-	using System.Text;
-	using System.Threading.Tasks;
 	using FluentAssertions;
 	using Internals;
 	using NUnit.Framework;
@@ -55,38 +52,5 @@ namespace RabbitMqNext.Tests
 			list[0].Offset.Should().Be(0);
 			list[0].Array.ShouldAllBeEquivalentTo(temp);
 		}
-
-		[Test]
-		public async Task ConnectionStartOk_Frame()
-		{
-			var list = new List<ArraySegment<byte>>();
-			var ringbuffer = new RingBufferStream();
-
-			var reader = new InternalBigEndianReader(ringbuffer);
-
-			var writer = new InternalBigEndianWriter((b, off, c) =>
-			{
-				Console.WriteLine("sending " + c + " " + b.Aggregate("", (s, b1) => s + " " + b1));
-
-				// _sharedBuffer.Insert(b, off, c);
-				list.Add(new ArraySegment<byte>(b, off, c));
-
-				ringbuffer.Insert(b, off, c);
-			});
-
-			var cmdGen = AmqpConnectionFrameWriter.ConnectionStartOk(Protocol.ClientProperties, "PLAIN", Encoding.ASCII.GetBytes("\0username\0password"), "en_US");
-
-			cmdGen(new AmqpPrimitivesWriter(writer));
-
-			foreach (var segment in list)
-			{
-				Console.WriteLine(segment.Count);
-			}
-
-//			var frameHandling = new FrameReader(reader, new AmqpPrimitivesReader(reader), new StubFrameProcessor());
-//			await frameHandling.ReadAndDispatch();
-		}
-	}
-
-	
+	}	
 }
