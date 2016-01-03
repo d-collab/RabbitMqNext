@@ -20,6 +20,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMqNext.IntegrationTes
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{7228278D-07F5-4C95-8612-0EF23CB85E75}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfTest", "src\PerfTest\PerfTest.csproj", "{62188C57-E392-43E4-AD76-61F2367F7ED8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4B4C057E-49A2-4C60-A911-D157B3F61E57}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +45,10 @@ Global
 		{75DE4826-7CE9-4FBD-B358-A29198B7E3E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{75DE4826-7CE9-4FBD-B358-A29198B7E3E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{75DE4826-7CE9-4FBD-B358-A29198B7E3E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{62188C57-E392-43E4-AD76-61F2367F7ED8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62188C57-E392-43E4-AD76-61F2367F7ED8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62188C57-E392-43E4-AD76-61F2367F7ED8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62188C57-E392-43E4-AD76-61F2367F7ED8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -45,5 +56,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{1C5509A6-AE8F-42B8-8E21-C8BE264F1A5C} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
 		{75DE4826-7CE9-4FBD-B358-A29198B7E3E9} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
+		{62188C57-E392-43E4-AD76-61F2367F7ED8} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
 	EndGlobalSection
 EndGlobal

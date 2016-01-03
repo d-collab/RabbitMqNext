@@ -11,10 +11,9 @@
 		[Test]
 		public async Task Init()
 		{
-			var conn = new Connection();
 			try
 			{
-				await conn.Connect("localhost");
+				var conn = await new ConnectionFactory().Connect("localhost");
 
 				Console.WriteLine("[Connected]");
 

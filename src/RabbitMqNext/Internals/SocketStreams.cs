@@ -5,7 +5,7 @@ namespace RabbitMqNext.Internals
 	using System.Threading;
 	using System.Threading.Tasks;
 
-	internal class SocketStreams
+	internal class SocketStreams : IDisposable
 	{
 		private readonly Socket _socket;
 		private readonly CancellationToken _token; // does not own it
@@ -91,5 +91,11 @@ namespace RabbitMqNext.Internals
 				}	
 			}
 		}
+
+		public void Dispose()
+		{
+			_ringBufferStream.Dispose();
+		}
+
 	}
 }

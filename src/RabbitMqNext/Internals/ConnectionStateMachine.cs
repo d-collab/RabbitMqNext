@@ -16,7 +16,7 @@
 	// Tuned sends ConnectionOpen [ConnectionOpenOk | close]
 	// ConnectionOpenOk -> Opened
 
-	internal class ConnectionStateMachine : FrameProcessor
+	internal class ConnectionStateMachine : FrameProcessor, IDisposable
 	{
 		internal readonly ManualResetEventSlim _commandsToSendEvent;
 		internal readonly ConcurrentQueue<CommandToSend> _commandOutbox;
@@ -37,7 +37,7 @@
 		private IDictionary<string, object> _serverProperties;
 		private string _mechanisms;
 		private ushort _channelMax;
-		private uint _frameMax;
+		internal uint _frameMax;
 		private ushort _heartbeat;
 		private string _knownHosts;
 
@@ -122,6 +122,11 @@
 						throw new Exception("DispatchMethod unexpected " + classMethodId);
 				}
 			}
+		}
+
+		public void Dispose()
+		{
+			_commandsToSendEvent.Dispose();
 		}
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,

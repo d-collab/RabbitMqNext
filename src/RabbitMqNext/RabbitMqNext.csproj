@@ -30,6 +30,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Castle.Core">
+      <HintPath>..\..\lib\Castle.Core.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -40,6 +43,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AmqpChannel.cs" />
+    <Compile Include="AmqpQueueInfo.cs" />
+    <Compile Include="AmqpTimestamp.cs" />
+    <Compile Include="ConnectionFactory.cs" />
     <Compile Include="Internals\AmqpChannelLevelFrameWriter.cs" />
     <Compile Include="Internals\AmqpClassMethodConstants.cs" />
     <Compile Include="Internals\AmqpError.cs" />
@@ -48,7 +54,7 @@
     <Compile Include="Internals\CommandToSend.cs" />
     <Compile Include="Internals\ConnectionStateMachine.cs" />
     <Compile Include="Internals\FrameReader.cs" />
-    <Compile Include="IBasicProperties.cs" />
+    <Compile Include="BasicProperties.cs" />
     <Compile Include="Internals\AmqpPrimitivesReader.cs" />
     <Compile Include="Internals\AmqpPrimitivesWriter.cs" />
     <Compile Include="Internals\AsyncManualResetEvent.cs" />

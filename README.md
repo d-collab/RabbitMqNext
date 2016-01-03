@@ -6,11 +6,17 @@ Not ready for production use.
 
 
 Current stage: 
+
 - Handshake [Done]
 - Create channel [Done]
-- Exchange declare
-- Queue declare
-- Queue bind
-- Basic publish
-- Queu Consume
+- Exchange declare [Done]
+- Queue declare [Done]
+- Queue bind [Done]
+- Basic publish [Done]
+- Queue Consume
+- Basic Ack
+- Control flow
+- Heartbeat
+
+- Connection/channels recovery / Programming model friendly
 

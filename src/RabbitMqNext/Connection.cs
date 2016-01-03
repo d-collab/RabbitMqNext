@@ -16,7 +16,7 @@
 	// + support recover
 	// + support multiple hosts
 
-	public class Connection
+	public class Connection : IDisposable
 	{
 		private readonly CancellationTokenSource _cancellationTokenSrc;
 
@@ -28,16 +28,15 @@
 
 		private ConnectionStateMachine _connectionState;
 
+		private int _channelNumbers;
+
 		public Connection()
 		{
 			_cancellationTokenSrc = new CancellationTokenSource();
 		}
 
-		public async Task Connect(string hostname, 
-								  string vhost = "/", 
-								  string username = "guest", 
-								  string password = "guest", 
-								  int port = 5672)
+		internal async Task Connect(string hostname, string vhost, 
+									string username, string password, int port = 5672)
 		{
 			_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
 			{
@@ -57,7 +56,18 @@
 			_socket.Close();
 		}
 
-		private int _channelNumbers;
+		#region IDisposable
+		
+		public void Dispose()
+		{
+			this.Close();
+
+			_socket.Dispose();
+			_connectionState.Dispose();
+			_socketToStream.Dispose();
+		}
+
+		#endregion
 
 		public async Task<IAmqpChannel> CreateChannel()
 		{
@@ -82,7 +92,8 @@
 				}
 			}
 
-			if (!started) throw new Exception("Invalid hostname " + hostname); // ipv6 not supported yet
+			if (!started) 
+				throw new Exception("Invalid hostname " + hostname); // ipv6 not supported yet
 
 			_socketToStream = new SocketStreams(_socket, _cancellationTokenSrc.Token, OnSocketClosed);
 
@@ -106,6 +117,7 @@
 			t2.Start();
 
 			await _connectionState.Start(username, password, vhost);
+			_amqpWriter.FrameMaxSize = _connectionState._frameMax;
 		}
 
 		private void WriteCommandsToSocket()

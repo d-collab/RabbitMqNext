@@ -38,7 +38,7 @@ namespace RabbitMqNext.Internals
 				ushort channel = await _reader.ReadUInt16();
 				int payloadLength = await _reader.ReadInt32();
 
-				Console.WriteLine("> channel " + channel + " payload " + payloadLength);
+				Console.WriteLine("> Incoming Frame: channel " + channel + " payload " + payloadLength);
 
 				
 				// needs special case for heartbeat, flow, etc.. 
@@ -52,7 +52,7 @@ namespace RabbitMqNext.Internals
 
 					var classMethodId = classId << 16 | methodId;
 
-					Console.WriteLine(" received class " + classId + " method " + methodId + " classMethodId " + classMethodId);
+					Console.WriteLine("> Incoming Method: class " + classId + " method " + methodId + " classMethodId " + classMethodId);
 
 					// needs special 
 
@@ -150,6 +150,38 @@ namespace RabbitMqNext.Internals
 			Console.WriteLine("< ChannelOpenOk  " + reserved);
 
 			continuation(reserved);
+		}
+
+		public void Read_BasicQosOk(Action continuation)
+		{
+			Console.WriteLine("< BasicQosOk  ");
+
+			continuation();
+		}
+
+		public void Read_ExchangeDeclareOk(Action continuation)
+		{
+			Console.WriteLine("< ExchangeDeclareOk");
+
+			continuation();
+		}
+
+		public async Task Read_QueueDeclareOk(Action<string, uint, uint> continuation)
+		{
+			Console.WriteLine("< QueueDeclareOk");
+
+			var queue = await _amqpReader.ReadShortStr();
+			var messageCount = await _amqpReader.ReadLong();
+			var consumerCount = await _amqpReader.ReadLong();
+
+			continuation(queue, messageCount, consumerCount);
+		}
+
+		public void Read_QueueBindOk(Action continuation)
+		{
+			Console.WriteLine("< QueueBindOk");
+
+			continuation();
 		}
 	}
 }

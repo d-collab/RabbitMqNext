@@ -11,7 +11,9 @@ namespace RabbitMqNext.Internals
 	{
 		private readonly InternalBigEndianWriter _writer;
 		private const int BufferSize = 1024*128;
-		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(BufferSize, 10); 
+		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(BufferSize, 20);
+
+		public uint? FrameMaxSize { get; set; }
 
 		public AmqpPrimitivesWriter(InternalBigEndianWriter writer)
 		{
@@ -26,6 +28,11 @@ namespace RabbitMqNext.Internals
 		public void WriteUShort(ushort b)
 		{
 			_writer.Write(b);
+		}
+
+		public void WriteULong(ulong v)
+		{
+			_writer.Write(v);
 		}
 
 		public void WriteLong(uint v)
@@ -45,7 +52,10 @@ namespace RabbitMqNext.Internals
 				{
 					memStream.Write(b, off, count);
 				});
-				var writer2 = new AmqpPrimitivesWriter(innerWriter);
+				var writer2 = new AmqpPrimitivesWriter(innerWriter)
+				{
+					FrameMaxSize = this.FrameMaxSize
+				};
 
 				writeFn(writer2);
 
@@ -65,7 +75,7 @@ namespace RabbitMqNext.Internals
 
 		public void WriteTable(IDictionary<string, object> table)
 		{
-			if (table == null)
+			if (table == null || table.Count == 0)
 			{
 				_writer.Write((uint) 0);
 				return;
@@ -83,7 +93,7 @@ namespace RabbitMqNext.Internals
 
 		public void WriteArray(IList array)
 		{
-			if (array == null)
+			if (array == null || array.Count == 0)
 			{
 				_writer.Write((uint) 0);
 				return;
@@ -239,6 +249,27 @@ namespace RabbitMqNext.Internals
 			{
 				throw new Exception("Value cannot appear as table value: " + value);
 			}
+		}
+
+		public void WriteBits(bool b1, bool b2 = false, bool b3 = false, 
+							  bool b4 = false, bool b5 = false, bool b6 = false, 
+							  bool b7 = false, bool b8 = false)
+		{
+			byte byteVal = 0;
+			byteVal = b1 ? (byte)1 : (byte)0;
+			byteVal |= b2 ? (byte)2 : (byte)0;
+			byteVal |= b3 ? (byte)4 : (byte)0;
+			byteVal |= b4 ? (byte)8 : (byte)0;
+			byteVal |= b5 ? (byte)16 : (byte)0;
+			byteVal |= b6 ? (byte)32 : (byte)0;
+			byteVal |= b7 ? (byte)64 : (byte)0;
+			byteVal |= b8 ? (byte)128 : (byte)0;
+			_writer.Write(byteVal);
+		}
+
+		public void WriteTimestamp(AmqpTimestamp ts)
+		{
+			_writer.Write((ulong)ts.UnixTime);
 		}
 	}
 }
