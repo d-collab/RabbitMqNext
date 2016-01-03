@@ -7,35 +7,6 @@ namespace RabbitMqNext.Internals
 	using System.Text;
 
 
-	internal class ReusableTempWriter : IDisposable
-	{
-		internal MemoryStreamSlim _memoryStream;
-		internal InternalBigEndianWriter _innerWriter;
-		internal AmqpPrimitivesWriter _writer2;
-
-		public ReusableTempWriter(ArrayPool<byte> bufferPool, ObjectPool<ReusableTempWriter> memStreamPool)
-		{
-			_memoryStream = new MemoryStreamSlim(bufferPool, AmqpPrimitivesWriter.BufferSize);
-
-			_innerWriter = new InternalBigEndianWriter((b, off, count) =>
-			{
-				_memoryStream.Write(b, off, count);
-			});
-
-			_writer2 = new AmqpPrimitivesWriter(_innerWriter, bufferPool, memStreamPool);
-		}
-
-		public void EnsureFrameMaxSizeSet(uint? frameMax)
-		{
-			_writer2.FrameMaxSize = frameMax;
-		}
-
-		public void Dispose()
-		{
-			_memoryStream.Dispose();
-		}
-	}
-
 	internal class AmqpPrimitivesWriter
 	{
 		internal const int BufferSize = 1024 * 128;
@@ -86,33 +57,17 @@ namespace RabbitMqNext.Internals
 
 			try
 			{
-				// BAD APPROACH. needs review. too many allocations, 
-				// albeit small objects. the buffer is reused
-
 				memStream.EnsureFrameMaxSizeSet(this.FrameMaxSize);
-
-//				var innerWriter = new InternalBigEndianWriter((b, off, count) =>
-//				{
-//					memStream.Write(b, off, count);
-//				});
-//				var writer2 = new AmqpPrimitivesWriter(innerWriter, _bufferPool, _memStreamPool)
-//				{
-//					FrameMaxSize = this.FrameMaxSize
-//				};
-
 				writeFn(memStream._writer2);
 
 				var payloadSize = (uint) memStream._memoryStream.Position;
-
+				this.WriteLong(payloadSize);
 				// Console.WriteLine("conclusion: payload size  " + payloadSize);
 
-				this.WriteLong(payloadSize);
 				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize);
 			}
 			finally
 			{
-				// _bufferPool.Return(buffer);
-				// _memStream.Position = initialoffset;
 				_memStreamPool.PutObject(memStream);
 			}
 		}
@@ -152,23 +107,17 @@ namespace RabbitMqNext.Internals
 			});
 		}
 
+		private readonly byte[] _smallBuffer = new byte[300];
+
 		public void WriteShortstr(string str)
 		{
-			var buffer = _bufferPool.Rent(1024);
-			try
-			{
-				var len = Encoding.UTF8.GetBytes(str, 0, str.Length, buffer, 0);
-				if (len > 255) throw new Exception("Short string too long; UTF-8 encoded length=" + len + ", max=255");
+			var len = Encoding.UTF8.GetBytes(str, 0, str.Length, _smallBuffer, 0);
+			if (len > 255) throw new Exception("Short string too long; UTF-8 encoded length=" + len + ", max=255");
 				
-				_writer.Write((byte)len);
-				if (len > 0)
-				{
-					_writer.Write(buffer, 0, len);
-				}
-			}
-			finally
+			_writer.Write((byte)len);
+			if (len > 0)
 			{
-				_bufferPool.Return(buffer);
+				_writer.Write(_smallBuffer, 0, len);
 			}
 		}
 

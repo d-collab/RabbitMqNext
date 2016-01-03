@@ -70,6 +70,7 @@
     <Compile Include="Internals\FrameProcessor.cs" />
     <Compile Include="Internals\MemoryStreamSlim.cs" />
     <Compile Include="Internals\ObjectPool.cs" />
+    <Compile Include="Internals\ReusableTempWriter.cs" />
     <Compile Include="Internals\Util.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
     <Compile Include="Internals\RingBufferStream.cs" />

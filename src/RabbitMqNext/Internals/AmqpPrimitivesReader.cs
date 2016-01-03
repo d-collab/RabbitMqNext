@@ -11,7 +11,8 @@ namespace RabbitMqNext.Internals
 	internal class AmqpPrimitivesReader
 	{
 		private readonly InternalBigEndianReader _reader;
-		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(1024 * 15, 50);
+		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(1024 * 15, 20);
+		private readonly byte[] _smallBuffer = new byte[300];
 
 		public AmqpPrimitivesReader(InternalBigEndianReader reader)
 		{
@@ -54,17 +55,9 @@ namespace RabbitMqNext.Internals
 			int byteCount = await _reader.ReadByte();
 			if (byteCount == 0) return string.Empty;
 
-			var buffer = _bufferPool.Rent(byteCount);
-			try
-			{
-				await _reader.FillBuffer(buffer, byteCount, reverse: false);
-				var str = Encoding.UTF8.GetString(buffer, 0, byteCount);
-				return str;
-			}
-			finally
-			{
-				_bufferPool.Return(buffer);
-			}
+			await _reader.FillBuffer(_smallBuffer, byteCount, reverse: false);
+			var str = Encoding.UTF8.GetString(_smallBuffer, 0, byteCount);
+			return str;
 		}
 
 		public async Task<string> ReadLongstr()
@@ -96,7 +89,7 @@ namespace RabbitMqNext.Internals
 			var endPosition = _reader.Position + arrayLength;
 			while (_reader.Position < endPosition)
 			{
-				object value = await ReadFieldValue();
+				var value = await ReadFieldValue();
 				array.Add(value);
 			}
 

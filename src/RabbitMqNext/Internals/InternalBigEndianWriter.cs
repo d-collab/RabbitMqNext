@@ -9,10 +9,10 @@ namespace RabbitMqNext.Internals
 		private readonly Stream _outStream;
 		private readonly Action<byte[], int, int> _writer;
 
-		private byte[] _oneByteArray = new byte[1];
-		private byte[] _twoByteArray = new byte[2];
-		private byte[] _fourByteArray = new byte[4];
-		private byte[] _eightByteArray = new byte[8];
+		private readonly byte[] _oneByteArray = new byte[1];
+		private readonly byte[] _twoByteArray = new byte[2];
+		private readonly byte[] _fourByteArray = new byte[4];
+		private readonly byte[] _eightByteArray = new byte[8];
 
 		public InternalBigEndianWriter(Action<byte[],int,int> writer)
 		{

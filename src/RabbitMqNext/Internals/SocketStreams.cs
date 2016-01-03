@@ -17,12 +17,7 @@ namespace RabbitMqNext.Internals
 		internal readonly InternalBigEndianWriter Writer;
 		internal readonly InternalBigEndianReader Reader;
 
-//		private const int BufferSize = 1024 * 128;
-//		private ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(BufferSize, 100);
-
-		private volatile int _socketIsClosed = 0;
-
-//		private AsyncManualResetEvent _asyncManualReset = new AsyncManualResetEvent(false);
+		private int _socketIsClosed = 0;
 
 		public SocketStreams(Socket socket, CancellationToken token, Action notifyWhenClosed)
 		{
@@ -37,73 +32,8 @@ namespace RabbitMqNext.Internals
 			Task.Factory.StartNew((_) => ReadLoop(null), token, TaskCreationOptions.LongRunning);
 			Task.Factory.StartNew((_) => WriteLoop(null), token, TaskCreationOptions.LongRunning);
 
-//			var tempBuffer = new byte[BufferSize];
 
 			Writer = new InternalBigEndianWriter(_outputRingBuffer);
-
-//			Writer = new InternalBigEndianWriter(  (buffer, off, count) =>
-//			{
-//				// async write to socket
-//				// await _socket.WriteAsync(buffer, off, count);
-//				// Console.WriteLine("About to write to socket (Len) " + count);
-//				
-//				if (_socketIsClosed == 1)
-//				{
-//					Console.WriteLine("Ignoring socket write since looks like it's closed. Connected? " + _socket.Connected);
-//					return;
-//				}
-//
-//				try
-//				{
-////					if (count <= 8)
-//					{
-//						_socket.WriteSync(buffer, off, count);
-//					}
-////					else
-////					{
-//						// var temp = _bufferPool.Rent(BufferSize);
-////						Buffer.BlockCopy(buffer, off, tempBuffer, 0, count);
-////
-////						_socket.WriteAsync(tempBuffer, off, count);
-////
-////						using (var ev = new SocketAsyncEventArgs())
-////						{
-////							ev.SetBuffer(tempBuffer, 0, count);
-////
-////							// ev.Completed += (sender, args) =>
-////							{
-////								// _asyncManualReset.Set2();
-//////								_bufferPool.Return(tempBuffer);
-////
-////								// Assert count == args.BytesTransferred
-////							};
-////
-////							if (!_socket.SendAsync(ev))
-////							{
-//////								_bufferPool.Return(tempBuffer);
-////								// await _asyncManualReset.WaitAsync(_token);
-////
-////								// Assert count == args.BytesTransferred
-////							}
-////						}
-////					}
-//
-//					// _socket.WriteSync(buffer, off, count);
-////					await _socket.WriteAsync(buffer, off, count);
-//				}
-//				catch (SocketException e)
-//				{
-//					_socketIsClosed = 1;
-//					_notifyWhenClosed();
-//					Console.WriteLine("[Error] 1 - " + e.Message);
-////					throw;
-//				}
-//				catch (Exception e)
-//				{
-//					Console.WriteLine("[Error] 2 - " + e.Message);
-//				}
-//
-//			});
 
 			Reader = new InternalBigEndianReader(_ringBufferStream);
 		}
@@ -120,7 +50,7 @@ namespace RabbitMqNext.Internals
 			}
 			catch (SocketException ex)
 			{
-				_socketIsClosed = 1;
+				Interlocked.Increment(ref _socketIsClosed);
 				_notifyWhenClosed();
 				Console.WriteLine("[Error] 5 - " + ex.Message);
 				// throw;
@@ -134,44 +64,15 @@ namespace RabbitMqNext.Internals
 
 		private async Task ReadLoop(object state)
 		{
-			var buffer = new byte[2048];
-
 			while (!_token.IsCancellationRequested && _socketIsClosed == 0)
 			{
-				int read = 0;
-
 				try
 				{
-//					using (var ev = new SocketAsyncEventArgs())
-//					{
-//						ev.SetBuffer(buffer, 0, buffer.Length);
-//						ev.Completed += (sender, args) =>
-//						{
-//							_ringBufferStream.Insert(args.Buffer, args.Offset, args.BytesTransferred);
-//							locker.Set();
-//						};
-//
-//						if (!_socket.ReceiveAsync(ev))
-//						{
-//							_ringBufferStream.Insert(ev.Buffer, ev.Offset, ev.BytesTransferred);
-//							continue;
-//						}
-//						else
-//						{
-//							// opStarted = true;
-//							locker.Wait(_token);
-//							continue;
-//						}
-//					}
-
-					// read = _socket.Receive(buffer, 0, buffer.Length, SocketFlags.None);
-//					read = await _socket.ReceiveTaskAsync(buffer, 0, buffer.Length);
-
 					await _ringBufferStream.ReceiveFromTask(_socket);
 				}
 				catch (SocketException ex)
 				{
-					_socketIsClosed = 1;
+					Interlocked.Increment(ref _socketIsClosed);
 					_notifyWhenClosed();
 					Console.WriteLine("[Error] 3 - " + ex.Message);
 //					throw;
@@ -181,12 +82,6 @@ namespace RabbitMqNext.Internals
 					Console.WriteLine("[Error] 4 - " + ex.Message);
 					// throw;
 				}
-				
-//				if (read != 0)
-				{
-					// this call may lock
-					// _ringBufferStream.Insert(buffer, 0, read);
-				}	
 			}
 		}
 
@@ -194,6 +89,5 @@ namespace RabbitMqNext.Internals
 		{
 			_ringBufferStream.Dispose();
 		}
-
 	}
 }
