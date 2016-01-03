@@ -181,16 +181,16 @@ namespace RabbitMqNext.Internals
 			};
 		}
 
-		private static void WriteBasicPropertiesAsHeader(AmqpPrimitivesWriter writer, ushort channel, ulong bodySize, BasicProperties properties)
+		private static void WriteBasicPropertiesAsHeader(AmqpPrimitivesWriter writer, 
+			ushort channel, ulong bodySize, BasicProperties properties)
 		{
 			writer.WriteOctet(AmqpConstants.FrameHeader);
 			writer.WriteUShort(channel);
 
 //			int payload = 4 + 8 + 2 + properties.ComputeSize();
-//
 //			writer.WriteLong((uint) payload);
-
-			// var w = writer;
+//
+//			var w = writer;
 
 			writer.WriteWithPayloadFirst(w =>
 			{

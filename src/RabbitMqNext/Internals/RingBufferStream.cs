@@ -2,6 +2,7 @@ namespace RabbitMqNext.Internals
 {
 	using System;
 	using System.IO;
+	using System.Net.Sockets;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -106,6 +107,50 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
+		public async Task<int> ReadIntoSocketTask(Socket socket, int count)
+		{
+			if (_readPosition == -1)
+			{
+				if (_writePosition != -1)
+					_readPosition = 0;
+				else
+					return 0; // nothing was written yet
+			}
+
+			int totalRead = 0;
+			int userBufferRemainLen = count;
+
+			while (totalRead < count && !_cancellationToken.IsCancellationRequested)
+			{
+				int unread = UnreadLength();
+				if (unread == 0)
+				{
+					await _writeEvent.WaitAsync(_cancellationToken); 
+					continue;
+				}
+
+				var readpos = ReadCursorPosNormalized();
+				int lenToRead = Math.Min(Math.Min(BufferSize - readpos, unread), userBufferRemainLen);
+
+				// Buffer.BlockCopy(_buffer, readpos, buffer, offset, lenToRead);
+				socket.Send(_buffer, readpos, lenToRead, SocketFlags.None);
+
+				_readPosition += lenToRead; // volative write
+
+				// if (_isWaiting > 0)
+				{
+					_bufferFreeEvent.Set();
+				}
+
+//				offset += lenToRead;
+				userBufferRemainLen -= lenToRead;
+
+				totalRead += lenToRead;
+			}
+
+			return totalRead;
+		}
+
 		public async Task<int> ReadTaskAsync(byte[] buffer, int offset, int count)
 		{
 			var read = this.Read(buffer, offset, count);
@@ -172,7 +217,7 @@ namespace RabbitMqNext.Internals
 
 		public override void Write(byte[] buffer, int offset, int count)
 		{
-			throw new NotSupportedException();
+			Insert(buffer, offset, count);
 		}
 
 		public override bool CanRead
