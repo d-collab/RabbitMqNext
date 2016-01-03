@@ -46,6 +46,7 @@
     <Compile Include="AmqpQueueInfo.cs" />
     <Compile Include="AmqpTimestamp.cs" />
     <Compile Include="ConnectionFactory.cs" />
+    <Compile Include="IAmqpChannel.cs" />
     <Compile Include="Internals\AmqpChannelLevelFrameWriter.cs" />
     <Compile Include="Internals\AmqpClassMethodConstants.cs" />
     <Compile Include="Internals\AmqpError.cs" />

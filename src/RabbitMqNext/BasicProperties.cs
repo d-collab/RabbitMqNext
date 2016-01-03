@@ -5,20 +5,20 @@ namespace RabbitMqNext
 	public class BasicProperties
 	{
 		// 0x01 is reserved for continuation flag. 
-		private const ushort ContentTypePresence = 2;
-		private const ushort ContentEncodingPresence = 4;
-		private const ushort HeadersPresence = 8;
-		private const ushort DeliveryModePresence = 16;
-		private const ushort PriorityPresence = 32;
-		private const ushort CorrelationIdPresence = 64;
-		private const ushort ReplyToPresence = 128;
-		private const ushort ExpirationPresence = 256;
-		private const ushort MessageIdPresence = 512;
-		private const ushort TimestampPresence = 1024;
-		private const ushort TypePresence = 2048;
-		private const ushort UserIdPresence = 4096;
-		private const ushort AppIdPresence = 8192;
-		private const ushort ClusterIdPresence = 16384;
+		private const ushort ContentTypePresence = 1 << 15;
+		private const ushort ContentEncodingPresence = 1 << 14;
+		private const ushort HeadersPresence = 1 << 13;
+		private const ushort DeliveryModePresence = 1 << 12;
+		private const ushort PriorityPresence = 1 << 11;
+		private const ushort CorrelationIdPresence = 1 << 10;
+		private const ushort ReplyToPresence = 1 << 9;
+		private const ushort ExpirationPresence = 1 << 8;
+		private const ushort MessageIdPresence = 1 << 7;
+		private const ushort TimestampPresence = 1 << 6;
+		private const ushort TypePresence = 1 << 5;
+		private const ushort UserIdPresence = 1 << 4;
+		private const ushort AppIdPresence = 1 << 3;
+		private const ushort ClusterIdPresence = 1 << 2;
 
 		internal ushort _presenceSWord = 0;
 

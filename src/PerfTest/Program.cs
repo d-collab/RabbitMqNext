@@ -1,6 +1,8 @@
 ﻿namespace PerfTest
 {
 	using System;
+	using System.Collections.Generic;
+	using System.Text;
 	using System.Threading.Tasks;
 	using RabbitMqNext;
 
@@ -37,15 +39,14 @@
 
 				await newChannel.QueueBind("queue1", "test_ex", "routing1", null, true);
 
-				var buffer = new byte[]
-				{
-					1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-				};
+				var buffer = Encoding.UTF8.GetBytes("Hello world");
 
 				await
 					newChannel.BasicPublish("test_ex", "routing1", false, false, new BasicProperties()
 					{
-						Type = "type1", DeliveryMode = 2, 
+						Type = "type1",
+						// DeliveryMode = 2,
+						Headers = new Dictionary<string, object> { { "serialization", 1 } }
 					}, new ArraySegment<byte>(buffer));
 
 			}

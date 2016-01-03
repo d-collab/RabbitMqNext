@@ -185,31 +185,33 @@ namespace RabbitMqNext.Internals
 		{
 			writer.WriteOctet(AmqpConstants.FrameHeader);
 			writer.WriteUShort(channel);
-			writer.WriteUShort((ushort)60);
-			writer.WriteUShort((ushort)0); // weight. not used
-			writer.WriteULong(bodySize);
 
-			// no support for continuation. must be less than 15 bits used
-			writer.WriteUShort(properties._presenceSWord);
+			writer.WriteWithPayloadFirst(w =>
+			{
+				w.WriteUShort((ushort)60);
+				w.WriteUShort((ushort)0); // weight. not used
+				w.WriteULong(bodySize);
 
-			if (properties.IsContentTypePresent) { writer.WriteShortstr(properties.ContentType); }
-			if (properties.IsContentEncodingPresent) { writer.WriteShortstr(properties.ContentEncoding); }
-			if (properties.IsHeadersPresent) { writer.WriteTable(properties.Headers); }
-			if (properties.IsDeliveryModePresent) { writer.WriteOctet(properties.DeliveryMode); }
-			if (properties.IsPriorityPresent) { writer.WriteOctet(properties.Priority); }
-			if (properties.IsCorrelationIdPresent) { writer.WriteShortstr(properties.CorrelationId); }
-			if (properties.IsReplyToPresent) { writer.WriteShortstr(properties.ReplyTo); }
-			if (properties.IsExpirationPresent) { writer.WriteShortstr(properties.Expiration); }
-			if (properties.IsMessageIdPresent) { writer.WriteShortstr(properties.MessageId); }
-			if (properties.IsTimestampPresent) { writer.WriteTimestamp(properties.Timestamp); }
-			if (properties.IsTypePresent) { writer.WriteShortstr(properties.Type); }
-			if (properties.IsUserIdPresent) { writer.WriteShortstr(properties.UserId); }
-			if (properties.IsAppIdPresent) { writer.WriteShortstr(properties.AppId); }
-			if (properties.IsClusterIdPresent) { writer.WriteShortstr(properties.ClusterId); }
+				// no support for continuation. must be less than 15 bits used
+				w.WriteUShort(properties._presenceSWord);
+
+				if (properties.IsContentTypePresent) { w.WriteShortstr(properties.ContentType); }
+				if (properties.IsContentEncodingPresent) { w.WriteShortstr(properties.ContentEncoding); }
+				if (properties.IsHeadersPresent) { w.WriteTable(properties.Headers); }
+				if (properties.IsDeliveryModePresent) { w.WriteOctet(properties.DeliveryMode); }
+				if (properties.IsPriorityPresent) { w.WriteOctet(properties.Priority); }
+				if (properties.IsCorrelationIdPresent) { w.WriteShortstr(properties.CorrelationId); }
+				if (properties.IsReplyToPresent) { w.WriteShortstr(properties.ReplyTo); }
+				if (properties.IsExpirationPresent) { w.WriteShortstr(properties.Expiration); }
+				if (properties.IsMessageIdPresent) { w.WriteShortstr(properties.MessageId); }
+				if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp); }
+				if (properties.IsTypePresent) { w.WriteShortstr(properties.Type); }
+				if (properties.IsUserIdPresent) { w.WriteShortstr(properties.UserId); }
+				if (properties.IsAppIdPresent) { w.WriteShortstr(properties.AppId); }
+				if (properties.IsClusterIdPresent) { w.WriteShortstr(properties.ClusterId); }
+			});
 
 			writer.WriteOctet(AmqpConstants.FrameEnd);
 		}
-
-		
 	}
 }
