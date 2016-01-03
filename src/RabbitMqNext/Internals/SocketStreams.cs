@@ -38,6 +38,11 @@ namespace RabbitMqNext.Internals
 			Reader = new InternalBigEndianReader(_ringBufferStream);
 		}
 
+		public bool StillSending
+		{
+			get { return _outputRingBuffer.Position < _outputRingBuffer.Length; }
+		}
+
 		private async Task WriteLoop(object state)
 		{
 			try

@@ -10,7 +10,7 @@ namespace RabbitMqNext.Internals
 	internal class RingBufferStream : Stream
 	{
 		private readonly CancellationToken _cancellationToken;
-		public const int BufferSize = 10240;
+		public const int BufferSize = 1048576; // 0x100000
 
 		private volatile int _totalLen = 0;
 		private volatile int _readPosition = -1;

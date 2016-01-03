@@ -87,10 +87,9 @@
 			{
 				Console.WriteLine("[Captured error 2] " + ex.Message);
 			}
-			finally
-			{
-				conn.Dispose();
-			}
+			
+
+			await conn.Close();
 		}
 
 		private static async Task StartOriginalClient()

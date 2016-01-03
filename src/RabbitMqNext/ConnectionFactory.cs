@@ -23,7 +23,7 @@
 			}
 			catch (Exception e)
 			{
-				conn.Dispose();
+				conn.Close();
 			}
 			
 			return conn;

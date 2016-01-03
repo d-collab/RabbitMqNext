@@ -16,7 +16,7 @@
 	// + support recover
 	// + support multiple hosts
 
-	public class Connection : IDisposable
+	public class Connection  // : IDisposable
 	{
 		private readonly CancellationTokenSource _cancellationTokenSrc;
 
@@ -47,8 +47,13 @@
 			await InternalHandshake(username, password, vhost);
 		}
 
-		public void Close()
+		public async Task Close()
 		{
+			while (_socketToStream.StillSending)
+			{
+				await Task.Delay(TimeSpan.FromSeconds(1));
+			}
+
 			// Todo: clean close
 
 			_cancellationTokenSrc.Cancel();
@@ -57,18 +62,18 @@
 			{
 				_socket.Close();
 			}
-		}
-
-		#region IDisposable
-		
-		public void Dispose()
-		{
-			this.Close();
 
 			_socket.Dispose();
 			_connectionState.Dispose();
 			_socketToStream.Dispose();
 		}
+
+		#region IDisposable
+		
+		// public void Dispose()
+//		{
+//			this.Close();
+//		}
 
 		#endregion
 
