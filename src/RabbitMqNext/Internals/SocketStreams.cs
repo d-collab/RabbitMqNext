@@ -110,18 +110,12 @@ namespace RabbitMqNext.Internals
 
 		private async Task WriteLoop(object state)
 		{
-//			var buffer = new byte[2048 * 120];
-
 			try
 			{
 				while (!_token.IsCancellationRequested && _socketIsClosed == 0)
 				{
 					// No intermediary buffer needed
-					var read = await _outputRingBuffer.ReadIntoSocketTask(_socket, 18000);
-					if (read > 0)
-					{
-// 						_socket.WriteSync(buffer, 0, read);
-					}
+					await _outputRingBuffer.ReadIntoSocketTask(_socket, 18000);
 				}
 			}
 			catch (SocketException ex)
@@ -171,7 +165,9 @@ namespace RabbitMqNext.Internals
 //					}
 
 					// read = _socket.Receive(buffer, 0, buffer.Length, SocketFlags.None);
-					read = await _socket.ReceiveTaskAsync(buffer, 0, buffer.Length);
+//					read = await _socket.ReceiveTaskAsync(buffer, 0, buffer.Length);
+
+					await _ringBufferStream.ReceiveFromTask(_socket);
 				}
 				catch (SocketException ex)
 				{
@@ -186,10 +182,10 @@ namespace RabbitMqNext.Internals
 					// throw;
 				}
 				
-				if (read != 0)
+//				if (read != 0)
 				{
 					// this call may lock
-					_ringBufferStream.Insert(buffer, 0, read);
+					// _ringBufferStream.Insert(buffer, 0, read);
 				}	
 			}
 		}

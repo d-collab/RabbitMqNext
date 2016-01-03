@@ -30,7 +30,7 @@
 			GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 			Console.WriteLine("New Latency mode: " + GCSettings.LatencyMode);
 
-			var t = StartOriginalClient(); // StartOriginalClient(); // Start();
+			var t = Start(); // StartOriginalClient(); // Start();
 		    t.Wait();
 
 			Console.WriteLine("All done");

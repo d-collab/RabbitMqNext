@@ -3,6 +3,7 @@ namespace RabbitMqNext.Internals
 	using System;
 	using System.IO;
 	using System.Net.Sockets;
+	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -36,11 +37,6 @@ namespace RabbitMqNext.Internals
 				_writePosition = 0;
 			}
 
-			// scenario 1: we have enough capacity
-			// scenario 2: we dont have enough capacity (as long as we dont wrap the buffer, it's fine)
-
-			// _spinWait.Reset();
-			
 			var totalCopied = 0;
 			var userBufferRemainLen = original;
 
@@ -107,14 +103,14 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task<int> ReadIntoSocketTask(Socket socket, int count)
+		public async Task ReadIntoSocketTask(Socket socket, int count)
 		{
 			if (_readPosition == -1)
 			{
 				if (_writePosition != -1)
 					_readPosition = 0;
 				else
-					return 0; // nothing was written yet
+					return ; // nothing was written yet
 			}
 
 			int totalRead = 0;
@@ -132,23 +128,65 @@ namespace RabbitMqNext.Internals
 				var readpos = ReadCursorPosNormalized();
 				int lenToRead = Math.Min(Math.Min(BufferSize - readpos, unread), userBufferRemainLen);
 
-				// Buffer.BlockCopy(_buffer, readpos, buffer, offset, lenToRead);
 				socket.Send(_buffer, readpos, lenToRead, SocketFlags.None);
 
 				_readPosition += lenToRead; // volative write
 
-				// if (_isWaiting > 0)
-				{
-					_bufferFreeEvent.Set();
-				}
+				_bufferFreeEvent.Set();
 
-//				offset += lenToRead;
 				userBufferRemainLen -= lenToRead;
 
 				totalRead += lenToRead;
 			}
 
-			return totalRead;
+			// return totalRead;
+		}
+
+		public async Task ReceiveFromTask(Socket socket)
+		{
+			if (_writePosition == -1)
+			{
+				_writePosition = 0;
+			}
+
+			while (!_cancellationToken.IsCancellationRequested)
+			{
+				// enough room?
+				if (BufferSize - UnreadLength() == 0)
+				{
+					_bufferFreeEvent.Wait(_cancellationToken);
+					continue;
+				}
+
+				var writePos = WriteCursorPosNormalized();
+
+				if (BufferSize - writePos == 0)
+				{
+					_bufferFreeEvent.Wait(_cancellationToken);
+					continue;
+				}
+
+				var sizeForCopy = Math.Min(BufferSize - writePos, BufferSize);
+
+				var readpos = ReadCursorPosNormalized();
+				if (writePos < readpos && writePos + sizeForCopy > readpos)
+				{
+					// wrap!
+					// Debug.Assert(false, "will wrap");
+					sizeForCopy = readpos - writePos;
+				}
+
+				// Buffer.BlockCopy(buffer, offset, _buffer, writePos, sizeForCopy);
+				var actualReceived = socket.Receive(_buffer, writePos, sizeForCopy, SocketFlags.None);
+
+				// volatile writes
+				_totalLen += actualReceived;
+				_writePosition += actualReceived;
+				// done with writes
+
+				// signal
+				_writeEvent.Set2();
+			}
 		}
 
 		public async Task<int> ReadTaskAsync(byte[] buffer, int offset, int count)
@@ -232,7 +270,7 @@ namespace RabbitMqNext.Internals
 
 		public override bool CanWrite
 		{
-			get { return false; }
+			get { return true; }
 		}
 
 		public override long Length
@@ -263,6 +301,7 @@ namespace RabbitMqNext.Internals
 
 		#endregion
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private int UnreadLength()
 		{
 			if (_readPosition == -1) return _totalLen;
@@ -270,24 +309,18 @@ namespace RabbitMqNext.Internals
 			return (_totalLen - _readPosition);
 		}
 
-//		private int ReadCursorPos()
-//		{
-//			return _readPosition;
-//		}
-
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private int ReadCursorPosNormalized()
 		{
 			return _readPosition % BufferSize;
 		}
 
-//		private int WriteCursorPos()
-//		{
-//			return _writePosition;
-//		}
-
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private int WriteCursorPosNormalized()
 		{
 			return _writePosition % BufferSize;
 		}
+
+		
 	}
 }
