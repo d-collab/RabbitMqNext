@@ -9,7 +9,7 @@ namespace RabbitMqNext.Internals
 	{
 		private readonly Socket _socket;
 		private readonly CancellationToken _token; // does not own it
-		private readonly RingBufferStream _ringBufferStream = new RingBufferStream();
+		private readonly RingBufferStream _ringBufferStream;
 		private readonly Action _notifyWhenClosed;
 
 		internal readonly InternalBigEndianWriter Writer;
@@ -22,6 +22,8 @@ namespace RabbitMqNext.Internals
 			_socket = socket;
 			_token = token;
 			_notifyWhenClosed = notifyWhenClosed;
+
+			_ringBufferStream = new RingBufferStream(token);
 
 			Task.Factory.StartNew(ReadLoop, token, TaskCreationOptions.LongRunning);
 
@@ -41,6 +43,7 @@ namespace RabbitMqNext.Internals
 				try
 				{
 					_socket.WriteSync(buffer, off, count);
+					// _socket.WriteAsync(buffer, off, count);
 				}
 				catch (SocketException e)
 				{
@@ -69,7 +72,8 @@ namespace RabbitMqNext.Internals
 
 				try
 				{
-					read = await _socket.ReceiveTaskAsync(buffer, 0, buffer.Length);
+					read = _socket.Receive(buffer, 0, buffer.Length, SocketFlags.None);
+					// read = await _socket.ReceiveTaskAsync(buffer, 0, buffer.Length);
 				}
 				catch (SocketException ex)
 				{

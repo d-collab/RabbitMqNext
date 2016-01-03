@@ -20,6 +20,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -67,6 +68,7 @@
     <Compile Include="Internals\InternalBigEndianReader.cs" />
     <Compile Include="Internals\InternalBigEndianWriter.cs" />
     <Compile Include="Internals\FrameProcessor.cs" />
+    <Compile Include="Internals\MemoryStreamSlim.cs" />
     <Compile Include="Internals\ObjectPool.cs" />
     <Compile Include="Internals\Util.cs" />
     <Compile Include="Properties\AsmInfo.cs" />

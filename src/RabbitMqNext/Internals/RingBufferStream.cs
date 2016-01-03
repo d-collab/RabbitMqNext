@@ -7,6 +7,7 @@ namespace RabbitMqNext.Internals
 
 	internal class RingBufferStream : Stream
 	{
+		private readonly CancellationToken _cancellationToken;
 		public const int BufferSize = 10240;
 
 		private volatile int _totalLen = 0;
@@ -17,8 +18,9 @@ namespace RabbitMqNext.Internals
 
 		private readonly byte[] _buffer;
 
-		public RingBufferStream()
+		public RingBufferStream(CancellationToken cancellationToken)
 		{
+			_cancellationToken = cancellationToken;
 			_buffer = new byte[BufferSize];
 		}
 
@@ -41,7 +43,7 @@ namespace RabbitMqNext.Internals
 			var totalCopied = 0;
 			var userBufferRemainLen = original;
 
-			while (true)
+			while (!_cancellationToken.IsCancellationRequested)
 			{
 //				var readPosAbs = ReadCursorPos();
 //				var writePosAbs = WriteCursorPos();
@@ -54,7 +56,7 @@ namespace RabbitMqNext.Internals
 					// Console.WriteLine("waiting");
 //					if (_spinWait.NextSpinWillYield)
 					{
-						_bufferFreeEvent.Wait();
+						_bufferFreeEvent.Wait(_cancellationToken);
 						continue;
 					}
 //					_spinWait.SpinOnce();
@@ -71,7 +73,7 @@ namespace RabbitMqNext.Internals
 					// Console.WriteLine("waiting2");
 //					if (_spinWait.NextSpinWillYield)
 					{
-						_bufferFreeEvent.Wait();
+						_bufferFreeEvent.Wait(_cancellationToken);
 						continue;
 					}
 //					_spinWait.SpinOnce();
@@ -108,9 +110,9 @@ namespace RabbitMqNext.Internals
 		{
 			var read = this.Read(buffer, offset, count);
 
-			while (read == 0)
+			while (read == 0 && !_cancellationToken.IsCancellationRequested)
 			{
-				await _writeEvent.WaitAsync();
+				await _writeEvent.WaitAsync(_cancellationToken);
 				read = this.Read(buffer, offset, count);
 			}
 

@@ -53,7 +53,10 @@
 
 			_cancellationTokenSrc.Cancel();
 
-			_socket.Close();
+			if (_socket.Connected)
+			{
+				_socket.Close();
+			}
 		}
 
 		#region IDisposable
@@ -98,7 +101,7 @@
 			_socketToStream = new SocketStreams(_socket, _cancellationTokenSrc.Token, OnSocketClosed);
 
 			_amqpReader = new AmqpPrimitivesReader(_socketToStream.Reader);
-			_amqpWriter = new AmqpPrimitivesWriter(_socketToStream.Writer);
+			_amqpWriter = new AmqpPrimitivesWriter(_socketToStream.Writer, bufferPool: null, memStreamPool: null);
 
 			_connectionState = new ConnectionStateMachine(_socketToStream.Reader, _amqpReader);
 		}
@@ -131,7 +134,7 @@
 					CommandToSend cmdToSend;
 					while (_connectionState._commandOutbox.TryDequeue(out cmdToSend))
 					{
-						Console.WriteLine(" writing command ");
+						// Console.WriteLine(" writing command ");
 
 						if (cmdToSend.ExpectsReply)
 						{
@@ -144,7 +147,7 @@
 						// if writing to socket is enough, set as complete
 						if (!cmdToSend.ExpectsReply)
 						{
-							cmdToSend.ReplyAction2(0, 0, null);
+							cmdToSend.ReplyAction3(0, 0, null);
 						}
 					}
 				}

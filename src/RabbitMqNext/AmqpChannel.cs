@@ -177,15 +177,9 @@
 
 			var tcs = new TaskCompletionSource<bool>();
 
-			var writer = 
-				AmqpChannelLevelFrameWriter.BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer);
+			var writer = AmqpChannelLevelFrameWriter.BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer);
 
-			_connection.SendCommand(_channelNum, 60, 40, writer,
-				reply: (channel, classMethodId, error) =>
-				{
-					tcs.SetResult(true);
-
-				}, expectsReply: false);
+			_connection.SendCommand(_channelNum, 60, 40, writer, reply: null, expectsReply: false, tcs: tcs);
 
 			return tcs.Task;
 		}

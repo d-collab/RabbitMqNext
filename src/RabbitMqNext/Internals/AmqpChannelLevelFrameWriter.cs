@@ -186,6 +186,12 @@ namespace RabbitMqNext.Internals
 			writer.WriteOctet(AmqpConstants.FrameHeader);
 			writer.WriteUShort(channel);
 
+//			int payload = 4 + 8 + 2 + properties.ComputeSize();
+//
+//			writer.WriteLong((uint) payload);
+
+			// var w = writer;
+
 			writer.WriteWithPayloadFirst(w =>
 			{
 				w.WriteUShort((ushort)60);

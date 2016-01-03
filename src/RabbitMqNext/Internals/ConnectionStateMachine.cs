@@ -69,12 +69,12 @@
 				if (sent.Channel == channel && sent.ClassId == classId && sent.MethodId == methodId)
 				{
 					// if we find the "offending" command, then it gets a better error message
-					sent.ReplyAction2(0, -1, amqpError); 
+					sent.ReplyAction3(0, -1, amqpError); 
 				}
 				else
 				{
 					// any other task dies with a generic error.
-					sent.ReplyAction2(0, -1, null);
+					sent.ReplyAction3(0, -1, null);
 				}
 			}
 		}
@@ -93,7 +93,7 @@
 
 			if (_awaitingReplyQueue.TryDequeue(out sent))
 			{
-				sent.ReplyAction2(channel, classMethodId, null);
+				sent.ReplyAction3(channel, classMethodId, null);
 			}
 			else
 			{
@@ -131,7 +131,8 @@
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
 								  Action<AmqpPrimitivesWriter, ushort, ushort, ushort> commandWriter,
-								  Action<ushort, int, AmqpError> reply, bool expectsReply)
+								  Action<ushort, int, AmqpError> reply, bool expectsReply, 
+								  TaskCompletionSource<bool> tcs = null)
 		{
 			ThrowIfErrorPending();
 
@@ -141,9 +142,10 @@
 				Channel = channel,
 				ClassId = classId, 
 				MethodId = methodId,
-				ReplyAction2 = reply,
+				ReplyAction = reply,
 				commandGenerator = commandWriter,
-				ExpectsReply = expectsReply
+				ExpectsReply = expectsReply,
+				Tcs = tcs
 			});
 			_commandsToSendEvent.Set();
 		}
@@ -192,16 +194,7 @@
 
 			var writer = AmqpConnectionFrameWriter.ConnectionTuneOk(channelMax, frameMax, heartbeat);
 
-			SendCommand(0, 10, 31, writer,
-				reply: (channel, classMethodId, _) =>
-				{
-					// there's no reply to this method, so we 
-					// dont really know if it worked or not until 
-					// we process the next incoming frame god knows when
-
-					tcs.SetResult(true);
-
-				}, expectsReply: false);
+			SendCommand(0, 10, 31, writer, reply: null, expectsReply: false, tcs: tcs);
 
 			return tcs.Task;
 		}

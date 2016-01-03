@@ -4,20 +4,60 @@ namespace RabbitMqNext.Internals
 	using System.Buffers;
 	using System.Collections;
 	using System.Collections.Generic;
-	using System.IO;
 	using System.Text;
+
+
+	internal class ReusableTempWriter : IDisposable
+	{
+		internal MemoryStreamSlim _memoryStream;
+		internal InternalBigEndianWriter _innerWriter;
+		internal AmqpPrimitivesWriter _writer2;
+
+		public ReusableTempWriter(ArrayPool<byte> bufferPool, ObjectPool<ReusableTempWriter> memStreamPool)
+		{
+			_memoryStream = new MemoryStreamSlim(bufferPool, AmqpPrimitivesWriter.BufferSize);
+
+			_innerWriter = new InternalBigEndianWriter((b, off, count) =>
+			{
+				_memoryStream.Write(b, off, count);
+			});
+
+			_writer2 = new AmqpPrimitivesWriter(_innerWriter, bufferPool, memStreamPool);
+		}
+
+		public void EnsureFrameMaxSizeSet(uint? frameMax)
+		{
+			_writer2.FrameMaxSize = frameMax;
+		}
+
+		public void Dispose()
+		{
+			_memoryStream.Dispose();
+		}
+	}
 
 	internal class AmqpPrimitivesWriter
 	{
+		internal const int BufferSize = 1024 * 128;
+
 		private readonly InternalBigEndianWriter _writer;
-		private const int BufferSize = 1024*128;
-		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(BufferSize, 20);
+		private readonly ArrayPool<byte> _bufferPool;
+		private readonly ObjectPool<ReusableTempWriter> _memStreamPool;
 
 		public uint? FrameMaxSize { get; set; }
 
-		public AmqpPrimitivesWriter(InternalBigEndianWriter writer)
+		public AmqpPrimitivesWriter(InternalBigEndianWriter writer, ArrayPool<byte> bufferPool,
+									ObjectPool<ReusableTempWriter> memStreamPool)
 		{
 			_writer = writer;
+
+			_bufferPool = bufferPool ?? new DefaultArrayPool<byte>(BufferSize, 50);
+			if (memStreamPool == null)
+			{
+				memStreamPool = new ObjectPool<ReusableTempWriter>(() => 
+					new ReusableTempWriter(_bufferPool, _memStreamPool), initialCapacity: 0);
+			}
+			_memStreamPool = memStreamPool;
 		}
 
 		public void WriteOctet(byte b)
@@ -42,34 +82,38 @@ namespace RabbitMqNext.Internals
 
 		public void WriteWithPayloadFirst(Action<AmqpPrimitivesWriter> writeFn)
 		{
-			var buffer = _bufferPool.Rent(BufferSize);
+			var memStream = _memStreamPool.GetObject();
+
 			try
 			{
 				// BAD APPROACH. needs review. too many allocations, 
 				// albeit small objects. the buffer is reused
-				var memStream = new MemoryStream(buffer, 0, buffer.Length, true);
-				var innerWriter = new InternalBigEndianWriter((b, off, count) =>
-				{
-					memStream.Write(b, off, count);
-				});
-				var writer2 = new AmqpPrimitivesWriter(innerWriter)
-				{
-					FrameMaxSize = this.FrameMaxSize
-				};
 
-				writeFn(writer2);
+				memStream.EnsureFrameMaxSizeSet(this.FrameMaxSize);
 
-				var payloadSize = (uint) memStream.Position;
+//				var innerWriter = new InternalBigEndianWriter((b, off, count) =>
+//				{
+//					memStream.Write(b, off, count);
+//				});
+//				var writer2 = new AmqpPrimitivesWriter(innerWriter, _bufferPool, _memStreamPool)
+//				{
+//					FrameMaxSize = this.FrameMaxSize
+//				};
 
-				Console.WriteLine("conclusion: payload size  " + payloadSize);
+				writeFn(memStream._writer2);
 
-				// _writer.Write((uint)payloadSize);
+				var payloadSize = (uint) memStream._memoryStream.Position;
+
+				// Console.WriteLine("conclusion: payload size  " + payloadSize);
+
 				this.WriteLong(payloadSize);
-				_writer.Write(buffer, 0, (int)payloadSize);
+				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize);
 			}
 			finally
 			{
-				_bufferPool.Return(buffer);
+				// _bufferPool.Return(buffer);
+				// _memStream.Position = initialoffset;
+				_memStreamPool.PutObject(memStream);
 			}
 		}
 

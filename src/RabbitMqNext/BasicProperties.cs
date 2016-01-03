@@ -1,6 +1,8 @@
 namespace RabbitMqNext
 {
+	using System;
 	using System.Collections.Generic;
+	using System.Text;
 
 	public class BasicProperties
 	{
@@ -260,5 +262,23 @@ namespace RabbitMqNext
 				_headers = value;
 			}
 		}
+
+//		internal int ComputeSize()
+//		{
+//			return ((_deliveryMode != 0) ? 1 : 0) +
+//			       ((_priority != 0) ? 1 : 0) +
+//			       ((IsTimestampPresent) ? 8 : 0) +
+//			       (String.IsNullOrEmpty(_contentType) ? 0 : 1 + Encoding.UTF8.GetByteCount(_contentType)) +
+//			       (String.IsNullOrEmpty(_contentEncoding) ? 0 : 1 + Encoding.UTF8.GetByteCount(_contentEncoding)) +
+//			       (String.IsNullOrEmpty(_correlationId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_correlationId)) +
+//			       (String.IsNullOrEmpty(_replyTo) ? 0 : 1 + Encoding.UTF8.GetByteCount(_replyTo)) +
+//			       (String.IsNullOrEmpty(_type) ? 0 : 1 + Encoding.UTF8.GetByteCount(_type)) +
+//			       (String.IsNullOrEmpty(_messageId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_messageId)) +
+//			       (String.IsNullOrEmpty(_expiration) ? 0 : 1 + Encoding.UTF8.GetByteCount(_expiration)) +
+//			       (String.IsNullOrEmpty(_userId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_userId)) +
+//				   (String.IsNullOrEmpty(_appId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_appId)) +
+//				   (String.IsNullOrEmpty(_clusterId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_clusterId)) +
+//			       0; // Header!!;
+//		}
 	}
 }

@@ -30,6 +30,10 @@
 
 		public void PutObject(T item)
 		{
+			var disposable = item as IDisposable;
+			if (disposable != null)
+				disposable.Dispose();
+
 			_objects.Add(item);
 		}
 	}

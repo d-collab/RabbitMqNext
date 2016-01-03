@@ -1,0 +1,102 @@
+namespace RabbitMqNext.Internals
+{
+	using System;
+	using System.Buffers;
+	using System.IO;
+
+	internal class MemoryStreamSlim : Stream
+	{
+		private readonly ArrayPool<byte> _pool;
+		private readonly int _arraySize;
+		private byte[] _buffer;
+		private int _position;
+
+		public MemoryStreamSlim(ArrayPool<byte> pool, int arrayMinSize)
+		{
+			_pool = pool;
+			_arraySize = arrayMinSize;
+		}
+
+		public byte[] InternalBuffer { get { return _buffer; } }
+
+		protected override void Dispose(bool disposing)
+		{
+			_position = 0;
+			if (_buffer != null)
+			{
+				_pool.Return(_buffer);
+				_buffer = null;
+			}
+		}
+
+		public override long Seek(long offset, SeekOrigin origin)
+		{
+			throw new NotSupportedException();
+		}
+
+		public override void SetLength(long value)
+		{
+			throw new NotSupportedException();
+		}
+
+		public override int Read(byte[] buffer, int offset, int count)
+		{
+			return 0;
+		}
+
+		public override void Write(byte[] buffer, int offset, int count)
+		{
+			if (_buffer == null)
+			{
+				_buffer = _pool.Rent(_arraySize);
+			}
+			if (count <= 8)
+			{
+				int byteCount = count;
+				while (--byteCount >= 0)
+					_buffer[_position + byteCount] = buffer[offset + byteCount];
+			}
+			else
+			{
+				Buffer.BlockCopy(buffer, offset, _buffer, _position, count);	
+			}
+			_position += count;
+		}
+
+		public override bool CanRead
+		{
+			get { return false; }
+		}
+
+		public override bool CanSeek
+		{
+			get { return false; }
+		}
+
+		public override bool CanWrite
+		{
+			get { return true; }
+		}
+
+		public override long Length
+		{
+			get { return _arraySize; }
+		}
+
+		public override void Flush()
+		{
+		}
+
+		public override long Position
+		{
+			get
+			{
+				return _position;
+			}
+			set
+			{
+				
+			}
+		}
+	}
+}
