@@ -79,6 +79,9 @@ namespace RabbitMqNext.Internals
 
 			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, (w) =>
 			{
+				w.WriteUShort(classId);
+				w.WriteUShort(methodId);
+
 				w.WriteUShort(closeArgs.replyCode);
 				w.WriteShortstr(closeArgs.replyText);
 				w.WriteUShort(classId);

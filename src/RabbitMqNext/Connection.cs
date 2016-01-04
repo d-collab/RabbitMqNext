@@ -50,23 +50,14 @@
 
 		public async Task Close()
 		{
+			await _connectionState.DoCloseConnection(true);
+
 			while (_socketToStream.StillSending)
 			{
 				await Task.Delay(TimeSpan.FromSeconds(1));
 			}
 
-			// Todo: clean close
-
-			_cancellationTokenSrc.Cancel();
-
-			if (_socket.Connected)
-			{
-				_socket.Close();
-			}
-
-			_socket.Dispose();
-			_connectionState.Dispose();
-			_socketToStream.Dispose();
+			Dispose();
 		}
 
 		public async Task<IAmqpChannel> CreateChannel()
@@ -199,6 +190,20 @@
 		private async Task ReadFrame()
 		{
 			await _connectionState._frameReader.ReadAndDispatch();
+		}
+
+		internal void Dispose()
+		{
+			_cancellationTokenSrc.Cancel();
+
+			if (_socket.Connected)
+			{
+				_socket.Close();
+			}
+
+			_socket.Dispose();
+			_connectionState.Dispose();
+			_socketToStream.Dispose();
 		}
 	}
 }

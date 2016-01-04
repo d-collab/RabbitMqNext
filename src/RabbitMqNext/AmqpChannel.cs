@@ -180,6 +180,8 @@
 		{
 			if (sendClose)
 				await __SendChannelClose(AmqpConstants.ReplySuccess, "bye");
+			else
+				await __SendChannelCloseOk();
 
 			_connection.ChannelClosed(this);
 		}
@@ -216,7 +218,7 @@
 			await InternalClose(false);
 		}
 
-		internal Task __SendChannelClose(ushort replyCode, string message)
+		private Task __SendChannelClose(ushort replyCode, string message)
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -246,7 +248,7 @@
 			return tcs.Task;
 		}
 
-		internal Task __SendChannelCloseOk()
+		private Task __SendChannelCloseOk()
 		{
 			var tcs = new TaskCompletionSource<bool>();
 

@@ -77,11 +77,10 @@
 			}
 		}
 
-		public override Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
+		public override async Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
 		{
 			var error = new AmqpError() {ClassId = classId, MethodId = methodId, ReplyCode = replyCode, ReplyText = replyText};
-			DrainMethodsWithErrorAndClose(error, channel, classId, methodId);
-			return Task.CompletedTask;
+			await DrainMethodsWithErrorAndClose(error, channel, classId, methodId);
 		}
 
 		public override async Task DispatchChannelCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
@@ -175,7 +174,7 @@
 			await __SendConnectionCloseOk();
 		}
 
-		internal Task __SendGreeting()
+		private Task __SendGreeting()
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -204,7 +203,7 @@
 			return tcs.Task;
 		}
 
-		internal Task __SendConnectionTuneOk(ushort channelMax, uint frameMax, ushort heartbeat)
+		private Task __SendConnectionTuneOk(ushort channelMax, uint frameMax, ushort heartbeat)
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -215,7 +214,7 @@
 			return tcs.Task;
 		}
 
-		internal Task<string> __SendConnectionOpen(string vhost)
+		private Task<string> __SendConnectionOpen(string vhost)
 		{
 			var tcs = new TaskCompletionSource<string>();
 			var writer = AmqpConnectionFrameWriter.ConnectionOpen(vhost, string.Empty, false);
@@ -240,7 +239,7 @@
 			return tcs.Task;
 		}
 
-		internal Task __SendConnectionStartOk(string username, string password)
+		private Task __SendConnectionStartOk(string username, string password)
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -273,7 +272,7 @@
 			return tcs.Task;
 		}
 
-		internal Task __SendConnectionClose(ushort replyCode, string message)
+		private Task __SendConnectionClose(ushort replyCode, string message)
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -303,13 +302,21 @@
 			return tcs.Task;
 		}
 
-		internal Task __SendConnectionCloseOk()
+		private Task __SendConnectionCloseOk()
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
 			SendCommand(0, 10, 51, AmqpConnectionFrameWriter.ConnectionCloseOk, reply: null, expectsReply: false, tcs: tcs);
 
 			return tcs.Task;
+		}
+
+		internal async Task DoCloseConnection(bool sendClose)
+		{
+			if (sendClose)
+				await __SendConnectionClose(AmqpConstants.ReplySuccess, "bye");
+			 
+				
 		}
 
 		internal void ChannelClosed(AmqpChannel amqpChannel)
