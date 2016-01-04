@@ -11,8 +11,8 @@
 
 	public class Program
 	{
-		const int TotalPublish = 250000;
-//		const int TotalPublish = 5;
+//		const int TotalPublish = 250000;
+		const int TotalPublish = 50;
 		// const int TotalPublish = 100000;
 
 		private static byte[] MessageContent =
@@ -49,9 +49,7 @@
 				Console.WriteLine("[Connected]");
 
 				var newChannel = await conn.CreateChannel();
-
 				Console.WriteLine("[channel created] " + newChannel.ChannelNumber);
-
 				await newChannel.BasicQos(0, 150, false);
 
 				await newChannel.ExchangeDeclare("test_ex", "direct", true, false, null, true);
@@ -69,19 +67,44 @@
 					Headers = new Dictionary<string, object> {{"serialization", 0}}
 				};
 
-//				var watch = Stopwatch.StartNew();
-//				for (int i = 0; i < TotalPublish; i++)
-//				{
-//					prop.Headers["serialization"] = i;
-//
-//					// var buffer = Encoding.UTF8.GetBytes("Hello world");
-//					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
-//				}
-//				watch.Stop();
-//
-//				Console.WriteLine("BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
+				var watch = Stopwatch.StartNew();
+				for (int i = 0; i < TotalPublish; i++)
+				{
+					prop.Headers["serialization"] = i;
+
+					// var buffer = Encoding.UTF8.GetBytes("Hello world");
+					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
+				}
+				watch.Stop();
+
+				Console.WriteLine("BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
+
+
+
+
+				var newChannel2 = await conn.CreateChannel();
+				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
+				await newChannel2.BasicQos(0, 150, false);
+
+
+				var temp = new byte[1000000];
+
+				var sub = await newChannel2.BasicConsume((properties, stream, len) =>
+				{
+					stream.Read(temp, 0, len);
+
+					var str = Encoding.UTF8.GetString(temp, 0, len);
+					Console.WriteLine("Received : " + str);
+
+				}, "queue1", "tag1", true, false, null, true);
+
+				Console.WriteLine("[subscribed to queue] " + sub);
+
+
+				Thread.CurrentThread.Join(TimeSpan.FromMinutes(1));
 
 				await newChannel.Close();
+				await newChannel2.Close();
 			}
 			catch (AggregateException ex)
 			{

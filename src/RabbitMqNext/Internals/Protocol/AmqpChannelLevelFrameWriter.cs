@@ -94,6 +94,27 @@ namespace RabbitMqNext.Internals
 			AmqpConnectionFrameWriter.WriteEmptyMethodFrame(writer, channel, classId, methodId);
 		}
 
+		public static WriterDelegate BasicConsume(string queue, string consumerTag, 
+			bool withoutAcks, bool exclusive, IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("BasicConsume");
+
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteUShort(0);
+					w.WriteShortstr(queue);
+					w.WriteShortstr(consumerTag);
+					w.WriteBits(false, withoutAcks, exclusive, !waitConfirmation);
+					w.WriteTable(arguments);
+				});
+			};
+		}
+
 		public static WriterDelegate BasicQos(uint prefetchSize, ushort prefetchCount, bool global)
 		{
 			const int payloadSize = 11;
@@ -190,7 +211,7 @@ namespace RabbitMqNext.Internals
 				WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
 
 				// what's the max frame size we can write?
-				if (!writer.FrameMaxSize.HasValue) 
+				if (!writer.FrameMaxSize.HasValue)
 					throw new Exception("wtf? no frame max set!");
 				
 				var maxSubFrameSize =

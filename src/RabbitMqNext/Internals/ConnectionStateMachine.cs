@@ -105,7 +105,7 @@
 			return Task.CompletedTask;
 		}
 
-		private Task InternalDispatchMethodToChannel(ushort channel, int classMethodId)
+		private async Task InternalDispatchMethodToChannel(ushort channel, int classMethodId)
 		{
 			if (channel > MaxChannels)
 			{
@@ -118,16 +118,18 @@
 				throw new Exception("Channel not initialized " + channel);
 
 			CommandToSend cmdAwaiting;
-			if (channelInst._awaitingReplyQueue.TryDequeue(out cmdAwaiting))
+			if (classMethodId == AmqpClassMethodChannelLevelConstants.BasicDeliver)
+			{
+				await channelInst.DispatchMethod(channel, classMethodId);
+			}
+			else if (channelInst._awaitingReplyQueue.TryDequeue(out cmdAwaiting))
 			{
 				cmdAwaiting.ReplyAction3(channel, classMethodId, null);
 			}
 			else
 			{
-				// channelInst.
+				await channelInst.DispatchMethod(channel, classMethodId);
 			}
-
-			return Task.CompletedTask;
 		}
 
 		public void Dispose()

@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Collections.Generic;
+	using System.IO;
 	using System.Threading.Tasks;
 
 	public interface IAmqpChannel
@@ -43,6 +44,10 @@
 		Task QueueBind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments, bool waitConfirmation);
 
 		Task BasicAck(ulong deliveryTag, bool multiple);
+
+		Task<string> BasicConsume(Action<BasicProperties, Stream, int> consumer, 
+			string queue, string consumerTag, 
+			bool withoutAcks, bool exclusive, IDictionary<string, object> arguments, bool waitConfirmation);
 
 		/// <summary>
 		/// 

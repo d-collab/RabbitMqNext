@@ -123,6 +123,7 @@
 
 			await _connectionState.Start(username, password, vhost);
 			_amqpWriter.FrameMaxSize = _connectionState._frameMax;
+			_amqpReader.FrameMaxSize = _connectionState._frameMax;
 		}
 
 		private void WriteCommandsToSocket()

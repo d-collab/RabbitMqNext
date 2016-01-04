@@ -14,6 +14,8 @@ namespace RabbitMqNext.Internals
 		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(1024 * 15, 20);
 		private readonly byte[] _smallBuffer = new byte[300];
 
+		public uint? FrameMaxSize { get; set; }
+
 		public AmqpPrimitivesReader(InternalBigEndianReader reader)
 		{
 			_reader = reader;
@@ -154,6 +156,22 @@ namespace RabbitMqNext.Internals
 		public async Task<uint> ReadLong()
 		{
 			return await _reader.ReadUInt32();
+		}
+
+		public async Task<ulong> ReadULong()
+		{
+			return await _reader.ReadUInt64();
+		}
+
+		public async Task<byte> ReadBits()
+		{
+			return await _reader.ReadByte();
+		}
+
+		public async Task<AmqpTimestamp> ReadTimestamp()
+		{
+			var l = await _reader.ReadInt64();
+			return new AmqpTimestamp(l);
 		}
 	}
 }

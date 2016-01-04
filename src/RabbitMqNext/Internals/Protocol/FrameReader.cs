@@ -36,7 +36,7 @@ namespace RabbitMqNext.Internals
 				ushort channel = await _reader.ReadUInt16();
 				int payloadLength = await _reader.ReadInt32();
 
-				Console.WriteLine("> Incoming Frame for channel " + channel + " payload " + payloadLength);
+				Console.WriteLine("> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
 
 				// needs special case for heartbeat, flow, etc.. 
 				// since they are not replies to methods we sent and alter the client's behavior

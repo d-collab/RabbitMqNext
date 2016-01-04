@@ -3,6 +3,7 @@
 	using System;
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
+	using System.IO;
 	using System.Threading.Tasks;
 	using Internals;
 
@@ -10,6 +11,7 @@
 	{
 		private readonly ushort _channelNum;
 		private readonly ConnectionStateMachine _connection;
+		private readonly ConcurrentDictionary<string, Action<BasicProperties, Stream, int>> _consumerSubscriptions;
 		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 
 		private volatile int _closed = 0;
@@ -19,6 +21,7 @@
 			_channelNum = channelNum;
 			_connection = connection;
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
+			_consumerSubscriptions = new ConcurrentDictionary<string, Action<BasicProperties, Stream, int>>(StringComparer.Ordinal);
 		}
 
 		public int ChannelNumber { get { return _channelNum; } }
@@ -169,6 +172,39 @@
 			return tcs.Task;
 		}
 
+		public Task<string> BasicConsume(Action<BasicProperties, Stream, int> consumer,
+			string queue, string consumerTag, bool withoutAcks, bool exclusive, 
+			IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			var tcs = new TaskCompletionSource<string>();
+
+			_consumerSubscriptions[consumerTag] = consumer;
+
+			var writer = AmqpChannelLevelFrameWriter.BasicConsume(queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
+
+			_connection.SendCommand(_channelNum, 60, 20, writer, 
+				reply: async (channel, classMethodId, error) =>
+				{
+					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
+					{
+						await _connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
+						{
+							tcs.SetResult(consumerTag2);
+						});
+					}
+					else if (!waitConfirmation)
+					{
+						tcs.SetResult(consumerTag);
+					}
+					else
+					{
+						Util.SetException(tcs, error, classMethodId);
+					}
+				}, expectsReply: waitConfirmation);
+
+			return tcs.Task;
+		}
+
 		public Task Close()
 		{
 			if (_closed == 0) return InternalClose(true);
@@ -255,6 +291,33 @@
 			_connection.SendCommand(_channelNum, 20, 41, AmqpChannelLevelFrameWriter.ChannelCloseOk, reply: null, expectsReply: false, tcs: tcs);
 
 			return tcs.Task;
+		}
+
+		internal async Task DispatchMethod(ushort channel, int classMethodId)
+		{
+			switch (classMethodId)
+			{
+				case AmqpClassMethodChannelLevelConstants.BasicDeliver:
+
+					await _connection._frameReader.Read_BasicDelivery((consumerTag, deliveryTag, redelivered, exchange, routingKey, bodySize, properties, stream) =>
+					{
+						Action<BasicProperties, Stream, int> consumer;
+						if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
+						{
+							consumer(properties, stream, (int)bodySize);
+						}
+						else
+						{
+							// TODO: needs to consume the stream by exactly bodySize
+							// stream.Read()
+						}
+					});
+					break;
+
+				default:
+					Console.WriteLine("Unexpected method at channel level " + classMethodId);
+					break;
+			}
 		}
 	}
 }

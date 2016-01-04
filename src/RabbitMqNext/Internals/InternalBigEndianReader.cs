@@ -5,7 +5,7 @@ namespace RabbitMqNext.Internals
 
 	internal class InternalBigEndianReader
 	{
-		private readonly RingBufferStream _ringBufferStream;
+		internal readonly RingBufferStream _ringBufferStream;
 
 		private readonly byte[] _oneByteArray = new byte[1];
 		private readonly byte[] _twoByteArray = new byte[2];
