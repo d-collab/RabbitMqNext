@@ -49,12 +49,13 @@
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="IAmqpChannel.cs" />
     <Compile Include="Internals\Protocol\AmqpChannelLevelFrameWriter.cs" />
-    <Compile Include="Internals\AmqpClassMethodConstants.cs" />
+    <Compile Include="Internals\AmqpClassMethodConnectionLevelConstants.cs" />
     <Compile Include="Internals\AmqpError.cs" />
     <Compile Include="Internals\Protocol\AmqpConnectionFrameWriter.cs" />
     <Compile Include="Internals\AmqpConstants.cs" />
     <Compile Include="Internals\CommandToSend.cs" />
     <Compile Include="Internals\ConnectionStateMachine.cs" />
+    <Compile Include="Internals\Protocol\FrameParameters.cs" />
     <Compile Include="Internals\Protocol\FrameReader.cs" />
     <Compile Include="BasicProperties.cs" />
     <Compile Include="Internals\AmqpPrimitivesReader.cs" />

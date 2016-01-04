@@ -36,5 +36,24 @@ namespace RabbitMqNext.Internals
 
 			continuation();
 		}
+
+		public async Task Read_Channel_Close2(Action<ushort, string, ushort, ushort> continuation)
+		{
+			var replyCode = await _amqpReader.ReadShort();
+			var replyText = await _amqpReader.ReadShortStr();
+			var classId = await _amqpReader.ReadShort();
+			var methodId = await _amqpReader.ReadShort();
+
+			Console.WriteLine("< channel close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
+
+			continuation(replyCode, replyText, classId, methodId);
+		}
+
+		public void Read_Channel_CloseOk(Action continuation)
+		{
+			Console.WriteLine("< channel close OK coz ");
+
+			continuation();
+		}
 	}
 }

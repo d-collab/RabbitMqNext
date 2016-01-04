@@ -36,12 +36,10 @@ namespace RabbitMqNext.Internals
 				ushort channel = await _reader.ReadUInt16();
 				int payloadLength = await _reader.ReadInt32();
 
-				Console.WriteLine("> Incoming Frame: channel " + channel + " payload " + payloadLength);
+				Console.WriteLine("> Incoming Frame for channel " + channel + " payload " + payloadLength);
 
-				
 				// needs special case for heartbeat, flow, etc.. 
 				// since they are not replies to methods we sent and alter the client's behavior
-
 
 				if (frameType == AmqpConstants.FrameMethod)
 				{
@@ -52,13 +50,18 @@ namespace RabbitMqNext.Internals
 
 					Console.WriteLine("> Incoming Method: class " + classId + " method " + methodId + " classMethodId " + classMethodId);
 
-					// needs special 
-
-					if (classMethodId == AmqpClassMethodConstants.ConnectionClose)
+					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionClose)
 					{
-						await Read_ConnectionClose((replyCode, replyText, oClassId, oMethodId) =>
+						await Read_ConnectionClose2((replyCode, replyText, oClassId, oMethodId) =>
 						{
 							_frameProcessor.DispatchCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
+						});
+					}
+					else if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelClose)
+					{
+						await Read_Channel_Close2((replyCode, replyText, oClassId, oMethodId) =>
+						{
+							_frameProcessor.DispatchChannelCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
 						});
 					}
 					else
@@ -68,15 +71,15 @@ namespace RabbitMqNext.Internals
 				}
 				else if (frameType == AmqpConstants.FrameHeader)
 				{
-
+					Console.WriteLine("received FrameHeader");
 				}
 				else if (frameType == AmqpConstants.FrameBody)
 				{
-
+					Console.WriteLine("received FrameBody");
 				}
 				else if (frameType == AmqpConstants.FrameHeartbeat)
 				{
-
+					Console.WriteLine("received FrameHeartbeat");
 				}
 
 				int frameEndMarker = await _reader.ReadByte();

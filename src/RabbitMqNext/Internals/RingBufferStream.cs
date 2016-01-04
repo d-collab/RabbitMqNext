@@ -130,7 +130,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task ReceiveFromTask(Socket socket)
+		public Task ReceiveFromTask(Socket socket)
 		{
 			if (_writePosition == -1)
 			{
@@ -177,6 +177,8 @@ namespace RabbitMqNext.Internals
 				// signal
 				_writeEvent.Set2();
 			}
+
+			return Task.CompletedTask;
 		}
 
 		public async Task<int> ReadTaskAsync(byte[] buffer, int offset, int count)

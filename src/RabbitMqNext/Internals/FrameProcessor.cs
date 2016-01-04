@@ -8,5 +8,7 @@ namespace RabbitMqNext.Internals
 		public abstract Task DispatchMethod(ushort channel, int classMethodId);
 
 		public abstract Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId);
+
+		public abstract Task DispatchChannelCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId);
 	}
 }

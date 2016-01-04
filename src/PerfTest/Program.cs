@@ -69,17 +69,19 @@
 					Headers = new Dictionary<string, object> {{"serialization", 0}}
 				};
 
-				var watch = Stopwatch.StartNew();
-				for (int i = 0; i < TotalPublish; i++)
-				{
-					prop.Headers["serialization"] = i;
+//				var watch = Stopwatch.StartNew();
+//				for (int i = 0; i < TotalPublish; i++)
+//				{
+//					prop.Headers["serialization"] = i;
+//
+//					// var buffer = Encoding.UTF8.GetBytes("Hello world");
+//					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
+//				}
+//				watch.Stop();
+//
+//				Console.WriteLine("BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
 
-					// var buffer = Encoding.UTF8.GetBytes("Hello world");
-					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
-				}
-				watch.Stop();
-
-				Console.WriteLine("BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
+				await newChannel.Close();
 			}
 			catch (AggregateException ex)
 			{

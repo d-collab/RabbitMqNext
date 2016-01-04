@@ -24,6 +24,21 @@
 
 		internal readonly FrameReader _frameReader;
 
+		// volative writes through other means
+		private AmqpError _lastError;
+
+		private IDictionary<string, object> _serverProperties;
+		private string _mechanisms;
+		private ushort _channelMax;
+		private ushort _heartbeat;
+		private string _knownHosts;
+		internal uint _frameMax;
+
+		internal const int MaxChannels = 10;
+		internal readonly AmqpChannel[] _channels = new AmqpChannel[MaxChannels + 1]; // 1-based index
+
+
+
 		public ConnectionStateMachine(InternalBigEndianReader reader, 
 									  AmqpPrimitivesReader amqpReader)
 		{
@@ -33,16 +48,6 @@
 
 			_frameReader = new FrameReader(reader, amqpReader, this);
 		}
-
-		private IDictionary<string, object> _serverProperties;
-		private string _mechanisms;
-		private ushort _channelMax;
-		internal uint _frameMax;
-		private ushort _heartbeat;
-		private string _knownHosts;
-
-		// volative writes through other means
-		private AmqpError _lastError;
 
 		public async Task Start(string username, string password, string vhost)
 		{
@@ -57,40 +62,38 @@
 			var err = new AmqpError() { ReplyText = "connection closed" };
 			Volatile.Write(ref _lastError, err);
 
-			DrainMethodsWithError(_lastError, 0, 0, 0);
-		}
-
-		private void DrainMethodsWithError(AmqpError amqpError, ushort channel, ushort classId, ushort methodId)
-		{
-			// releases every task awaiting
-			CommandToSend sent;
-			while (_awaitingReplyQueue.TryDequeue(out sent))
-			{
-				if (sent.Channel == channel && sent.ClassId == classId && sent.MethodId == methodId)
-				{
-					// if we find the "offending" command, then it gets a better error message
-					sent.ReplyAction3(0, -1, amqpError); 
-				}
-				else
-				{
-					// any other task dies with a generic error.
-					sent.ReplyAction3(0, -1, null);
-				}
-			}
-		}
-
-		public override Task DispatchCloseMethod(ushort channel, ushort replyCode, 
-												 string replyText, ushort classId, ushort methodId)
-		{
-			DrainMethodsWithError(new AmqpError() { }, channel, classId, methodId);
-
-			return null;
+			DrainMethodsWithErrorAndClose(_lastError, 0, 0, 0);
 		}
 
 		public override async Task DispatchMethod(ushort channel, int classMethodId)
 		{
-			CommandToSend sent;
+			if (channel != 0)
+			{
+				await InternalDispatchMethodToChannel(channel, classMethodId);
+			}
+			else
+			{
+				await InternalDispatchMethodToConnection(channel, classMethodId);
+			}
+		}
 
+		public override Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
+		{
+			var error = new AmqpError() {ClassId = classId, MethodId = methodId, ReplyCode = replyCode, ReplyText = replyText};
+			DrainMethodsWithErrorAndClose(error, channel, classId, methodId);
+			return Task.CompletedTask;
+		}
+
+		public override async Task DispatchChannelCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
+		{
+			var error = new AmqpError() { ClassId = classId, MethodId = methodId, ReplyCode = replyCode, ReplyText = replyText };
+			var channelInst = _channels[channel];
+			await channelInst.DrainMethodsWithErrorAndClose(error, classId, methodId);
+		}
+
+		private Task InternalDispatchMethodToConnection(ushort channel, int classMethodId)
+		{
+			CommandToSend sent;
 			if (_awaitingReplyQueue.TryDequeue(out sent))
 			{
 				sent.ReplyAction3(channel, classMethodId, null);
@@ -98,30 +101,34 @@
 			else
 			{
 				// nothing was really waiting for a reply
-
-				switch (classMethodId)
-				{
-					case AmqpClassMethodConstants.ConnectionClose:
-						// we save this, and fail the next operation.
-						// sad, but if you have used rabbitmq you're used to it by now
-
-						await _frameReader.Read_ConnectionClose((replyCode, replyText, classId, methodId) =>
-						{
-							var error = new AmqpError()
-							{
-								ReplyCode = replyCode,
-								ReplyText = replyText,
-								ClassId = classId,
-								MethodId = methodId
-							};
-							Volatile.Write(ref _lastError, error);
-						});
-
-						break;
-					default:
-						throw new Exception("DispatchMethod unexpected " + classMethodId);
-				}
 			}
+
+			return Task.CompletedTask;
+		}
+
+		private Task InternalDispatchMethodToChannel(ushort channel, int classMethodId)
+		{
+			if (channel > MaxChannels)
+			{
+				Console.WriteLine("wtf??? " + channel);
+				throw new Exception("Unexpecte channel number " + channel);
+			}
+
+			var channelInst = _channels[channel];
+			if (channelInst == null)
+				throw new Exception("Channel not initialized " + channel);
+
+			CommandToSend cmdAwaiting;
+			if (channelInst._awaitingReplyQueue.TryDequeue(out cmdAwaiting))
+			{
+				cmdAwaiting.ReplyAction3(channel, classMethodId, null);
+			}
+			else
+			{
+				// channelInst.
+			}
+
+			return Task.CompletedTask;
 		}
 
 		public void Dispose()
@@ -148,6 +155,7 @@
 				Tcs = tcs,
 				OptionalArg = optArg
 			});
+
 			_commandsToSendEvent.Set();
 		}
 
@@ -160,6 +168,13 @@
 			if (er != null) throw new Exception(er.ToErrorString());
 		}
 
+		private async Task DrainMethodsWithErrorAndClose(AmqpError amqpError, ushort channel, ushort classId, ushort methodId)
+		{
+			Util.DrainMethodsWithError(_awaitingReplyQueue, amqpError, classId, methodId);
+
+			await __SendConnectionCloseOk();
+		}
+
 		internal Task __SendGreeting()
 		{
 			var tcs = new TaskCompletionSource<bool>();
@@ -168,7 +183,7 @@
 				AmqpConnectionFrameWriter.Greeting(),
 				reply: async (channel, classMethodId, _) =>
 				{
-					if (classMethodId == AmqpClassMethodConstants.ConnectionStart)
+					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionStart)
 					{
 						await _frameReader.Read_ConnectionStart((versionMajor, versionMinor, serverProperties, mechanisms, locales) =>
 						{
@@ -208,7 +223,7 @@
 			SendCommand(0, 10, 40, writer,
 				reply: async (channel, classMethodId, error) =>
 				{
-					if (classMethodId == AmqpClassMethodConstants.ConnectionOpenOk)
+					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionOpenOk)
 					{
 						await _frameReader.Read_ConnectionOpenOk((knowHosts) =>
 						{
@@ -237,7 +252,7 @@
 			SendCommand(0, 10, 30, writer, 
 				reply: async (channel, classMethodId, error) =>
 				{
-					if (classMethodId == AmqpClassMethodConstants.ConnectionTune)
+					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionTune)
 					{
 						await _frameReader.Read_ConnectionTune((channelMax, frameMax, heartbeat) =>
 						{
@@ -256,6 +271,50 @@
 				}, expectsReply: true);
 
 			return tcs.Task;
+		}
+
+		internal Task __SendConnectionClose(ushort replyCode, string message)
+		{
+			var tcs = new TaskCompletionSource<bool>();
+
+			SendCommand(0, 10, 50, AmqpConnectionFrameWriter.ConnectionClose,
+				reply: (channel, classMethodId, error) =>
+				{
+					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionCloseOk)
+					{
+						_frameReader.Read_ConnectionCloseOk(() =>
+						{
+							tcs.SetResult(true);
+						});
+					}
+					else
+					{
+						Util.SetException(tcs, error, classMethodId);
+					}
+
+				}, 
+				expectsReply: true, 
+				optArg: new FrameParameters.CloseParams()
+				{
+					replyCode = replyCode,
+					replyText = message
+				});
+
+			return tcs.Task;
+		}
+
+		internal Task __SendConnectionCloseOk()
+		{
+			var tcs = new TaskCompletionSource<bool>();
+
+			SendCommand(0, 10, 51, AmqpConnectionFrameWriter.ConnectionCloseOk, reply: null, expectsReply: false, tcs: tcs);
+
+			return tcs.Task;
+		}
+
+		internal void ChannelClosed(AmqpChannel amqpChannel)
+		{
+			_channels[amqpChannel.ChannelNumber] = null;
 		}
 	}
 }

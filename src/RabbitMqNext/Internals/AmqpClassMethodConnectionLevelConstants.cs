@@ -1,6 +1,6 @@
 namespace RabbitMqNext.Internals
 {
-	public static class AmqpClassMethodConstants
+	public static class AmqpClassMethodConnectionLevelConstants
 	{
 		public const int ConnectionStart = 655370;
 
@@ -11,6 +11,8 @@ namespace RabbitMqNext.Internals
 		public const int ConnectionClose = 655410;
 
 		public const int ConnectionOpenOk = 655401;
+
+		public const int ConnectionCloseOk = (10 << 16) | 51;
 	}
 
 	public static class AmqpClassMethodChannelLevelConstants
@@ -18,6 +20,8 @@ namespace RabbitMqNext.Internals
 		public const int ChannelOpenOk = (20 << 16) | 11;
 
 		public const int ChannelFlowOk = (20 << 16) | 21;
+
+		public const int ChannelClose = (20 << 16) | 40;
 
 		public const int ChannelCloseOk = (20 << 16) | 41;
 

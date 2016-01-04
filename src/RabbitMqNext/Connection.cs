@@ -16,11 +16,11 @@
 	// + support recover
 	// + support multiple hosts
 
-	public class Connection  // : IDisposable
+	public class Connection
 	{
 		private readonly CancellationTokenSource _cancellationTokenSrc;
 
-		private Socket _socket;
+		private readonly Socket _socket;
 		
 		private SocketStreams _socketToStream;
 		private AmqpPrimitivesReader _amqpReader;
@@ -29,20 +29,21 @@
 		private ConnectionStateMachine _connectionState;
 
 		private int _channelNumbers;
+		
 
 		public Connection()
 		{
 			_cancellationTokenSrc = new CancellationTokenSource();
+
+			_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+			{
+				NoDelay = true
+			};
 		}
 
 		internal async Task Connect(string hostname, string vhost, 
 									string username, string password, int port = 5672)
 		{
-			_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
-			{
-				NoDelay = true
-			};
-
 			await InternalConnect(hostname, port);
 			await InternalHandshake(username, password, vhost);
 		}
@@ -68,21 +69,26 @@
 			_socketToStream.Dispose();
 		}
 
-		#region IDisposable
-		
-		// public void Dispose()
-//		{
-//			this.Close();
-//		}
-
-		#endregion
-
 		public async Task<IAmqpChannel> CreateChannel()
 		{
 			var channelNum = (ushort) Interlocked.Increment(ref _channelNumbers);
+			
+			if (channelNum > ConnectionStateMachine.MaxChannels) 
+				throw new Exception("Exceeded channel limits");
+
 			var channel = new AmqpChannel(channelNum, _connectionState);
-			await channel.Open();
-			return channel;
+
+			try
+			{
+				_connectionState._channels[channelNum] = channel;
+				await channel.Open();
+				return channel;
+			}
+			catch
+			{
+				_connectionState._channels[channelNum] = null;
+				throw;
+			}
 		}
 
 		private async Task InternalConnect(string hostname, int port)
@@ -143,7 +149,10 @@
 
 						if (cmdToSend.ExpectsReply)
 						{
-							_connectionState._awaitingReplyQueue.Enqueue(cmdToSend);
+							if (cmdToSend.Channel == 0)
+								_connectionState._awaitingReplyQueue.Enqueue(cmdToSend);
+							else
+								_connectionState._channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
 						}
 						
 						// writes to socket

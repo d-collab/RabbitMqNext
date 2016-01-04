@@ -8,6 +8,8 @@
 	{
 		int ChannelNumber { get; }
 
+		bool Closed { get; }
+
 		/// <summary>
 		/// This method requests a specific quality of service. The QoS can be specified for the
 		/// current channel or for all channels on the connection. The particular properties and
@@ -58,5 +60,7 @@
 		/// <returns></returns>
 		Task BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
 			BasicProperties properties, ArraySegment<byte> buffer);
+
+		Task Close();
 	}
 }

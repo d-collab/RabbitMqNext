@@ -73,6 +73,24 @@ namespace RabbitMqNext.Internals
 			return InternalBasicPublish;
 		}
 
+		public static void ChannelClose(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
+		{
+			var closeArgs = (FrameParameters.CloseParams) args;
+
+			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, (w) =>
+			{
+				w.WriteUShort(closeArgs.replyCode);
+				w.WriteShortstr(closeArgs.replyText);
+				w.WriteUShort(classId);
+				w.WriteUShort(methodId);
+			});
+		}
+
+		public static void ChannelCloseOk(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
+		{
+			AmqpConnectionFrameWriter.WriteEmptyMethodFrame(writer, channel, classId, methodId);
+		}
+
 		public static WriterDelegate BasicQos(uint prefetchSize, ushort prefetchCount, bool global)
 		{
 			const int payloadSize = 11;
@@ -146,19 +164,9 @@ namespace RabbitMqNext.Internals
 			});
 		}
 
-		internal class BasicPublishArgs
-		{
-			public string exchange; 
-			public string routingKey; 
-			public bool mandatory; 
-			public bool immediate; 
-			public BasicProperties properties;
-			public ArraySegment<byte> buffer;
-		}
-
 		internal static void InternalBasicPublish(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
 		{
-			var basicPub = args as BasicPublishArgs;
+			var basicPub = args as FrameParameters.BasicPublishArgs;
 
 			var buffer = basicPub.buffer;
 			var properties = basicPub.properties;

@@ -3,7 +3,7 @@
 	using System;
 	using System.Collections.Generic;
 	using System.Text;
-	using WriterDelegate = System.Action<AmqpPrimitivesWriter,ushort, ushort, ushort, object>;
+	using WriterDelegate = System.Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object>;
 
 	static class AmqpConnectionFrameWriter
 	{
@@ -88,12 +88,28 @@
 			};
 		}
 
-//		public static WriterDelegate ConnectionCloseOk()
-//		{
-//			return (writer, channel, classId, methodId, args) =>
-//			{
-//
-//			};
-//		}
+		public static void ConnectionClose(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
+		{
+			var closeArgs = (FrameParameters.CloseParams)args;
+
+			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, (w) =>
+			{
+				w.WriteUShort(closeArgs.replyCode);
+				w.WriteShortstr(closeArgs.replyText);
+				w.WriteUShort(classId);
+				w.WriteUShort(methodId);
+			});
+		}
+
+		public static void ConnectionCloseOk(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
+		{
+			WriteEmptyMethodFrame(writer, channel, classId, methodId);
+		}
+
+		public static void WriteEmptyMethodFrame(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId)
+		{
+			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, 0);
+			writer.WriteOctet(AmqpConstants.FrameEnd);
+		}
 	}
 }
