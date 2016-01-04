@@ -12,14 +12,16 @@
 	public class Program
 	{
 		const int TotalPublish = 250000;
+//		const int TotalPublish = 5;
+		// const int TotalPublish = 100000;
 
 		private static byte[] MessageContent =
 			Encoding.UTF8.GetBytes(
 				"The Completed event provides a way for client applications to " +
 				"complete an asynchronous socket operation. An event handler should " +
 				"be attached to the event within a SocketAsyncEventArgs instance when " +
-				"an asynchronous socket operation is initiated, otherwise the application" +
-				" will not be able to determine when the operation completes.");
+				"an asynchronous socket operation is initiated, otherwise the application " +
+				"will not be able to determine when the operation completes.");
 
 	    public static void Main()
 	    {
@@ -87,7 +89,6 @@
 			{
 				Console.WriteLine("[Captured error 2] " + ex.Message);
 			}
-			
 
 			await conn.Close();
 		}
@@ -119,7 +120,7 @@
 			var watch = Stopwatch.StartNew();
 			for (int i = 0; i < TotalPublish; i++)
 			{
-				prop.Headers["serialization"] = i;
+//				prop.Headers["serialization"] = i;
 				channel.BasicPublish("test_ex", "routing2", false, prop, MessageContent);
 			}
 			watch.Stop();

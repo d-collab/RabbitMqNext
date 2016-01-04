@@ -16,6 +16,8 @@ namespace RabbitMqNext.Internals
 		private volatile int _readPosition = -1;
 		private volatile int _writePosition = -1;
 		private readonly ManualResetEventSlim _bufferFreeEvent = new ManualResetEventSlim(false);
+		// private readonly AsyncManualResetEvent _bufferFreeEvent = new AsyncManualResetEvent();
+		// private readonly ManualResetEventSlim _writeEvent = new ManualResetEventSlim(false);
 		private readonly AsyncManualResetEvent _writeEvent = new AsyncManualResetEvent();
 
 		private readonly byte[] _buffer;
@@ -42,22 +44,15 @@ namespace RabbitMqNext.Internals
 
 			while (!_cancellationToken.IsCancellationRequested)
 			{
-//				var readPosAbs = ReadCursorPos();
-//				var writePosAbs = WriteCursorPos();
-//				var isSane = writePosAbs >= readPosAbs + this.UnreadLength();
-//				Debug.Assert(isSane, "not sane");
-
 				// enough room?
 				if (BufferSize - UnreadLength() == 0) 
 				{
 					// Console.WriteLine("waiting");
-//					if (_spinWait.NextSpinWillYield)
 					{
 						_bufferFreeEvent.Wait(_cancellationToken);
+						// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 						continue;
 					}
-//					_spinWait.SpinOnce();
-//					continue;
 				}
 
 				var writePos = WriteCursorPosNormalized();
@@ -68,13 +63,11 @@ namespace RabbitMqNext.Internals
 				if (BufferSize - writePos == 0)
 				{
 					// Console.WriteLine("waiting2");
-//					if (_spinWait.NextSpinWillYield)
 					{
 						_bufferFreeEvent.Wait(_cancellationToken);
+						// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 						continue;
 					}
-//					_spinWait.SpinOnce();
-//					continue;
 				}
 
 				var readpos = ReadCursorPosNormalized();
@@ -95,6 +88,7 @@ namespace RabbitMqNext.Internals
 
 				// signal
 				_writeEvent.Set2();
+				// _writeEvent.Set();
 
 				if (totalCopied == original) break; // all copied?
 
@@ -103,7 +97,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task ReadIntoSocketTask(Socket socket, int count)
+		public async Task ReadIntoSocketTask(Socket socket)
 		{
 			if (_readPosition == -1)
 			{
@@ -113,33 +107,27 @@ namespace RabbitMqNext.Internals
 					return ; // nothing was written yet
 			}
 
-			int totalRead = 0;
-			int userBufferRemainLen = count;
-
-			while (totalRead < count && !_cancellationToken.IsCancellationRequested)
+			while (!_cancellationToken.IsCancellationRequested)
 			{
 				int unread = UnreadLength();
 				if (unread == 0)
 				{
 					await _writeEvent.WaitAsync(_cancellationToken); 
+					// _writeEvent.Wait(_cancellationToken);
 					continue;
 				}
 
 				var readpos = ReadCursorPosNormalized();
-				int lenToRead = Math.Min(Math.Min(BufferSize - readpos, unread), userBufferRemainLen);
+				int lenToRead = Math.Min(BufferSize - readpos, unread);
 
 				socket.Send(_buffer, readpos, lenToRead, SocketFlags.None);
+
+//				 Console.WriteLine("------ > Sent count " + lenToRead);
 
 				_readPosition += lenToRead; // volative write
 
 				_bufferFreeEvent.Set();
-
-				userBufferRemainLen -= lenToRead;
-
-				totalRead += lenToRead;
 			}
-
-			// return totalRead;
 		}
 
 		public async Task ReceiveFromTask(Socket socket)
@@ -155,6 +143,7 @@ namespace RabbitMqNext.Internals
 				if (BufferSize - UnreadLength() == 0)
 				{
 					_bufferFreeEvent.Wait(_cancellationToken);
+					// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 					continue;
 				}
 
@@ -162,7 +151,8 @@ namespace RabbitMqNext.Internals
 
 				if (BufferSize - writePos == 0)
 				{
-					_bufferFreeEvent.Wait(_cancellationToken);
+					// _bufferFreeEvent.Wait(_cancellationToken);
+
 					continue;
 				}
 
@@ -176,7 +166,7 @@ namespace RabbitMqNext.Internals
 					sizeForCopy = readpos - writePos;
 				}
 
-				// Buffer.BlockCopy(buffer, offset, _buffer, writePos, sizeForCopy);
+				// Reads from socket straight into our buffer
 				var actualReceived = socket.Receive(_buffer, writePos, sizeForCopy, SocketFlags.None);
 
 				// volatile writes
@@ -196,6 +186,7 @@ namespace RabbitMqNext.Internals
 			while (read == 0 && !_cancellationToken.IsCancellationRequested)
 			{
 				await _writeEvent.WaitAsync(_cancellationToken);
+				// _writeEvent.Wait(_cancellationToken);
 				read = this.Read(buffer, offset, count);
 			}
 

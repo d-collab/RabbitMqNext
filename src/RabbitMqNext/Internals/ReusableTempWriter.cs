@@ -18,7 +18,7 @@ namespace RabbitMqNext.Internals
 			_writer2 = new AmqpPrimitivesWriter(_innerWriter, bufferPool, memStreamPool);
 		}
 
-		public void EnsureFrameMaxSizeSet(uint? frameMax)
+		public void EnsureMaxFrameSizeSet(uint? frameMax)
 		{
 			_writer2.FrameMaxSize = frameMax;
 		}

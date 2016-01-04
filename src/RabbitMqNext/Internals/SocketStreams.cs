@@ -1,7 +1,6 @@
 namespace RabbitMqNext.Internals
 {
 	using System;
-	using System.Buffers;
 	using System.Net.Sockets;
 	using System.Threading;
 	using System.Threading.Tasks;
@@ -9,7 +8,7 @@ namespace RabbitMqNext.Internals
 	internal class SocketStreams : IDisposable
 	{
 		private readonly Socket _socket;
-		private readonly CancellationToken _token; // does not own it
+		private readonly CancellationToken _cancellationToken; // does not own it
 		private readonly RingBufferStream _ringBufferStream;
 		private readonly RingBufferStream _outputRingBuffer;
 		private readonly Action _notifyWhenClosed;
@@ -19,22 +18,19 @@ namespace RabbitMqNext.Internals
 
 		private int _socketIsClosed = 0;
 
-		public SocketStreams(Socket socket, CancellationToken token, Action notifyWhenClosed)
+		public SocketStreams(Socket socket, CancellationToken cancellationToken, Action notifyWhenClosed)
 		{
 			_socket = socket;
-			_token = token;
+			_cancellationToken = cancellationToken;
 			_notifyWhenClosed = notifyWhenClosed;
 
-			_ringBufferStream = new RingBufferStream(token);
+			_ringBufferStream = new RingBufferStream(cancellationToken);
+			_outputRingBuffer = new RingBufferStream(cancellationToken);
 
-			_outputRingBuffer = new RingBufferStream(token);
-
-			Task.Factory.StartNew((_) => ReadLoop(null), token, TaskCreationOptions.LongRunning);
-			Task.Factory.StartNew((_) => WriteLoop(null), token, TaskCreationOptions.LongRunning);
-
+			Task.Factory.StartNew((_) => ReadLoop(null), cancellationToken, TaskCreationOptions.LongRunning);
+			Task.Factory.StartNew((_) => WriteLoop(null), cancellationToken, TaskCreationOptions.LongRunning);
 
 			Writer = new InternalBigEndianWriter(_outputRingBuffer);
-
 			Reader = new InternalBigEndianReader(_ringBufferStream);
 		}
 
@@ -47,10 +43,10 @@ namespace RabbitMqNext.Internals
 		{
 			try
 			{
-				while (!_token.IsCancellationRequested && _socketIsClosed == 0)
+				while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
 				{
 					// No intermediary buffer needed
-					await _outputRingBuffer.ReadIntoSocketTask(_socket, 18000);
+					await _outputRingBuffer.ReadIntoSocketTask(_socket);
 				}
 			}
 			catch (SocketException ex)
@@ -69,7 +65,7 @@ namespace RabbitMqNext.Internals
 
 		private async Task ReadLoop(object state)
 		{
-			while (!_token.IsCancellationRequested && _socketIsClosed == 0)
+			while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
 			{
 				try
 				{

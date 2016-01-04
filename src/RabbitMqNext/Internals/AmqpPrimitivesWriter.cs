@@ -15,6 +15,8 @@ namespace RabbitMqNext.Internals
 		private readonly ArrayPool<byte> _bufferPool;
 		private readonly ObjectPool<ReusableTempWriter> _memStreamPool;
 
+		private readonly byte[] _smallBuffer = new byte[300];
+
 		public uint? FrameMaxSize { get; set; }
 
 		public AmqpPrimitivesWriter(InternalBigEndianWriter writer, ArrayPool<byte> bufferPool,
@@ -22,11 +24,14 @@ namespace RabbitMqNext.Internals
 		{
 			_writer = writer;
 
-			_bufferPool = bufferPool ?? new DefaultArrayPool<byte>(BufferSize, 50);
+			_bufferPool = bufferPool ?? new DefaultArrayPool<byte>(BufferSize, 10);
 			if (memStreamPool == null)
 			{
 				memStreamPool = new ObjectPool<ReusableTempWriter>(() => 
-					new ReusableTempWriter(_bufferPool, _memStreamPool), initialCapacity: 0);
+				{
+					Console.WriteLine("Creating new writer...");
+					return new ReusableTempWriter(_bufferPool, _memStreamPool);
+				});
 			}
 			_memStreamPool = memStreamPool;
 		}
@@ -51,20 +56,46 @@ namespace RabbitMqNext.Internals
 			_writer.Write((uint)v);
 		}
 
-		public void WriteWithPayloadFirst(Action<AmqpPrimitivesWriter> writeFn)
+		public void WriteBufferWithPayloadFirst(Action<AmqpPrimitivesWriter> writeFn)
 		{
 			var memStream = _memStreamPool.GetObject();
 
 			try
 			{
-				memStream.EnsureFrameMaxSizeSet(this.FrameMaxSize);
+				memStream.EnsureMaxFrameSizeSet(this.FrameMaxSize);
+
 				writeFn(memStream._writer2);
 
-				var payloadSize = (uint) memStream._memoryStream.Position;
+				var payloadSize = (uint)memStream._memoryStream.Position;
+
 				this.WriteLong(payloadSize);
 				// Console.WriteLine("conclusion: payload size  " + payloadSize);
 
 				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize);
+			}
+			finally
+			{
+				_memStreamPool.PutObject(memStream);
+			}
+		}
+
+		public void WriteFrameWithPayloadFirst(int frameType, ushort channel, Action<AmqpPrimitivesWriter> writeFn)
+		{
+			var memStream = _memStreamPool.GetObject();
+
+			try
+			{
+				memStream.EnsureMaxFrameSizeSet(this.FrameMaxSize);
+
+				writeFn(memStream._writer2);
+
+				var payloadSize = (uint) memStream._memoryStream.Position;
+
+				this.WriteFrameStart(frameType, channel, payloadSize);
+
+				memStream._writer2.WriteOctet(AmqpConstants.FrameEnd);
+
+				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize + 1);
 			}
 			finally
 			{
@@ -80,9 +111,9 @@ namespace RabbitMqNext.Internals
 				return;
 			}
 
-			WriteWithPayloadFirst(w =>
+			WriteBufferWithPayloadFirst(w =>
 			{
-				foreach (KeyValuePair<string, object> entry in table)
+				foreach (var entry in table)
 				{
 					w.WriteShortstr(entry.Key);
 					w.WriteFieldValue(entry.Value);
@@ -98,7 +129,7 @@ namespace RabbitMqNext.Internals
 				return;
 			}
 
-			WriteWithPayloadFirst(w =>
+			WriteBufferWithPayloadFirst(w =>
 			{
 				foreach (var entry in array)
 				{
@@ -106,8 +137,6 @@ namespace RabbitMqNext.Internals
 				}
 			});
 		}
-
-		private readonly byte[] _smallBuffer = new byte[300];
 
 		public void WriteShortstr(string str)
 		{
@@ -263,6 +292,23 @@ namespace RabbitMqNext.Internals
 		public void WriteTimestamp(AmqpTimestamp ts)
 		{
 			_writer.Write((ulong)ts.UnixTime);
+		}
+
+		private readonly byte[] _frameBuff = new byte[7];
+
+		public void WriteFrameStart(int frameType, ushort channel, uint payloadSize)
+		{
+			_frameBuff[0] = (byte) frameType;
+
+			_frameBuff[1] = (byte)((channel & 0xFF00) >> 8);
+			_frameBuff[2] = (byte)(channel & 0x00FF);
+
+			_frameBuff[3] = (byte)((payloadSize & 0xFF000000) >> 24);
+			_frameBuff[4] = (byte)((payloadSize & 0x00FF0000) >> 16);
+			_frameBuff[5] = (byte)((payloadSize & 0x0000FF00) >> 8);
+			_frameBuff[6] = (byte)(payloadSize & 0x000000FF);
+
+			_writer.Write(_frameBuff, 0, 7);
 		}
 	}
 }

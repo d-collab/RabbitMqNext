@@ -177,9 +177,16 @@
 
 			var tcs = new TaskCompletionSource<bool>();
 
-			var writer = AmqpChannelLevelFrameWriter.BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer);
+			var args = new AmqpChannelLevelFrameWriter.BasicPublishArgs()
+			{
+				exchange = exchange, immediate = immediate, routingKey = routingKey, mandatory = mandatory,
+				properties = properties, buffer = buffer
+			};
+			// var writer = AmqpChannelLevelFrameWriter.BasicPublish();
 
-			_connection.SendCommand(_channelNum, 60, 40, writer, reply: null, expectsReply: false, tcs: tcs);
+			_connection.SendCommand(_channelNum, 60, 40,
+				AmqpChannelLevelFrameWriter.InternalBasicPublish, reply: null, expectsReply: false, 
+				tcs: tcs, optArg: args);
 
 			return tcs.Task;
 		}

@@ -147,7 +147,8 @@
 						}
 						
 						// writes to socket
-						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId);
+						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, 
+												   cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
 						
 						// if writing to socket is enough, set as complete
 						if (!cmdToSend.ExpectsReply)

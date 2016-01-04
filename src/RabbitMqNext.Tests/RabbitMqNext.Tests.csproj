@@ -57,9 +57,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AmqpPrimitivesWriterTestCase.cs" />
-    <Compile Include="AsyncManualResetEventTestCase.cs" />
-    <Compile Include="RingBufferStreamTestCase.cs" />
-    <Compile Include="WriterReaderBigEndianConversions.cs" />
+    <Compile Include="ObjectPoolTestCase.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

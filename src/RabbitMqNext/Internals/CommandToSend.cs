@@ -8,9 +8,10 @@
 		public ushort Channel;
 		public ushort ClassId;
 		public ushort MethodId;
-		public Action<AmqpPrimitivesWriter, ushort, ushort, ushort> commandGenerator;
+		public Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandGenerator;
 		public Action<ushort, int, AmqpError> ReplyAction;
 		public bool ExpectsReply;
+		public object OptionalArg;
 
 		public TaskCompletionSource<bool> Tcs;
 

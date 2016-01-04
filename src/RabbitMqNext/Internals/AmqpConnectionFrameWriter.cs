@@ -3,7 +3,7 @@
 	using System;
 	using System.Collections.Generic;
 	using System.Text;
-	using WriterDelegate = System.Action<AmqpPrimitivesWriter,ushort, ushort, ushort>;
+	using WriterDelegate = System.Action<AmqpPrimitivesWriter,ushort, ushort, ushort, object>;
 
 	static class AmqpConnectionFrameWriter
 	{
@@ -22,7 +22,7 @@
 
 		public static WriterDelegate Greeting()
 		{
-			return (writer, channel, classId, methodId) =>
+			return (writer, channel, classId, methodId, args) =>
 			{
 				writer.WriteRaw(GreetingPayload, 0, GreetingPayload.Length);
 			};
@@ -32,13 +32,11 @@
 		{
 			const int payloadSize = 12; // 4 shorts + 1 int
 
-			return (writer, channel, classId, methodId) =>
+			return (writer, channel, classId, methodId, args) =>
 			{
 				Console.WriteLine("ConnectionTuneOk");
 
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort((ushort)0); // channel
-				writer.WriteLong(payloadSize); // payload size
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, 0, payloadSize);
 
 				writer.WriteUShort((ushort)10);
 				writer.WriteUShort((ushort)31);
@@ -54,14 +52,11 @@
 			IDictionary<string, object> clientProperties,
 			string mechanism, byte[] response, string locale)
 		{
-			return (writer, channel, classId, methodId) =>
+			return (writer, channel, classId, methodId, args) =>
 			{
 				Console.WriteLine("ConnectionStartOk");
 
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort((ushort)0); // channel
-
-				writer.WriteWithPayloadFirst((w) =>
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, 0, (w) =>
 				{
 					w.WriteUShort((ushort)10);
 					w.WriteUShort((ushort)11);
@@ -72,21 +67,16 @@
 					w.WriteLongbyte(response);
 					w.WriteShortstr(locale);
 				});
-
-				writer.WriteOctet(AmqpConstants.FrameEnd);
 			};
 		}
 
 		public static WriterDelegate ConnectionOpen(string vhost, string caps, bool insist)
 		{
-			return (writer, channel, classId, methodId) =>
+			return (writer, channel, classId, methodId, args) =>
 			{
 				Console.WriteLine("ConnectionOpen");
 
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort((ushort)0); // channel
-
-				writer.WriteWithPayloadFirst((w) =>
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, (w) =>
 				{
 					w.WriteUShort(classId);
 					w.WriteUShort(methodId);
@@ -95,17 +85,15 @@
 					w.WriteShortstr(caps);
 					w.WriteBit(insist);
 				});
-
-				writer.WriteOctet(AmqpConstants.FrameEnd);
 			};
 		}
 
-		public static WriterDelegate ConnectionCloseOk()
-		{
-			return (writer, channel, classId, methodId) =>
-			{
-
-			};
-		}
+//		public static WriterDelegate ConnectionCloseOk()
+//		{
+//			return (writer, channel, classId, methodId, args) =>
+//			{
+//
+//			};
+//		}
 	}
 }

@@ -2,8 +2,7 @@ namespace RabbitMqNext.Internals
 {
 	using System;
 	using System.Collections.Generic;
-	using System.Text;
-	using WriterDelegate = System.Action<AmqpPrimitivesWriter, ushort, ushort, ushort>;
+	using WriterDelegate = System.Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object>;
 
 	static class AmqpChannelLevelFrameWriter
 	{
@@ -13,13 +12,11 @@ namespace RabbitMqNext.Internals
 		{
 			const uint payloadSize = 4 + 1;
 
-			return (writer, channel, classId, methodId) =>
+			return (writer, channel, classId, methodId, args) =>
 			{
 				Console.WriteLine("ChannelOpen");
 
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort(channel); // channel
-				writer.WriteLong(payloadSize); // payload size
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
 
 				writer.WriteUShort(classId);
 				writer.WriteUShort(methodId);
@@ -33,14 +30,11 @@ namespace RabbitMqNext.Internals
 			bool durable, bool autoDelete, 
 			IDictionary<string, object> arguments, bool @internal, bool passive, bool waitConfirmation)
 		{
-			return (writer, channel, classId, methodId) =>
+			return (writer, channel, classId, methodId, args) =>
 			{
 				Console.WriteLine("ExchangeDeclare");
 
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort(channel); // channel
-				
-				writer.WriteWithPayloadFirst(w =>
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
 					w.WriteUShort(classId);
 					w.WriteUShort(methodId);
@@ -51,22 +45,17 @@ namespace RabbitMqNext.Internals
 					w.WriteBits(passive, durable, autoDelete, @internal, !waitConfirmation);
 					w.WriteTable(arguments);
 				});
-				
-				writer.WriteOctet(AmqpConstants.FrameEnd);
 			};
 		}
 
 		public static WriterDelegate QueueDeclare(string queue, bool passive, bool durable, bool exclusive,
 										  bool autoDelete, IDictionary<string, object> arguments, bool waitConfirmation)
 		{
-			return (writer, channel, classId, methodId) =>
+			return (writer, channel, classId, methodId, args) =>
 			{
 				Console.WriteLine("QueueDeclare");
 
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort(channel);
-
-				writer.WriteWithPayloadFirst(w =>
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
 					w.WriteUShort(classId);
 					w.WriteUShort(methodId);
@@ -76,31 +65,116 @@ namespace RabbitMqNext.Internals
 					w.WriteBits(passive, durable, exclusive, autoDelete, !waitConfirmation);
 					w.WriteTable(arguments);
 				});
+			};
+		}
+
+		public static WriterDelegate BasicPublish()
+		{
+			return InternalBasicPublish;
+		}
+
+		public static WriterDelegate BasicQos(uint prefetchSize, ushort prefetchCount, bool global)
+		{
+			const int payloadSize = 11;
+
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("ChannelOpen");
+
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
+
+				writer.WriteUShort(classId);
+				writer.WriteUShort(methodId);
+
+				writer.WriteLong(prefetchSize);
+				writer.WriteUShort(prefetchCount);
+				writer.WriteBit(global);
 
 				writer.WriteOctet(AmqpConstants.FrameEnd);
 			};
 		}
 
-		public static WriterDelegate BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
-								 BasicProperties properties, ArraySegment<byte> buffer)
+		public static WriterDelegate QueueBind(string queue, string exchange, 
+			string routingKey, IDictionary<string, object> arguments, 
+			bool waitConfirmation)
 		{
-			return (writer, channel, classId, methodId) =>
+			return (writer, channel, classId, methodId, args) =>
 			{
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort(channel);
+				Console.WriteLine("QueueBind");
 
-				var payloadSize = (uint)(9 + Encoding.UTF8.GetByteCount(exchange) + Encoding.UTF8.GetByteCount(routingKey));
-				writer.WriteLong(payloadSize);
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
 
-				writer.WriteUShort(classId);
-				writer.WriteUShort(methodId);
+					w.WriteUShort(0);
+					w.WriteShortstr(queue);
+					w.WriteShortstr(exchange);
+					w.WriteShortstr(routingKey);
+					w.WriteBits(!waitConfirmation);
+					w.WriteTable(arguments);
+				});
+			};
+		}
 
-				writer.WriteUShort(0); // reserved1
-				writer.WriteShortstr(exchange);
-				writer.WriteShortstr(routingKey);
-				writer.WriteBits(mandatory, immediate);
+		private static void WriteBasicPropertiesAsHeader(AmqpPrimitivesWriter writer, 
+			ushort channel, ulong bodySize, BasicProperties properties)
+		{
+			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameHeader, channel, w =>
+			{
+				w.WriteUShort((ushort)60);
+				w.WriteUShort((ushort)0); // weight. not used
+				w.WriteULong(bodySize);
 
-				writer.WriteOctet(AmqpConstants.FrameEnd);
+				// no support for continuation. must be less than 15 bits used
+				w.WriteUShort(properties._presenceSWord);
+
+				if (properties.IsContentTypePresent) { w.WriteShortstr(properties.ContentType); }
+				if (properties.IsContentEncodingPresent) { w.WriteShortstr(properties.ContentEncoding); }
+				if (properties.IsHeadersPresent) { w.WriteTable(properties.Headers); }
+				if (properties.IsDeliveryModePresent) { w.WriteOctet(properties.DeliveryMode); }
+				if (properties.IsPriorityPresent) { w.WriteOctet(properties.Priority); }
+				if (properties.IsCorrelationIdPresent) { w.WriteShortstr(properties.CorrelationId); }
+				if (properties.IsReplyToPresent) { w.WriteShortstr(properties.ReplyTo); }
+				if (properties.IsExpirationPresent) { w.WriteShortstr(properties.Expiration); }
+				if (properties.IsMessageIdPresent) { w.WriteShortstr(properties.MessageId); }
+				if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp); }
+				if (properties.IsTypePresent) { w.WriteShortstr(properties.Type); }
+				if (properties.IsUserIdPresent) { w.WriteShortstr(properties.UserId); }
+				if (properties.IsAppIdPresent) { w.WriteShortstr(properties.AppId); }
+				if (properties.IsClusterIdPresent) { w.WriteShortstr(properties.ClusterId); }
+			});
+		}
+
+		internal class BasicPublishArgs
+		{
+			public string exchange; 
+			public string routingKey; 
+			public bool mandatory; 
+			public bool immediate; 
+			public BasicProperties properties;
+			public ArraySegment<byte> buffer;
+		}
+
+		internal static void InternalBasicPublish(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
+		{
+			var basicPub = args as BasicPublishArgs;
+
+			var buffer = basicPub.buffer;
+			var properties = basicPub.properties;
+
+			// return (writer, channel, classId, methodId, args) =>
+			{
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteUShort(0); // reserved1
+					w.WriteShortstr(basicPub.exchange);
+					w.WriteShortstr(basicPub.routingKey);
+					w.WriteBits(basicPub.mandatory, basicPub.immediate);
+				});
 
 				WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
 
@@ -128,96 +202,6 @@ namespace RabbitMqNext.Internals
 					writer.WriteOctet(AmqpConstants.FrameEnd);
 				}
 			};
-		}
-
-		public static WriterDelegate BasicQos(uint prefetchSize, ushort prefetchCount, bool global)
-		{
-			const int payloadSize = 11;
-
-			return (writer, channel, classId, methodId) =>
-			{
-				Console.WriteLine("ChannelOpen");
-
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort(channel); 
-				writer.WriteLong(payloadSize);
-
-				writer.WriteUShort(classId);
-				writer.WriteUShort(methodId);
-
-				writer.WriteLong(prefetchSize);
-				writer.WriteUShort(prefetchCount);
-				writer.WriteBit(global);
-
-				writer.WriteOctet(AmqpConstants.FrameEnd);
-			};
-		}
-
-		public static WriterDelegate QueueBind(string queue, string exchange, 
-			string routingKey, IDictionary<string, object> arguments, 
-			bool waitConfirmation)
-		{
-			return (writer, channel, classId, methodId) =>
-			{
-				Console.WriteLine("QueueBind");
-
-				writer.WriteOctet(AmqpConstants.FrameMethod);
-				writer.WriteUShort(channel);
-
-				writer.WriteWithPayloadFirst(w =>
-				{
-					w.WriteUShort(classId);
-					w.WriteUShort(methodId);
-
-					w.WriteUShort(0);
-					w.WriteShortstr(queue);
-					w.WriteShortstr(exchange);
-					w.WriteShortstr(routingKey);
-					w.WriteBits(!waitConfirmation);
-					w.WriteTable(arguments);
-				});
-
-				writer.WriteOctet(AmqpConstants.FrameEnd);
-			};
-		}
-
-		private static void WriteBasicPropertiesAsHeader(AmqpPrimitivesWriter writer, 
-			ushort channel, ulong bodySize, BasicProperties properties)
-		{
-			writer.WriteOctet(AmqpConstants.FrameHeader);
-			writer.WriteUShort(channel);
-
-//			int payload = 4 + 8 + 2 + properties.ComputeSize();
-//			writer.WriteLong((uint) payload);
-//
-//			var w = writer;
-
-			writer.WriteWithPayloadFirst(w =>
-			{
-				w.WriteUShort((ushort)60);
-				w.WriteUShort((ushort)0); // weight. not used
-				w.WriteULong(bodySize);
-
-				// no support for continuation. must be less than 15 bits used
-				w.WriteUShort(properties._presenceSWord);
-
-				if (properties.IsContentTypePresent) { w.WriteShortstr(properties.ContentType); }
-				if (properties.IsContentEncodingPresent) { w.WriteShortstr(properties.ContentEncoding); }
-				if (properties.IsHeadersPresent) { w.WriteTable(properties.Headers); }
-				if (properties.IsDeliveryModePresent) { w.WriteOctet(properties.DeliveryMode); }
-				if (properties.IsPriorityPresent) { w.WriteOctet(properties.Priority); }
-				if (properties.IsCorrelationIdPresent) { w.WriteShortstr(properties.CorrelationId); }
-				if (properties.IsReplyToPresent) { w.WriteShortstr(properties.ReplyTo); }
-				if (properties.IsExpirationPresent) { w.WriteShortstr(properties.Expiration); }
-				if (properties.IsMessageIdPresent) { w.WriteShortstr(properties.MessageId); }
-				if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp); }
-				if (properties.IsTypePresent) { w.WriteShortstr(properties.Type); }
-				if (properties.IsUserIdPresent) { w.WriteShortstr(properties.UserId); }
-				if (properties.IsAppIdPresent) { w.WriteShortstr(properties.AppId); }
-				if (properties.IsClusterIdPresent) { w.WriteShortstr(properties.ClusterId); }
-			});
-
-			writer.WriteOctet(AmqpConstants.FrameEnd);
 		}
 	}
 }

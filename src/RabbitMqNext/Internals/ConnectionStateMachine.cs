@@ -130,9 +130,9 @@
 		}
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
-								  Action<AmqpPrimitivesWriter, ushort, ushort, ushort> commandWriter,
+								  Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
 								  Action<ushort, int, AmqpError> reply, bool expectsReply, 
-								  TaskCompletionSource<bool> tcs = null)
+								  TaskCompletionSource<bool> tcs = null, object optArg = null)
 		{
 			ThrowIfErrorPending();
 
@@ -145,7 +145,8 @@
 				ReplyAction = reply,
 				commandGenerator = commandWriter,
 				ExpectsReply = expectsReply,
-				Tcs = tcs
+				Tcs = tcs,
+				OptionalArg = optArg
 			});
 			_commandsToSendEvent.Set();
 		}
