@@ -8,12 +8,15 @@
 	using System.Threading;
 	using System.Threading.Tasks;
 	using RabbitMqNext;
+	using RabbitMQ.Client;
+	using RabbitMQ.Client.Events;
+	using ConnectionFactory = RabbitMqNext.ConnectionFactory;
 
 	public class Program
 	{
-//		const int TotalPublish = 250000;
-		const int TotalPublish = 50;
-		// const int TotalPublish = 100000;
+		const int TotalPublish = 250000;
+//		const int TotalPublish = 50;
+//		const int TotalPublish = 100000;
 
 		private static byte[] MessageContent =
 			Encoding.UTF8.GetBytes(
@@ -81,7 +84,6 @@
 
 
 
-
 				var newChannel2 = await conn.CreateChannel();
 				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
 				await newChannel2.BasicQos(0, 150, false);
@@ -89,19 +91,30 @@
 
 				var temp = new byte[1000000];
 
+				watch = Stopwatch.StartNew();
+				int totalReceived = 0;
+
 				var sub = await newChannel2.BasicConsume((properties, stream, len) =>
 				{
 					stream.Read(temp, 0, len);
 
 					var str = Encoding.UTF8.GetString(temp, 0, len);
-					Console.WriteLine("Received : " + str);
+					// Console.WriteLine("Received : " + str);
 
-				}, "queue1", "tag1", true, false, null, true);
+					// newChannel2.BasicAck()
+
+					if (++totalReceived == TotalPublish)
+					{
+						watch.Stop();
+						Console.WriteLine("Consume stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
+						totalReceived = 0;
+					}
+
+				}, "queue1", "tag123", true, false, null, true);
 
 				Console.WriteLine("[subscribed to queue] " + sub);
 
-
-				Thread.CurrentThread.Join(TimeSpan.FromMinutes(1));
+				await Task.Delay(TimeSpan.FromMinutes(5));
 
 				await newChannel.Close();
 				await newChannel2.Close();
@@ -149,8 +162,59 @@
 				channel.BasicPublish("test_ex", "routing2", false, prop, MessageContent);
 			}
 			watch.Stop();
-
 			Console.WriteLine("Standard BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
+
+
+
+			var totalReceived = 0;
+			watch = Stopwatch.StartNew();
+			channel.BasicConsume("queue1", true, new OldStyleConsumer(body =>
+			{
+				if (++totalReceived == TotalPublish)
+				{
+					watch.Stop();
+					Console.WriteLine("Consume stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
+					totalReceived = 0;
+				}
+			}));
+
+			await Task.Delay(TimeSpan.FromSeconds(30));
+			// Thread.CurrentThread.Join(TimeSpan.FromSeconds(30));
+		}
+
+		class OldStyleConsumer : IBasicConsumer
+		{
+			private readonly Action<byte[]> _action;
+
+			public OldStyleConsumer(Action<byte[]> action)
+			{
+				_action = action;
+			}
+
+			public void HandleBasicCancel(string consumerTag)
+			{
+			}
+
+			public void HandleBasicCancelOk(string consumerTag)
+			{
+			}
+
+			public void HandleBasicConsumeOk(string consumerTag)
+			{
+			}
+
+			public void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey,
+				IBasicProperties properties, byte[] body)
+			{
+				_action(body);
+			}
+
+			public void HandleModelShutdown(object model, ShutdownEventArgs reason)
+			{
+			}
+
+			public IModel Model { get; private set; }
+			public event EventHandler<ConsumerEventArgs> ConsumerCancelled;
 		}
 	}
 }

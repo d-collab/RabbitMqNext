@@ -176,9 +176,9 @@
 			string queue, string consumerTag, bool withoutAcks, bool exclusive, 
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
-			var tcs = new TaskCompletionSource<string>();
-
 			_consumerSubscriptions[consumerTag] = consumer;
+
+			var tcs = new TaskCompletionSource<string>();
 
 			var writer = AmqpChannelLevelFrameWriter.BasicConsume(queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
 

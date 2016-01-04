@@ -194,46 +194,45 @@ namespace RabbitMqNext.Internals
 
 			var buffer = basicPub.buffer;
 			var properties = basicPub.properties;
-
-			// return (writer, channel, classId, methodId, args) =>
+			
+			
+			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 			{
-				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
-				{
-					w.WriteUShort(classId);
-					w.WriteUShort(methodId);
+				w.WriteUShort(classId);
+				w.WriteUShort(methodId);
 
-					w.WriteUShort(0); // reserved1
-					w.WriteShortstr(basicPub.exchange);
-					w.WriteShortstr(basicPub.routingKey);
-					w.WriteBits(basicPub.mandatory, basicPub.immediate);
-				});
+				w.WriteUShort(0); // reserved1
+				w.WriteShortstr(basicPub.exchange);
+				w.WriteShortstr(basicPub.routingKey);
+				w.WriteBits(basicPub.mandatory, basicPub.immediate);
+			});
 
-				WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
+			WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
 
-				// what's the max frame size we can write?
-				if (!writer.FrameMaxSize.HasValue)
-					throw new Exception("wtf? no frame max set!");
+			// what's the max frame size we can write?
+			if (!writer.FrameMaxSize.HasValue)
+				throw new Exception("wtf? no frame max set!");
 				
-				var maxSubFrameSize =
-					writer.FrameMaxSize == 0 ? (int)buffer.Count :
-											   (int)writer.FrameMaxSize.Value - EmptyFrameSize;
+			var maxSubFrameSize =
+				writer.FrameMaxSize == 0 ? (int)buffer.Count :
+											(int)writer.FrameMaxSize.Value - EmptyFrameSize;
 
-				// write frames limited by the max size
-				int written = 0;
-				while (written < buffer.Count)
-				{
-					writer.WriteOctet(AmqpConstants.FrameBody);
-					writer.WriteUShort(channel);
+			// write frames limited by the max size
+			int written = 0;
+			while (written < buffer.Count)
+			{
+				writer.WriteOctet(AmqpConstants.FrameBody);
+				writer.WriteUShort(channel);
 
-					var countToWrite = Math.Min(buffer.Count - written, maxSubFrameSize);
-					writer.WriteLong((uint)countToWrite); // payload size
+				var countToWrite = Math.Min(buffer.Count - written, maxSubFrameSize);
+				writer.WriteLong((uint)countToWrite); // payload size
 
-					writer.WriteRaw(buffer.Array, buffer.Offset + written, countToWrite);
-					written += countToWrite;
+				writer.WriteRaw(buffer.Array, buffer.Offset + written, countToWrite);
+				written += countToWrite;
 
-					writer.WriteOctet(AmqpConstants.FrameEnd);
-				}
-			};
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			}
+			
 		}
 	}
 }

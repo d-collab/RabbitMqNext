@@ -24,8 +24,7 @@ namespace RabbitMqNext.Internals
 			try
 			{
 				var frameType = await _reader.ReadByte();
-
-				Console.WriteLine("Frame type " + frameType);
+//				Console.WriteLine("Frame type " + frameType);
 
 				if (frameType == 'A')
 				{
@@ -36,7 +35,7 @@ namespace RabbitMqNext.Internals
 				ushort channel = await _reader.ReadUInt16();
 				int payloadLength = await _reader.ReadInt32();
 
-				Console.WriteLine("> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
+//				Console.WriteLine("> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
 
 				// needs special case for heartbeat, flow, etc.. 
 				// since they are not replies to methods we sent and alter the client's behavior
@@ -48,20 +47,20 @@ namespace RabbitMqNext.Internals
 
 					var classMethodId = classId << 16 | methodId;
 
-					Console.WriteLine("> Incoming Method: class " + classId + " method " + methodId + " classMethodId " + classMethodId);
+//					Console.WriteLine("> Incoming Method: class " + classId + " method " + methodId + " classMethodId " + classMethodId);
 
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionClose)
 					{
-						await Read_ConnectionClose2((replyCode, replyText, oClassId, oMethodId) =>
+						await Read_ConnectionClose2(async (replyCode, replyText, oClassId, oMethodId) =>
 						{
-							_frameProcessor.DispatchCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
+							await _frameProcessor.DispatchCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
 						});
 					}
 					else if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelClose)
 					{
-						await Read_Channel_Close2((replyCode, replyText, oClassId, oMethodId) =>
+						await Read_Channel_Close2(async (replyCode, replyText, oClassId, oMethodId) =>
 						{
-							_frameProcessor.DispatchChannelCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
+							await _frameProcessor.DispatchChannelCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
 						});
 					}
 					else
@@ -82,7 +81,9 @@ namespace RabbitMqNext.Internals
 					Console.WriteLine("received FrameHeartbeat");
 				}
 
+//				Console.WriteLine("will read FrameEnd");
 				int frameEndMarker = await _reader.ReadByte();
+//				Console.WriteLine("done read FrameEnd " + frameEndMarker);
 				if (frameEndMarker != AmqpConstants.FrameEnd)
 				{
 					throw new Exception("Expecting frame end, but found " + frameEndMarker);
@@ -94,7 +95,7 @@ namespace RabbitMqNext.Internals
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("Handle error: " + ex);
+				Console.WriteLine("Frame Reader error: " + ex);
 				throw;
 			}
 		}

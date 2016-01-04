@@ -58,15 +58,18 @@ namespace RabbitMqNext.Internals
 			var exchange = await _amqpReader.ReadShortStr();
 			var routingKey = await _amqpReader.ReadShortStr();
 
-			int frameEndMarker = await _reader.ReadByte();
+			var frameEndMarker = await _amqpReader.ReadOctet();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
 
 			// Frame Header / Content header
 
-			int frameHeaderStart = await _reader.ReadByte();
+			var frameHeaderStart = await _amqpReader.ReadOctet();
 			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
-			/*var classId =*/ await _reader.ReadUInt16();
-			/*var weight =*/ await _reader.ReadUInt16();
+
+			ushort channel = await _reader.ReadUInt16();
+			int payloadLength = await _reader.ReadInt32();
+			var classId = await _reader.ReadUInt16();
+			var weight = await _reader.ReadUInt16();
 			var bodySize = (long) await _reader.ReadUInt64();
 
 			var properties = await ReadRestOfContentHeader();
@@ -74,22 +77,31 @@ namespace RabbitMqNext.Internals
 			// Frame Body(s)
 
 			// Support just single body at this moment.
-			await PositionAtBodyStream();
 
-			continuation(consumerTag, deliveryTag, 
-				redelivered, exchange, 
-				routingKey, bodySize, properties, (Stream) _reader._ringBufferStream);
-		}
-
-		private async Task PositionAtBodyStream()
-		{
-			int frameHeaderStart = await _reader.ReadByte();
+			frameHeaderStart = await _reader.ReadByte();
 			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
-			var channel = await _reader.ReadUInt16();
+			channel = await _reader.ReadUInt16();
+			var length = await _reader.ReadUInt32();
 
 			// Pending Frame end
+
+			if (length == bodySize)
+			{
+				continuation(consumerTag, deliveryTag,
+					redelivered, exchange,
+					routingKey, length, properties, (Stream) _reader._ringBufferStream);
+			}
+			else
+			{
+				throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize + " and first body is " + length + " bytes");
+			}
 		}
+
+//		private async Task PositionAtBodyStream()
+//		{
+//			
+//		}
 
 		private async Task<BasicProperties> ReadRestOfContentHeader()
 		{
