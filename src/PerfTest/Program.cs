@@ -66,13 +66,13 @@
 				{
 					Type = "type1",
 					// DeliveryMode = 2,
-					// Headers = new Dictionary<string, object> {{"serialization", 0}}
+					Headers = new Dictionary<string, object> {{"serialization", 0}}
 				};
 
 				var watch = Stopwatch.StartNew();
 				for (int i = 0; i < TotalPublish; i++)
 				{
-					// prop.Headers["serialization"] = i;
+					prop.Headers["serialization"] = i;
 
 					// var buffer = Encoding.UTF8.GetBytes("Hello world");
 					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));

@@ -46,7 +46,8 @@
 		/// 
 		/// </summary>
 		/// <remarks>
-		/// Dont reuse the buffer until this method returns!
+		/// Dont reuse the buffer until this method returns. 
+		/// IOW you have to wait for the task completion in this case
 		/// </remarks>
 		/// <param name="exchange"></param>
 		/// <param name="routingKey"></param>

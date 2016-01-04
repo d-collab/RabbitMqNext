@@ -48,14 +48,14 @@
     <Compile Include="AmqpTimestamp.cs" />
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="IAmqpChannel.cs" />
-    <Compile Include="Internals\AmqpChannelLevelFrameWriter.cs" />
+    <Compile Include="Internals\Protocol\AmqpChannelLevelFrameWriter.cs" />
     <Compile Include="Internals\AmqpClassMethodConstants.cs" />
     <Compile Include="Internals\AmqpError.cs" />
-    <Compile Include="Internals\AmqpConnectionFrameWriter.cs" />
+    <Compile Include="Internals\Protocol\AmqpConnectionFrameWriter.cs" />
     <Compile Include="Internals\AmqpConstants.cs" />
     <Compile Include="Internals\CommandToSend.cs" />
     <Compile Include="Internals\ConnectionStateMachine.cs" />
-    <Compile Include="Internals\FrameReader.cs" />
+    <Compile Include="Internals\Protocol\FrameReader.cs" />
     <Compile Include="BasicProperties.cs" />
     <Compile Include="Internals\AmqpPrimitivesReader.cs" />
     <Compile Include="Internals\AmqpPrimitivesWriter.cs" />
@@ -70,6 +70,8 @@
     <Compile Include="Internals\FrameProcessor.cs" />
     <Compile Include="Internals\MemoryStreamSlim.cs" />
     <Compile Include="Internals\ObjectPool.cs" />
+    <Compile Include="Internals\Protocol\FrameReader_ChannelLevel.cs" />
+    <Compile Include="Internals\Protocol\FrameReader_ConnectionLevel.cs" />
     <Compile Include="Internals\ReusableTempWriter.cs" />
     <Compile Include="Internals\Util.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
