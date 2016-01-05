@@ -262,7 +262,8 @@ namespace RabbitMqNext.Internals
 			{
 				var availableToRead = this.UnreadLength();
 
-				if (offset <= availableToRead)
+				// if we have enough buffer available...
+				if (offset <= availableToRead) 
 				{
 					checked
 					{
@@ -270,10 +271,29 @@ namespace RabbitMqNext.Internals
 					}
 					return offset;
 				}
-				else
+
+				var remainingToRead = offset;
+
+				while (remainingToRead > 0)
 				{
-					throw new NotSupportedException("Cannot seek past end");
+					checked
+					{
+						// move pointer as far as we can
+						_readPosition += (int)availableToRead;
+					}
+
+					remainingToRead -= availableToRead;
+
+					availableToRead = this.UnreadLength();
+
+					if (availableToRead == 0)
+					{
+						_writeEvent.Wait(_cancellationToken);
+//						_writeEvent.Reset();
+					}
 				}
+
+				return offset;
 			}
 			else throw new NotSupportedException("Can only seek from current position");
 		}
