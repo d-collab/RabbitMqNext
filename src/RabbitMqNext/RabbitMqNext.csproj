@@ -80,6 +80,7 @@
     <Compile Include="Internals\Sockets\SocketExtensions.cs" />
     <Compile Include="Internals\Protocol.cs" />
     <Compile Include="Internals\SocketStreams.cs" />
+    <Compile Include="TaskLight.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

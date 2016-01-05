@@ -33,15 +33,15 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public byte ReadByte()
+		public async Task<byte> ReadByte()
 		{
-			FillBuffer(_oneByteArray, 1).Wait();
+			await FillBuffer(_oneByteArray, 1);
 			return _oneByteArray[0];
 		}
 
-		public sbyte ReadSByte()
+		public async Task<sbyte> ReadSByte()
 		{
-			return (sbyte) ReadByte();
+			return (sbyte) await ReadByte();
 		}
 
 		public async Task<float> ReadSingle()
@@ -56,39 +56,39 @@ namespace RabbitMqNext.Internals
 			return BitConverter.ToDouble(_eightByteArray, 0);
 		}
 
-		public short ReadInt16()
+		public async Task<short> ReadInt16()
 		{
-			FillBuffer(_twoByteArray, 2).Wait();
+			await FillBuffer(_twoByteArray, 2);
 			return BitConverter.ToInt16(_twoByteArray, 0);
 		}
 
-		public int ReadInt32()
+		public async Task<int> ReadInt32()
 		{
-			FillBuffer(_fourByteArray, 4).Wait();
+			await FillBuffer(_fourByteArray, 4);
 			return BitConverter.ToInt32(_fourByteArray, 0);
 		}
 
-		public long ReadInt64()
+		public async Task<long> ReadInt64()
 		{
-			FillBuffer(_eightByteArray, 8).Wait();
+			await FillBuffer(_eightByteArray, 8);
 			return BitConverter.ToInt64(_eightByteArray, 0);
 		}
 
-		public ushort ReadUInt16()
+		public async Task<ushort> ReadUInt16()
 		{
-			FillBuffer(_twoByteArray, 2).Wait();
+			await FillBuffer(_twoByteArray, 2);
 			return BitConverter.ToUInt16(_twoByteArray, 0);
 		}
 
-		public uint ReadUInt32()
+		public async Task<uint> ReadUInt32()
 		{
-			FillBuffer(_fourByteArray, 4).Wait();
+			await FillBuffer(_fourByteArray, 4);
 			return BitConverter.ToUInt32(_fourByteArray, 0);
 		}
 
-		public ulong ReadUInt64()
+		public async Task<ulong> ReadUInt64()
 		{
-			FillBuffer(_eightByteArray, 8).Wait();
+			await FillBuffer(_eightByteArray, 8);
 			return BitConverter.ToUInt64(_eightByteArray, 0);
 		}
 	}

@@ -15,7 +15,7 @@
 	public class Program
 	{
 		const int TotalPublish = 250000;
-//		const int TotalPublish = 50;
+//		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
 
 		private static byte[] MessageContent =
@@ -34,7 +34,7 @@
 			Console.WriteLine("Latency mode: " + GCSettings.LatencyMode);
 			GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 			Console.WriteLine("New Latency mode: " + GCSettings.LatencyMode);
-
+			
 			var t = Start(); // StartOriginalClient(); // Start();
 		    t.Wait();
 

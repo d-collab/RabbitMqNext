@@ -26,11 +26,11 @@
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
 			_consumerSubscriptions = new ConcurrentDictionary<string, Action<BasicProperties, Stream, int>>(StringComparer.Ordinal);
 
-			_taskLightPool = new ObjectPool<TaskLight>(() => 
-				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 50);
+			_taskLightPool = new ObjectPool<TaskLight>(() =>
+				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
 			
 			_basicPubArgsPool = new ObjectPool<FrameParameters.BasicPublishArgs>(
-				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 50); 
+				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 10, preInitialize: true); 
 		}
 
 		private void GenericRecycler<T>(T item, ObjectPool<T> pool) where T : class
@@ -286,10 +286,10 @@
 				{
 					if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelCloseOk)
 					{
-						_connection._frameReader.Read_Channel_CloseOk(() =>
+						// _connection._frameReader.Read_Channel_CloseOk(() =>
 						{
 							tcs.SetResult(true);
-						});
+						}//);
 					}
 					else
 					{
@@ -322,24 +322,27 @@
 			{
 				case AmqpClassMethodChannelLevelConstants.BasicDeliver:
 
-					await _connection._frameReader.Read_BasicDelivery((consumerTag, deliveryTag, redelivered, exchange, routingKey, bodySize, properties, stream) =>
-					{
-						Action<BasicProperties, Stream, int> consumer;
-						if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
-						{
-							consumer(properties, stream, (int)bodySize);
-						}
-						else
-						{
-							// TODO: needs to consume the stream by exactly bodySize
-							// stream.Read()
-						}
-					});
+					await _connection._frameReader.Read_BasicDelivery(DispatchDeliveredMessage);
 					break;
 
 				default:
 					Console.WriteLine("Unexpected method at channel level " + classMethodId);
 					break;
+			}
+		}
+
+		private void DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey,
+			long bodySize, BasicProperties properties, Stream stream)
+		{
+			Action<BasicProperties, Stream, int> consumer;
+			if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
+			{
+				consumer(properties, stream, (int)bodySize);
+			}
+			else
+			{
+				// needs to consume the stream by exactly bodySize
+				stream.Seek(bodySize, SeekOrigin.Current);
 			}
 		}
 	}
