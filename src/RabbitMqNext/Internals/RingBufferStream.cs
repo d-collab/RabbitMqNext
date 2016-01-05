@@ -24,9 +24,10 @@ namespace RabbitMqNext.Internals
 		private volatile int _readPosition = -1;
 		private volatile int _writePosition = -1;
 		private readonly ManualResetEventSlim _bufferFreeEvent = new ManualResetEventSlim(false);
-		private readonly AsyncManualResetEvent _writeEvent = new AsyncManualResetEvent();
+		private readonly ManualResetEventSlim _writeEvent = new ManualResetEventSlim(false, 100);
+		// private readonly AsyncAutoResetEvent _bufferFreeEvent = new AsyncAutoResetEvent();
+//		private readonly AsyncAutoResetEvent _writeEvent = new AsyncAutoResetEvent();
 		// private readonly AsyncManualResetEvent _bufferFreeEvent = new AsyncManualResetEvent();
-		// private readonly ManualResetEventSlim _writeEvent = new ManualResetEventSlim(false);
 
 		private readonly byte[] _buffer;
 
@@ -39,7 +40,7 @@ namespace RabbitMqNext.Internals
 		/// <summary>
 		/// append param buffer to our ring (single threaded producer)
 		/// </summary>
-		public void Insert(byte[] buffer, int offset, int original)
+		public async Task Insert(byte[] buffer, int offset, int original)
 		{
 			if (original > BufferSize) throw new ArgumentException("overflowing the buffer? nope");
 			if (_writePosition == -1)
@@ -57,7 +58,9 @@ namespace RabbitMqNext.Internals
 				{
 					// Console.WriteLine("waiting");
 					{
+						// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 						_bufferFreeEvent.Wait(_cancellationToken);
+						_bufferFreeEvent.Reset();
 						// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 						continue;
 					}
@@ -73,6 +76,8 @@ namespace RabbitMqNext.Internals
 					// Console.WriteLine("waiting2");
 					{
 						_bufferFreeEvent.Wait(_cancellationToken);
+						_bufferFreeEvent.Reset();
+						// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 						// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 						continue;
 					}
@@ -95,8 +100,8 @@ namespace RabbitMqNext.Internals
 				_writePosition += sizeForCopy;
 
 				// signal
-				_writeEvent.Set2();
-				// _writeEvent.Set();
+//				_writeEvent.Set2();
+				_writeEvent.Set();
 
 				if (totalCopied == original) break; // all copied?
 
@@ -120,8 +125,9 @@ namespace RabbitMqNext.Internals
 				int unread = UnreadLength();
 				if (unread == 0)
 				{
-					await _writeEvent.WaitAsync(_cancellationToken); 
-					// _writeEvent.Wait(_cancellationToken);
+//					await _writeEvent.WaitAsync(_cancellationToken); 
+					_writeEvent.Wait(_cancellationToken);
+					_writeEvent.Reset();
 					continue;
 				}
 
@@ -138,7 +144,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public void ReceiveFromTask(Socket socket)
+		public async Task ReceiveFromTask(Socket socket)
 		{
 			if (_writePosition == -1)
 			{
@@ -151,6 +157,8 @@ namespace RabbitMqNext.Internals
 				if (BufferSize - UnreadLength() == 0)
 				{
 					_bufferFreeEvent.Wait(_cancellationToken);
+					_bufferFreeEvent.Reset();
+					// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 					// await _bufferFreeEvent.WaitAsync(_cancellationToken);
 					continue;
 				}
@@ -175,13 +183,17 @@ namespace RabbitMqNext.Internals
 				// Reads from socket straight into our buffer
 				var actualReceived = socket.Receive(_buffer, writePos, sizeForCopy, SocketFlags.None);
 
+				if (actualReceived == 0)
+					continue;
+
 				// volatile writes
 				_totalLen += actualReceived;
 				_writePosition += actualReceived;
 				// done with writes
 
 				// signal
-				_writeEvent.Set2();
+				// _writeEvent.Set2();
+				_writeEvent.Set();
 			}
 		}
 
@@ -191,8 +203,9 @@ namespace RabbitMqNext.Internals
 
 			while (read == 0 && !_cancellationToken.IsCancellationRequested)
 			{
-				await _writeEvent.WaitAsync(_cancellationToken);
-				// _writeEvent.Wait(_cancellationToken);
+				// _writeEvent.WaitAsync(_cancellationToken);
+				_writeEvent.Wait(_cancellationToken);
+				_writeEvent.Reset();
 				read = this.Read(buffer, offset, count);
 			}
 
@@ -270,9 +283,14 @@ namespace RabbitMqNext.Internals
 			throw new NotSupportedException();
 		}
 
+		public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		{
+			return Insert(buffer, offset, count);
+		}
+
 		public override void Write(byte[] buffer, int offset, int count)
 		{
-			Insert(buffer, offset, count);
+			Insert(buffer, offset, count).Wait();
 		}
 
 		public override bool CanRead

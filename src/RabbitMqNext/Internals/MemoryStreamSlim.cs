@@ -3,6 +3,8 @@ namespace RabbitMqNext.Internals
 	using System;
 	using System.Buffers;
 	using System.IO;
+	using System.Threading;
+	using System.Threading.Tasks;
 
 	internal class MemoryStreamSlim : Stream
 	{
@@ -42,6 +44,12 @@ namespace RabbitMqNext.Internals
 		public override int Read(byte[] buffer, int offset, int count)
 		{
 			return 0;
+		}
+
+		public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		{
+			Write(buffer, offset, count);
+			return Task.CompletedTask;
 		}
 
 		public override void Write(byte[] buffer, int offset, int count)

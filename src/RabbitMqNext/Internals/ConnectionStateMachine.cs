@@ -53,6 +53,7 @@
 			_cmdToSendObjPool = new ObjectPool<CommandToSend>(
 				() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 100, true);
 
+			// _commandsToSendEvent = new AutoResetEvent(false);
 			_commandsToSendEvent = new ManualResetEventSlim(false);
 			_commandOutbox = new ConcurrentQueue<CommandToSend>();
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
@@ -184,6 +185,7 @@
 				while (!_cancellationToken.IsCancellationRequested)
 				{
 					_commandsToSendEvent.Wait(_cancellationToken);
+					_commandsToSendEvent.Reset();
 
 					CommandToSend cmdToSend;
 					while (_commandOutbox.TryDequeue(out cmdToSend))

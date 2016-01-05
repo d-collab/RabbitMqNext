@@ -60,7 +60,7 @@
     <Compile Include="BasicProperties.cs" />
     <Compile Include="Internals\AmqpPrimitivesReader.cs" />
     <Compile Include="Internals\AmqpPrimitivesWriter.cs" />
-    <Compile Include="Internals\AsyncManualResetEvent.cs" />
+    <Compile Include="Internals\Locks\AsyncManualResetEvent.cs" />
     <Compile Include="Buffers\ArrayPool.cs" />
     <Compile Include="Buffers\ArrayPoolBucket.cs" />
     <Compile Include="Buffers\DefaultArrayPool.cs" />

@@ -209,7 +209,7 @@ namespace RabbitMqNext.Internals
 		{
 			var basicPub = args as FrameParameters.BasicPublishArgs;
 
-			try
+//			try
 			{
 				var buffer = basicPub.buffer;
 				var properties = basicPub.properties;
@@ -251,7 +251,7 @@ namespace RabbitMqNext.Internals
 					writer.WriteOctet(AmqpConstants.FrameEnd);
 				}
 			}
-			finally
+//			finally
 			{
 				basicPub.Done();	
 			}

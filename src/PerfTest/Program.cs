@@ -129,7 +129,8 @@
 				Console.WriteLine("[Captured error 2] " + ex.Message);
 			}
 
-			await conn.Close();
+			if (conn != null)
+				await conn.Close();
 		}
 
 		private static async Task StartOriginalClient()

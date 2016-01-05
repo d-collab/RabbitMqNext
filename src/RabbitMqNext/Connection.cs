@@ -41,7 +41,7 @@
 			};
 		}
 
-		public async Task<IAmqpChannel> CreateChannel()
+		public async Task<AmqpChannel> CreateChannel()
 		{
 			var channelNum = (ushort) Interlocked.Increment(ref _channelNumbers);
 			
@@ -128,8 +128,12 @@
 			}
 
 			_socket.Dispose();
-			_connectionState.Dispose();
-			_socketToStream.Dispose();
+
+			if (_connectionState != null)
+				_connectionState.Dispose();
+
+			if (_socketToStream != null)
+				_socketToStream.Dispose();
 		}
 	}
 }

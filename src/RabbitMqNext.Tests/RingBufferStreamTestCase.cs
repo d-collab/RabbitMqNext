@@ -2,7 +2,9 @@
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Diagnostics;
 	using System.Linq;
+	using System.Threading;
 	using System.Threading.Tasks;
 	using FluentAssertions;
 	using Internals;
@@ -32,7 +34,8 @@
 		{
 			Console.WriteLine("Fast_producer_slow_consumer");
 
-			var rbuffer = new RingBufferStream();
+			var cancelationTokenSource = new CancellationTokenSource();
+			var rbuffer = new RingBufferStream(cancelationTokenSource.Token);
 			bool done = false;
 
 			const int mod = 37;
@@ -55,7 +58,7 @@
 						(byte) ((i + 9) %mod),
 					};
 
-					rbuffer.Insert(buffer, 0, buffer.Length);
+					await rbuffer.Insert(buffer, 0, buffer.Length);
 				}
 
 				done = true;
@@ -110,13 +113,14 @@
 		{
 			Console.WriteLine("Insert_1_byte_by_1");
 
-			var rbuffer = new RingBufferStream();
+			var cancelationTokenSource = new CancellationTokenSource();
+			var rbuffer = new RingBufferStream(cancelationTokenSource.Token);
 
 			int expectedLast = 0;
 
 			for (int i = 0; i < 1024 * 100; i++)
 			{
-				rbuffer.Insert(new[] { (byte)(i % 256) }, 0, 1);
+				await rbuffer.Insert(new[] { (byte)(i % 256) }, 0, 1);
 
 				if (i % 99 == 0)
 				{
@@ -152,11 +156,12 @@
 		{
 			Console.WriteLine("Variable_size_writes_slow_consumer");
 
-			var rbuffer = new RingBufferStream();
+			var cancelationTokenSource = new CancellationTokenSource();
+			var rbuffer = new RingBufferStream(cancelationTokenSource.Token);
 			bool done = false;
 
 			const int mod = 37;
-			const int sizeOfSet = 1024*1000;
+			const int sizeOfSet = 1024*100;
 
 			var producerTask = Task.Run(async () =>
 			{
@@ -199,7 +204,7 @@
 
 					stepAndBufferSize = _rnd.Next(buffer.Length);
 
-					rbuffer.Insert(buffer, 0, stepAndBufferSize);
+					await rbuffer.Insert(buffer, 0, stepAndBufferSize);
 				}
 
 				done = true;
@@ -260,15 +265,21 @@
 
 			Console.WriteLine("Started");
 
-			var rbuffer = new RingBufferStream();
+			var cancelationTokenSource = new CancellationTokenSource();
+			var rbuffer = new RingBufferStream(cancelationTokenSource.Token);
 			bool done = false;
 
 			const int mod = 37;
 			var producerBuffer = new byte[10];
 
+			var watch = Stopwatch.StartNew();
+
+			// long iterations = 1000000000000000000;
+			long iterations = 100000000;
+
 			var producerTask = Task.Run(async () =>
 			{
-				for (int i = 0; i < 1000000000000000000; i += 10)
+				for (var i = 0L; i < iterations; i += 10L)
 				{
 					producerBuffer[0] = (byte) (i % mod);
 					producerBuffer[1] = (byte) ((i + 1) % mod);
@@ -281,7 +292,7 @@
 					producerBuffer[8] = (byte) ((i + 8) % mod);
 					producerBuffer[9] = (byte) ((i + 9) % mod);
 
-					rbuffer.Insert(producerBuffer, 0, producerBuffer.Length);
+					await rbuffer.Insert(producerBuffer, 0, producerBuffer.Length);
 				}
 
 				done = true;
@@ -314,10 +325,10 @@
 			});
 
 			Task.WaitAll(producerTask, consumerTask);
+			watch.Stop();
+			// Console.WriteLine("Checking consistency...");
 
-			Console.WriteLine("Checking consistency...");
-
-			Console.WriteLine("Completed");
+			Console.WriteLine("Completed in " + watch.Elapsed.TotalMilliseconds + "ms");
 		}
     }
 }

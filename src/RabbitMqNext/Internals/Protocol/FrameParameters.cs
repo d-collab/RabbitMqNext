@@ -28,7 +28,8 @@ namespace RabbitMqNext.Internals
 
 			public void Done()
 			{
-				_recycler(this);
+				if (_recycler != null)
+					_recycler(this);
 			}
 		}
 	}

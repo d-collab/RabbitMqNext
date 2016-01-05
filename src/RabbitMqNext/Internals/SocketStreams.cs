@@ -70,7 +70,7 @@ namespace RabbitMqNext.Internals
 				try
 				{
 					// will block
-					_ringBufferStream.ReceiveFromTask(_socket);
+					await _ringBufferStream.ReceiveFromTask(_socket);
 				}
 				catch (SocketException ex)
 				{

@@ -7,7 +7,7 @@
 	using System.Threading.Tasks;
 	using Internals;
 
-	internal class AmqpChannel : IAmqpChannel
+	public class AmqpChannel // : IAmqpChannel
 	{
 		private readonly ushort _channelNum;
 		private readonly ConnectionStateMachine _connection;
@@ -19,7 +19,7 @@
 		private readonly ObjectPool<TaskLight> _taskLightPool;
 		private readonly ObjectPool<FrameParameters.BasicPublishArgs> _basicPubArgsPool;
 
-		public AmqpChannel(ushort channelNum, ConnectionStateMachine connection)
+		internal AmqpChannel(ushort channelNum, ConnectionStateMachine connection)
 		{
 			_channelNum = channelNum;
 			_connection = connection;
@@ -27,10 +27,10 @@
 			_consumerSubscriptions = new ConcurrentDictionary<string, Action<BasicProperties, Stream, int>>(StringComparer.Ordinal);
 
 			_taskLightPool = new ObjectPool<TaskLight>(() =>
-				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
+				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 20, preInitialize: true);
 			
 			_basicPubArgsPool = new ObjectPool<FrameParameters.BasicPublishArgs>(
-				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 10, preInitialize: true); 
+				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 20, preInitialize: true); 
 		}
 
 		private void GenericRecycler<T>(T item, ObjectPool<T> pool) where T : class
@@ -174,10 +174,11 @@
 			}
 
 			// var tcs = new TaskCompletionSource<bool>();
-			// var tcs = new TaskLight(null);
+//			 var tcs = new TaskLight(null);
 			var tcs = _taskLightPool.GetObject();
 
 			var args = _basicPubArgsPool.GetObject();
+			// var args = new FrameParameters.BasicPublishArgs(null);
 			args.exchange = exchange; 
 			args.immediate = immediate; 
 			args.routingKey = routingKey; 
