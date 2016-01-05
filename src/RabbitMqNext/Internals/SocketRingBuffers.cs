@@ -5,7 +5,7 @@ namespace RabbitMqNext.Internals
 	using System.Threading;
 	using System.Threading.Tasks;
 
-	internal class SocketStreams : IDisposable
+	internal class SocketRingBuffers : IDisposable
 	{
 		private readonly Socket _socket;
 		private readonly CancellationToken _cancellationToken; // does not own it
@@ -18,7 +18,7 @@ namespace RabbitMqNext.Internals
 
 		private int _socketIsClosed = 0;
 
-		public SocketStreams(Socket socket, CancellationToken cancellationToken, Action notifyWhenClosed)
+		public SocketRingBuffers(Socket socket, CancellationToken cancellationToken, Action notifyWhenClosed)
 		{
 			_socket = socket;
 			_cancellationToken = cancellationToken;
@@ -27,8 +27,11 @@ namespace RabbitMqNext.Internals
 			_ringBufferStream = new RingBufferStream(cancellationToken);
 			_outputRingBuffer = new RingBufferStream(cancellationToken);
 
-			Task.Factory.StartNew((_) => ReadLoop(), cancellationToken, TaskCreationOptions.LongRunning);
-			Task.Factory.StartNew((_) => WriteLoop(), cancellationToken, TaskCreationOptions.LongRunning);
+//			Task.Factory.StartNew((_) => ReadLoop(), cancellationToken, TaskCreationOptions.LongRunning);
+//			Task.Factory.StartNew((_) => WriteLoop(), cancellationToken, TaskCreationOptions.LongRunning);
+
+			new Thread(ReadLoop) { IsBackground = true, Name = "StreamReadLoop" }.Start();
+			new Thread(WriteLoop) { IsBackground = true, Name = "StreamWriteLoop" }.Start();
 
 			Writer = new InternalBigEndianWriter(_outputRingBuffer);
 			Reader = new InternalBigEndianReader(_ringBufferStream);
@@ -39,7 +42,7 @@ namespace RabbitMqNext.Internals
 			get { return _outputRingBuffer.Position < _outputRingBuffer.Length; }
 		}
 
-		private async Task WriteLoop()
+		private async void WriteLoop()
 		{
 			try
 			{
@@ -63,7 +66,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		private async Task ReadLoop()
+		private async void ReadLoop()
 		{
 			while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
 			{
