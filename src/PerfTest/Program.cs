@@ -45,10 +45,11 @@
 
 		private static async Task Start()
 		{
-			var conn = await new ConnectionFactory().Connect("localhost", vhost: "clear_test");
-
+			Connection conn = null;
 			try
 			{
+				conn = await new ConnectionFactory().Connect("localhost", vhost: "clear_test");
+
 				Console.WriteLine("[Connected]");
 
 				var newChannel = await conn.CreateChannel();

@@ -7,7 +7,7 @@ namespace RabbitMqNext
 	{
 		private readonly Action<TaskLight> _recycler;
 		private Action _continuation;
-		private bool _isCompleted = false;
+		private volatile bool _isCompleted = false;
 
 		public TaskLight(Action<TaskLight> recycler)
 		{
