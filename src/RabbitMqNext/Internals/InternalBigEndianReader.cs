@@ -12,9 +12,16 @@ namespace RabbitMqNext.Internals
 		private readonly byte[] _fourByteArray = new byte[4];
 		private readonly byte[] _eightByteArray = new byte[8];
 
+		private readonly Task<byte>[] _cachedByteTaskResult = new Task<byte>[256];
+
 		public InternalBigEndianReader(RingBufferStream ringBufferStream)
 		{
 			_ringBufferStream = ringBufferStream;
+
+			for (int i = 0; i < 256; i++)
+			{
+				_cachedByteTaskResult[i] = Task.FromResult((byte) i);
+			}
 		}
 
 		public long Position { get { return _ringBufferStream.Position; } }
@@ -33,10 +40,28 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task<byte> ReadByte()
+		public Task<byte> ReadByte()
 		{
-			await FillBuffer(_oneByteArray, 1);
-			return _oneByteArray[0];
+			var t = FillBuffer(_oneByteArray, 1);
+
+			if (t.IsCompleted)
+			{
+				var b = _oneByteArray[0];
+				return _cachedByteTaskResult[b];
+			}
+			else
+			{
+				return t.ContinueWith(new Func<Task, object, byte>((t1,state) =>
+				{
+					var b = _oneByteArray[0];
+					return b;
+				}), null, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
+
+//				return t.ContinueWith((t2) => {
+////					var b = _oneByteArray[0];
+////					return _cachedByteTaskResult[b];
+//				});
+			}
 		}
 
 		public async Task<sbyte> ReadSByte()
