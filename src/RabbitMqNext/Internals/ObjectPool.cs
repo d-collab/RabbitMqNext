@@ -1,35 +1,40 @@
 ﻿namespace RabbitMqNext.Internals
 {
 	using System;
-	using System.Collections.Concurrent;
 	using System.Threading;
-
 
 	public sealed class ObjectPool<T> : IDisposable where T : class 
 	{
-		private const int Capacity = 5;
+		private const int DefaultCapacity = 5;
 
 		private readonly Func<T> _objectGenerator;
-//		private readonly CancellationToken _cancellationToken;
+		private readonly SemaphoreSlim _semaphore;
+		private readonly T[] _array;
+		private readonly int _capacity;
 
-		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(Capacity, Capacity);
-		private readonly T[] _array = new T[Capacity];
-
-		public ObjectPool(Func<T> objectGenerator
-				/*, CancellationToken cancellationToken,*/ 
-				// , int initialCapacity = 0
-			)
+		public ObjectPool(Func<T> objectGenerator, int capacity = DefaultCapacity, bool preInitialize = false)
 		{
 			if (objectGenerator == null) throw new ArgumentNullException("objectGenerator");
 
+			_capacity = capacity;
+			_semaphore = new SemaphoreSlim(_capacity, _capacity);
+			_array = new T[_capacity];
 			_objectGenerator = objectGenerator;
+
+			if (preInitialize)
+			{
+				for (int i = 0; i < _capacity; i++)
+				{
+					_array[i] = objectGenerator();
+				}
+			}
 		}
 
 		public T GetObject()
 		{
 			_semaphore.Wait();
 
-			for (var i = 0; i < Capacity; i++)
+			for (var i = 0; i < _capacity; i++)
 			{
 				var v = Interlocked.Exchange(ref _array[i], null);
 				if (v != null) return v;	
@@ -43,7 +48,7 @@
 			var disposable = item as IDisposable;
 			if (disposable != null) disposable.Dispose();
 
-			for (int i = 0; i < Capacity; i++)
+			for (int i = 0; i < _capacity; i++)
 			{
 				var v = Interlocked.CompareExchange(ref _array[i], item, null);
 				if (v == null)

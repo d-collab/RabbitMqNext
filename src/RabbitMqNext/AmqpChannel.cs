@@ -16,12 +16,26 @@
 
 		private volatile int _closed = 0;
 
+		private readonly ObjectPool<TaskLight> _taskLightPool;
+		private readonly ObjectPool<FrameParameters.BasicPublishArgs> _basicPubArgsPool;
+
 		public AmqpChannel(ushort channelNum, ConnectionStateMachine connection)
 		{
 			_channelNum = channelNum;
 			_connection = connection;
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
 			_consumerSubscriptions = new ConcurrentDictionary<string, Action<BasicProperties, Stream, int>>(StringComparer.Ordinal);
+
+			_taskLightPool = new ObjectPool<TaskLight>(() => 
+				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 50);
+			
+			_basicPubArgsPool = new ObjectPool<FrameParameters.BasicPublishArgs>(
+				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 50); 
+		}
+
+		private void GenericRecycler<T>(T item, ObjectPool<T> pool) where T : class
+		{
+			pool.PutObject(item);
 		}
 
 		public int ChannelNumber { get { return _channelNum; } }
@@ -98,11 +112,11 @@
 				exclusive, autoDelete, arguments, waitConfirmation);
 
 			_connection.SendCommand(_channelNum, 50, 10, writer,
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueueDeclareOk)
 					{
-						await _connection._frameReader.Read_QueueDeclareOk((queueName, messageCount, consumerCount) =>
+						_connection._frameReader.Read_QueueDeclareOk((queueName, messageCount, consumerCount) =>
 						{
 							tcs.SetResult(new AmqpQueueInfo()
 							{
@@ -152,24 +166,33 @@
 			return tcs.Task;
 		}
 
-		public Task BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate, BasicProperties properties, ArraySegment<byte> buffer)
+		public TaskLight BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate, BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			properties = properties ?? new BasicProperties();
-
-			var tcs = new TaskCompletionSource<bool>();
-
-			var args = new FrameParameters.BasicPublishArgs()
+			if (properties == null || properties.IsEmpty)
 			{
-				exchange = exchange, immediate = immediate, 
-				routingKey = routingKey, mandatory = mandatory,
-				properties = properties, buffer = buffer
-			};
+				properties = BasicProperties.Empty;
+			}
+
+			// var tcs = new TaskCompletionSource<bool>();
+			// var tcs = new TaskLight(null);
+			var tcs = _taskLightPool.GetObject();
+
+			var args = _basicPubArgsPool.GetObject();
+			args.exchange = exchange; 
+			args.immediate = immediate; 
+			args.routingKey = routingKey; 
+			args.mandatory = mandatory; 
+			args.properties = properties;
+			args.buffer = buffer;
 
 			_connection.SendCommand(_channelNum, 60, 40,
 				AmqpChannelLevelFrameWriter.InternalBasicPublish, reply: null, expectsReply: false, 
-				tcs: tcs, optArg: args);
+				// tcs: tcs,
+				tcsL: tcs,
+				optArg: args);
 
-			return tcs.Task;
+			return tcs;
+			// return tcs.Task;
 		}
 
 		public Task<string> BasicConsume(Action<BasicProperties, Stream, int> consumer,
@@ -183,11 +206,11 @@
 			var writer = AmqpChannelLevelFrameWriter.BasicConsume(queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
 
 			_connection.SendCommand(_channelNum, 60, 20, writer, 
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
 					{
-						await _connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
+						_connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
 						{
 							tcs.SetResult(consumerTag2);
 						});

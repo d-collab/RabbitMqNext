@@ -27,8 +27,8 @@ namespace RabbitMqNext.Internals
 			_ringBufferStream = new RingBufferStream(cancellationToken);
 			_outputRingBuffer = new RingBufferStream(cancellationToken);
 
-			Task.Factory.StartNew((_) => ReadLoop(null), cancellationToken, TaskCreationOptions.LongRunning);
-			Task.Factory.StartNew((_) => WriteLoop(null), cancellationToken, TaskCreationOptions.LongRunning);
+			Task.Factory.StartNew((_) => ReadLoop(), cancellationToken, TaskCreationOptions.LongRunning);
+			Task.Factory.StartNew((_) => WriteLoop(), cancellationToken, TaskCreationOptions.LongRunning);
 
 			Writer = new InternalBigEndianWriter(_outputRingBuffer);
 			Reader = new InternalBigEndianReader(_ringBufferStream);
@@ -39,14 +39,14 @@ namespace RabbitMqNext.Internals
 			get { return _outputRingBuffer.Position < _outputRingBuffer.Length; }
 		}
 
-		private async Task WriteLoop(object state)
+		private async Task WriteLoop()
 		{
 			try
 			{
 				while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
 				{
 					// No intermediary buffer needed
-					await _outputRingBuffer.ReadIntoSocketTask(_socket);
+					await _outputRingBuffer.ReadAvailableBufferIntoSocketAsync(_socket);
 				}
 			}
 			catch (SocketException ex)
@@ -63,13 +63,14 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		private async Task ReadLoop(object state)
+		private async Task ReadLoop()
 		{
 			while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
 			{
 				try
 				{
-					await _ringBufferStream.ReceiveFromTask(_socket);
+					// will block
+					_ringBufferStream.ReceiveFromTask(_socket);
 				}
 				catch (SocketException ex)
 				{

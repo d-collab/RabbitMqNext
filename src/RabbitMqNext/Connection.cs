@@ -4,6 +4,7 @@
 	using System.Diagnostics;
 	using System.Net;
 	using System.Net.Sockets;
+	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
 	using Internals;
@@ -30,7 +31,6 @@
 
 		private int _channelNumbers;
 		
-
 		public Connection()
 		{
 			_cancellationTokenSrc = new CancellationTokenSource();
@@ -39,25 +39,6 @@
 			{
 				NoDelay = true
 			};
-		}
-
-		internal async Task Connect(string hostname, string vhost, 
-									string username, string password, int port = 5672)
-		{
-			await InternalConnect(hostname, port);
-			await InternalHandshake(username, password, vhost);
-		}
-
-		public async Task Close()
-		{
-			await _connectionState.DoCloseConnection(true);
-
-			while (_socketToStream.StillSending)
-			{
-				await Task.Delay(TimeSpan.FromSeconds(1));
-			}
-
-			Dispose();
 		}
 
 		public async Task<IAmqpChannel> CreateChannel()
@@ -82,7 +63,39 @@
 			}
 		}
 
-		private async Task InternalConnect(string hostname, int port)
+		public async Task Close()
+		{
+			await _connectionState.DoCloseConnection(true);
+
+			while (_socketToStream.StillSending)
+			{
+				await Task.Delay(TimeSpan.FromSeconds(1));
+			}
+
+			Dispose();
+		}
+
+		internal async Task Connect(string hostname, string vhost, string username, string password, int port = 5672)
+		{
+			await InternalConnectAndHandshake(hostname, port, username, password, vhost);
+		}
+
+		private async Task InternalConnectAndHandshake(string hostname, int port, string username, string password, string vhost)
+		{
+			await InternalDoConnectSocket(hostname, port);
+
+			_socketToStream = new SocketStreams(_socket, _cancellationTokenSrc.Token, OnSocketClosed);
+			_amqpReader = new AmqpPrimitivesReader(_socketToStream.Reader);
+			_amqpWriter = new AmqpPrimitivesWriter(_socketToStream.Writer, bufferPool: null, memStreamPool: null);
+
+			_connectionState = new ConnectionStateMachine(_socketToStream.Reader, _amqpReader, _amqpWriter, _cancellationTokenSrc.Token);
+
+			await _connectionState.Start(username, password, vhost);
+			_amqpWriter.FrameMaxSize = _connectionState._frameMax;
+			_amqpReader.FrameMaxSize = _connectionState._frameMax;
+		}
+
+		private async Task InternalDoConnectSocket(string hostname, int port)
 		{
 			var addresses = Dns.GetHostAddresses(hostname);
 			var started = false;
@@ -97,100 +110,12 @@
 				}
 			}
 
-			if (!started) 
-				throw new Exception("Invalid hostname " + hostname); // ipv6 not supported yet
-
-			_socketToStream = new SocketStreams(_socket, _cancellationTokenSrc.Token, OnSocketClosed);
-
-			_amqpReader = new AmqpPrimitivesReader(_socketToStream.Reader);
-			_amqpWriter = new AmqpPrimitivesWriter(_socketToStream.Writer, bufferPool: null, memStreamPool: null);
-
-			_connectionState = new ConnectionStateMachine(_socketToStream.Reader, _amqpReader);
+			if (!started) throw new Exception("Invalid hostname " + hostname); // ipv6 not supported yet
 		}
 
 		private void OnSocketClosed()
 		{
 			_connectionState.NotifySocketClosed();
-		}
-
-		private async Task InternalHandshake(string username, string password, string vhost)
-		{
-			var t1 = new Thread(WriteCommandsToSocket) { IsBackground = true, Name = "WriteCommandsToSocket" };
-			t1.Start();
-
-			var t2 = new Thread(ReadFramesLoop) { IsBackground = true, Name = "ReadFramesLoop" };
-			t2.Start();
-
-			await _connectionState.Start(username, password, vhost);
-			_amqpWriter.FrameMaxSize = _connectionState._frameMax;
-			_amqpReader.FrameMaxSize = _connectionState._frameMax;
-		}
-
-		private void WriteCommandsToSocket()
-		{
-			try
-			{
-				while (!_cancellationTokenSrc.IsCancellationRequested)
-				{
-					_connectionState._commandsToSendEvent.Wait(_cancellationTokenSrc.Token);
-
-					CommandToSend cmdToSend;
-					while (_connectionState._commandOutbox.TryDequeue(out cmdToSend))
-					{
-						// Console.WriteLine(" writing command ");
-
-						if (cmdToSend.ExpectsReply)
-						{
-							if (cmdToSend.Channel == 0)
-								_connectionState._awaitingReplyQueue.Enqueue(cmdToSend);
-							else
-								_connectionState._channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
-						}
-						
-						// writes to socket
-						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, 
-												   cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-						
-						// if writing to socket is enough, set as complete
-						if (!cmdToSend.ExpectsReply)
-						{
-							cmdToSend.ReplyAction3(0, 0, null);
-						}
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("WriteCommandsToSocket error " + ex.Message);
-				Debugger.Log(1, "error", "WriteCommandsToSocket error " + ex.Message);
-//				throw;
-			}
-		}
-
-		private void ReadFramesLoop()
-		{
-			try
-			{
-				while (!_cancellationTokenSrc.IsCancellationRequested)
-				{
-					var t = ReadFrame();
-					t.Wait(_cancellationTokenSrc.Token);
-				}
-			}
-			catch (ThreadAbortException)
-			{
-				// no-op
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("ReadFramesLoop error " + ex.Message);
-				Debugger.Log(1, "error", "ReadFramesLoop error " + ex.Message);
-			}
-		}
-
-		private async Task ReadFrame()
-		{
-			await _connectionState._frameReader.ReadAndDispatch();
 		}
 
 		internal void Dispose()

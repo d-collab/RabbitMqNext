@@ -63,7 +63,7 @@
 		/// <param name="properties"></param>
 		/// <param name="buffer"></param>
 		/// <returns></returns>
-		Task BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
+		TaskLight BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
 			BasicProperties properties, ArraySegment<byte> buffer);
 
 		Task Close();

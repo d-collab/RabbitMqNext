@@ -15,7 +15,7 @@
 	public class Program
 	{
 		const int TotalPublish = 250000;
-//		const int TotalPublish = 50;
+//		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
 
 		private static byte[] MessageContent =
@@ -29,7 +29,7 @@
 	    public static void Main()
 	    {
 			Console.WriteLine("Is Server GC: " + GCSettings.IsServerGC);
-			GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+//			GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
 			Console.WriteLine("Compaction mode: " + GCSettings.LargeObjectHeapCompactionMode);
 			Console.WriteLine("Latency mode: " + GCSettings.LatencyMode);
 			GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
@@ -65,17 +65,16 @@
 
 				var prop = new BasicProperties()
 				{
-					Type = "type1",
+//					Type = "type1",
 					// DeliveryMode = 2,
-					Headers = new Dictionary<string, object> {{"serialization", 0}}
+					// Headers = new Dictionary<string, object> {{"serialization", 0}}
 				};
 
 				var watch = Stopwatch.StartNew();
 				for (int i = 0; i < TotalPublish; i++)
 				{
-					prop.Headers["serialization"] = i;
+					// prop.Headers["serialization"] = i;
 
-					// var buffer = Encoding.UTF8.GetBytes("Hello world");
 					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
 				}
 				watch.Stop();
@@ -98,7 +97,7 @@
 				{
 					stream.Read(temp, 0, len);
 
-					var str = Encoding.UTF8.GetString(temp, 0, len);
+					// var str = Encoding.UTF8.GetString(temp, 0, len);
 					// Console.WriteLine("Received : " + str);
 
 					// newChannel2.BasicAck()
@@ -170,6 +169,8 @@
 			watch = Stopwatch.StartNew();
 			channel.BasicConsume("queue1", true, new OldStyleConsumer(body =>
 			{
+				var str = Encoding.UTF8.GetString(body, 0, body.Length);
+
 				if (++totalReceived == TotalPublish)
 				{
 					watch.Stop();

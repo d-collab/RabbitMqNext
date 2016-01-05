@@ -21,14 +21,14 @@ namespace RabbitMqNext.Internals
 			_reader = reader;
 		}
 
-		public async Task<byte> ReadOctet()
+		public byte ReadOctet()
 		{
-			return await _reader.ReadByte();
+			return _reader.ReadByte();
 		}
 
-		public async Task<ushort> ReadShort()
+		public ushort ReadShort()
 		{
-			return await _reader.ReadUInt16();
+			return _reader.ReadUInt16();
 		}
 
 		public async Task<IDictionary<string, object>> ReadTable()
@@ -36,15 +36,15 @@ namespace RabbitMqNext.Internals
 			// unbounded allocation! bad
 			IDictionary<string, object> table = new Dictionary<string, object>(capacity: 11);
 
-			long tableLength = await _reader.ReadUInt32();
+			long tableLength = _reader.ReadUInt32();
 			if (tableLength == 0) return table;
 
 			var endOfTable = _reader.Position + tableLength;
 
 			while (_reader.Position < endOfTable)
 			{
-				var key = await ReadShortStr();
-				var value = await ReadFieldValue();
+				var key = ReadShortStr();
+				var value = ReadFieldValue();
 
 				table[key] = value;
 			}
@@ -52,25 +52,25 @@ namespace RabbitMqNext.Internals
 			return table;
 		}
 
-		public async Task<string> ReadShortStr()
+		public string ReadShortStr()
 		{
-			int byteCount = await _reader.ReadByte();
+			int byteCount = _reader.ReadByte();
 			if (byteCount == 0) return string.Empty;
 
-			await _reader.FillBuffer(_smallBuffer, byteCount, reverse: false);
+			_reader.FillBuffer(_smallBuffer, byteCount, reverse: false).Wait();
 			var str = Encoding.UTF8.GetString(_smallBuffer, 0, byteCount);
 			return str;
 		}
 
-		public async Task<string> ReadLongstr()
+		public string ReadLongstr()
 		{
-			var byteCount = (int) await _reader.ReadUInt32();
+			var byteCount = (int) _reader.ReadUInt32();
 			if (byteCount == 0) return string.Empty;
 
 			var buffer = _bufferPool.Rent(byteCount);
 			try
 			{
-				await _reader.FillBuffer(buffer, byteCount, reverse: false);
+				_reader.FillBuffer(buffer, byteCount, reverse: false).Wait();
 				var str = Encoding.UTF8.GetString(buffer, 0, byteCount);
 				return str;
 			}
@@ -85,7 +85,7 @@ namespace RabbitMqNext.Internals
 			// unbounded allocation again! bad!
 			IList array = new List<object>(capacity: 10);
 
-			var arrayLength = (int) await _reader.ReadUInt32();
+			var arrayLength = (int) _reader.ReadUInt32();
 			if (arrayLength == 0) return array;
 			
 			var endPosition = _reader.Position + arrayLength;
@@ -101,21 +101,21 @@ namespace RabbitMqNext.Internals
 		public async Task<object> ReadFieldValue()
 		{
 			object value = null;
-			var discriminator = await _reader.ReadByte();
+			var discriminator = _reader.ReadByte();
 
 			switch ((char)discriminator)
 			{
 				case 'S':
-					value = await this.ReadLongstr();
+					value = this.ReadLongstr();
 					break;
 				case 'I':
-					value = await _reader.ReadInt32();
+					value = _reader.ReadInt32();
 					break;
 				case 'A':
 					value = await this.ReadArray();
 					break;
 				case 'b':
-					value = await _reader.ReadSByte();
+					value = _reader.ReadSByte();
 					break;
 				case 'd':
 					value = await _reader.ReadDouble();
@@ -124,13 +124,13 @@ namespace RabbitMqNext.Internals
 					value = await _reader.ReadSingle();
 					break;
 				case 'l':
-					value = await _reader.ReadInt64();
+					value = _reader.ReadInt64();
 					break;
 				case 's':
-					value = await _reader.ReadInt16();
+					value = _reader.ReadInt16();
 					break;
 				case 't':
-					value = await _reader.ReadByte() != 0;
+					value = _reader.ReadByte() != 0;
 					break;
 //				case 'x':
 //					value = new BinaryTableValue(ReadLongstr(reader));
@@ -138,9 +138,9 @@ namespace RabbitMqNext.Internals
 //				case 'D':
 //					// value = ReadDecimal(reader);
 //					break;
-//				case 'T':
-//					// value = ReadTimestamp(reader);
-//					break;
+				case 'T':
+					value = await ReadTimestamp();
+					break;
 				case 'F':
 					value = await this.ReadTable();
 					break;
@@ -153,24 +153,24 @@ namespace RabbitMqNext.Internals
 			return value;
 		}
 
-		public async Task<uint> ReadLong()
+		public uint ReadLong()
 		{
-			return await _reader.ReadUInt32();
+			return _reader.ReadUInt32();
 		}
 
-		public async Task<ulong> ReadULong()
+		public ulong ReadULong()
 		{
-			return await _reader.ReadUInt64();
+			return _reader.ReadUInt64();
 		}
 
-		public async Task<byte> ReadBits()
+		public byte ReadBits()
 		{
-			return await _reader.ReadByte();
+			return _reader.ReadByte();
 		}
 
 		public async Task<AmqpTimestamp> ReadTimestamp()
 		{
-			var l = await _reader.ReadInt64();
+			var l = _reader.ReadInt64();
 			return new AmqpTimestamp(l);
 		}
 	}

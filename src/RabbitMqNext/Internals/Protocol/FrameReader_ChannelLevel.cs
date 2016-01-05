@@ -20,13 +20,13 @@ namespace RabbitMqNext.Internals
 			continuation();
 		}
 
-		public async Task Read_QueueDeclareOk(Action<string, uint, uint> continuation)
+		public void Read_QueueDeclareOk(Action<string, uint, uint> continuation)
 		{
 			Console.WriteLine("< QueueDeclareOk");
 
-			var queue = await _amqpReader.ReadShortStr();
-			var messageCount = await _amqpReader.ReadLong();
-			var consumerCount = await _amqpReader.ReadLong();
+			var queue = _amqpReader.ReadShortStr();
+			var messageCount = _amqpReader.ReadLong();
+			var consumerCount = _amqpReader.ReadLong();
 
 			continuation(queue, messageCount, consumerCount);
 		}
@@ -40,10 +40,10 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_Channel_Close2(Action<ushort, string, ushort, ushort> continuation)
 		{
-			var replyCode = await _amqpReader.ReadShort();
-			var replyText = await _amqpReader.ReadShortStr();
-			var classId = await _amqpReader.ReadShort();
-			var methodId = await _amqpReader.ReadShort();
+			var replyCode = _amqpReader.ReadShort();
+			var replyText = _amqpReader.ReadShortStr();
+			var classId = _amqpReader.ReadShort();
+			var methodId = _amqpReader.ReadShort();
 
 			Console.WriteLine("< channel close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
@@ -52,25 +52,25 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_BasicDelivery(Action<string, ulong, bool, string, string, long, BasicProperties, Stream> continuation)
 		{
-			var consumerTag = await _amqpReader.ReadShortStr();
-			var deliveryTag = await _amqpReader.ReadULong();
-			var redelivered = await _amqpReader.ReadBits() != 0;
-			var exchange = await _amqpReader.ReadShortStr();
-			var routingKey = await _amqpReader.ReadShortStr();
+			var consumerTag = _amqpReader.ReadShortStr();
+			var deliveryTag = _amqpReader.ReadULong();
+			var redelivered = _amqpReader.ReadBits() != 0;
+			var exchange = _amqpReader.ReadShortStr();
+			var routingKey = _amqpReader.ReadShortStr();
 
-			var frameEndMarker = await _amqpReader.ReadOctet();
+			var frameEndMarker = _amqpReader.ReadOctet();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
 
 			// Frame Header / Content header
 
-			var frameHeaderStart = await _amqpReader.ReadOctet();
+			var frameHeaderStart = _amqpReader.ReadOctet();
 			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
 
-			ushort channel = await _reader.ReadUInt16();
-			int payloadLength = await _reader.ReadInt32();
-			var classId = await _reader.ReadUInt16();
-			var weight = await _reader.ReadUInt16();
-			var bodySize = (long) await _reader.ReadUInt64();
+			ushort channel = _reader.ReadUInt16();
+			int payloadLength = _reader.ReadInt32();
+			var classId = _reader.ReadUInt16();
+			var weight = _reader.ReadUInt16();
+			var bodySize = (long) _reader.ReadUInt64();
 
 			var properties = await ReadRestOfContentHeader();
 
@@ -78,11 +78,11 @@ namespace RabbitMqNext.Internals
 
 			// Support just single body at this moment.
 
-			frameHeaderStart = await _reader.ReadByte();
+			frameHeaderStart = _reader.ReadByte();
 			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
-			channel = await _reader.ReadUInt16();
-			var length = await _reader.ReadUInt32();
+			channel = _reader.ReadUInt16();
+			var length = _reader.ReadUInt32();
 
 			// Pending Frame end
 
@@ -105,35 +105,42 @@ namespace RabbitMqNext.Internals
 
 		private async Task<BasicProperties> ReadRestOfContentHeader()
 		{
-			var properties = new BasicProperties();
+			var presence = _reader.ReadUInt16();
 
-			var presence = await _reader.ReadUInt16();
-			properties._presenceSWord = presence;
+			BasicProperties properties;
 
-			if (properties.IsContentTypePresent) { properties.ContentType = await _amqpReader.ReadShortStr(); }
-			if (properties.IsContentEncodingPresent) { properties.ContentEncoding = await _amqpReader.ReadShortStr(); }
-			if (properties.IsHeadersPresent) { properties.Headers = await _amqpReader.ReadTable(); }
-			if (properties.IsDeliveryModePresent) { properties.DeliveryMode = await _amqpReader.ReadOctet(); }
-			if (properties.IsPriorityPresent) { properties.Priority = await _amqpReader.ReadOctet(); }
-			if (properties.IsCorrelationIdPresent) { properties.CorrelationId = await _amqpReader.ReadShortStr(); }
-			if (properties.IsReplyToPresent) { properties.ReplyTo = await _amqpReader.ReadShortStr(); }
-			if (properties.IsExpirationPresent) { properties.Expiration = await _amqpReader.ReadShortStr(); }
-			if (properties.IsMessageIdPresent) { properties.MessageId = await _amqpReader.ReadShortStr(); }
-			if (properties.IsTimestampPresent) { properties.Timestamp = await _amqpReader.ReadTimestamp(); }
-			if (properties.IsTypePresent) { properties.Type = await _amqpReader.ReadShortStr(); }
-			if (properties.IsUserIdPresent) { properties.UserId = await _amqpReader.ReadShortStr(); }
-			if (properties.IsAppIdPresent) { properties.AppId = await _amqpReader.ReadShortStr(); }
-			if (properties.IsClusterIdPresent) { properties.ClusterId = await _amqpReader.ReadShortStr(); }
+			if (presence == 0) // no header content
+			{
+				properties = BasicProperties.Empty;
+			}
+			else
+			{
+				properties = new BasicProperties {_presenceSWord = presence};
+				if (properties.IsContentTypePresent) { properties.ContentType = _amqpReader.ReadShortStr(); }
+				if (properties.IsContentEncodingPresent) { properties.ContentEncoding = _amqpReader.ReadShortStr(); }
+				if (properties.IsHeadersPresent) { properties.Headers = await _amqpReader.ReadTable(); }
+				if (properties.IsDeliveryModePresent) { properties.DeliveryMode = _amqpReader.ReadOctet(); }
+				if (properties.IsPriorityPresent) { properties.Priority = _amqpReader.ReadOctet(); }
+				if (properties.IsCorrelationIdPresent) { properties.CorrelationId = _amqpReader.ReadShortStr(); }
+				if (properties.IsReplyToPresent) { properties.ReplyTo = _amqpReader.ReadShortStr(); }
+				if (properties.IsExpirationPresent) { properties.Expiration = _amqpReader.ReadShortStr(); }
+				if (properties.IsMessageIdPresent) { properties.MessageId = _amqpReader.ReadShortStr(); }
+				if (properties.IsTimestampPresent) { properties.Timestamp = await _amqpReader.ReadTimestamp(); }
+				if (properties.IsTypePresent) { properties.Type = _amqpReader.ReadShortStr(); }
+				if (properties.IsUserIdPresent) { properties.UserId = _amqpReader.ReadShortStr(); }
+				if (properties.IsAppIdPresent) { properties.AppId = _amqpReader.ReadShortStr(); }
+				if (properties.IsClusterIdPresent) { properties.ClusterId = _amqpReader.ReadShortStr(); }
+			}
 
-			int frameEndMarker = await _reader.ReadByte();
+			int frameEndMarker = _reader.ReadByte();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
 
 			return properties;
 		}
 
-		public async Task Read_BasicConsumeOk(Action<string> continuation)
+		public void Read_BasicConsumeOk(Action<string> continuation)
 		{
-			var consumerTag = await _amqpReader.ReadShortStr();
+			var consumerTag = _amqpReader.ReadShortStr();
 
 			Console.WriteLine("< BasicConsumeOk ");
 

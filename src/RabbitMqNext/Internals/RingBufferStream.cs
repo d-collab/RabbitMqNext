@@ -7,6 +7,14 @@ namespace RabbitMqNext.Internals
 	using System.Threading;
 	using System.Threading.Tasks;
 
+	/// <summary>
+	/// This implementation presumes two things in order to work correctly:
+	/// There are no concurrent reads and no concurrent writes. In other words,
+	/// you can write from thread A and read from thread B, but you cannot have thread C
+	/// writing, reading, seeking or you'll corrupt the positions. 
+	/// 
+	/// Yes, it could be made thread safe, but we are deliberately avoiding locks.
+	/// </summary>
 	internal class RingBufferStream : Stream
 	{
 		private readonly CancellationToken _cancellationToken;
@@ -16,9 +24,9 @@ namespace RabbitMqNext.Internals
 		private volatile int _readPosition = -1;
 		private volatile int _writePosition = -1;
 		private readonly ManualResetEventSlim _bufferFreeEvent = new ManualResetEventSlim(false);
+		private readonly AsyncManualResetEvent _writeEvent = new AsyncManualResetEvent();
 		// private readonly AsyncManualResetEvent _bufferFreeEvent = new AsyncManualResetEvent();
 		// private readonly ManualResetEventSlim _writeEvent = new ManualResetEventSlim(false);
-		private readonly AsyncManualResetEvent _writeEvent = new AsyncManualResetEvent();
 
 		private readonly byte[] _buffer;
 
@@ -97,7 +105,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task ReadIntoSocketTask(Socket socket)
+		public async Task ReadAvailableBufferIntoSocketAsync(Socket socket)
 		{
 			if (_readPosition == -1)
 			{
@@ -130,7 +138,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public Task ReceiveFromTask(Socket socket)
+		public void ReceiveFromTask(Socket socket)
 		{
 			if (_writePosition == -1)
 			{
@@ -152,7 +160,6 @@ namespace RabbitMqNext.Internals
 				if (BufferSize - writePos == 0)
 				{
 					// _bufferFreeEvent.Wait(_cancellationToken);
-
 					continue;
 				}
 
@@ -161,7 +168,6 @@ namespace RabbitMqNext.Internals
 				var readpos = ReadCursorPosNormalized();
 				if (writePos < readpos && writePos + sizeForCopy > readpos)
 				{
-					// wrap!
 					// Debug.Assert(false, "will wrap");
 					sizeForCopy = readpos - writePos;
 				}
@@ -177,8 +183,6 @@ namespace RabbitMqNext.Internals
 				// signal
 				_writeEvent.Set2();
 			}
-
-			return Task.CompletedTask;
 		}
 
 		public async Task<int> ReadTaskAsync(byte[] buffer, int offset, int count)
@@ -236,9 +240,29 @@ namespace RabbitMqNext.Internals
 			return totalRead;
 		}
 
+		/// <summary>
+		/// Presumes no concurrent read access
+		/// </summary>
 		public override long Seek(long offset, SeekOrigin origin)
 		{
-			throw new NotSupportedException();
+			if (origin == SeekOrigin.Current)
+			{
+				var availableToRead = this.UnreadLength();
+
+				if (offset <= availableToRead)
+				{
+					checked
+					{
+						_readPosition += (int) offset;
+					}
+					return offset;
+				}
+				else
+				{
+					throw new NotSupportedException("Cannot seek past end");
+				}
+			}
+			else throw new NotSupportedException("Can only seek from current position");
 		}
 
 		public override void SetLength(long value)
@@ -313,7 +337,5 @@ namespace RabbitMqNext.Internals
 		{
 			return _writePosition % BufferSize;
 		}
-
-		
 	}
 }

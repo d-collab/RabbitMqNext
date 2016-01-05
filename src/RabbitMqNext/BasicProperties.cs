@@ -2,10 +2,15 @@ namespace RabbitMqNext
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Runtime.CompilerServices;
 	using System.Text;
 
 	public class BasicProperties
 	{
+		internal static readonly BasicProperties Empty = new BasicProperties(isFrozen: true);
+
+		private readonly bool _isFrozen;
+
 		// 0x01 is reserved for continuation flag. 
 		private const ushort ContentTypePresence = 1 << 15;
 		private const ushort ContentEncodingPresence = 1 << 14;
@@ -38,6 +43,15 @@ namespace RabbitMqNext
 		private string _userId;
 		private string _appId;
 		private string _clusterId;
+
+		public BasicProperties() : this(isFrozen: false)
+		{
+		}
+
+		internal BasicProperties(bool isFrozen)
+		{
+			_isFrozen = isFrozen;
+		}
 
 		public bool IsContentTypePresent
 		{
@@ -128,6 +142,7 @@ namespace RabbitMqNext
 			get { return _contentType; }
 			set
 			{
+				ThrowIfFrozen();
 				IsContentTypePresent = !string.IsNullOrEmpty(value);
 				_contentType = value;
 			}
@@ -138,6 +153,7 @@ namespace RabbitMqNext
 			get { return _contentEncoding; }
 			set
 			{
+				ThrowIfFrozen();
 				IsContentEncodingPresent = !string.IsNullOrEmpty(value);
 				_contentEncoding = value;
 			}
@@ -148,6 +164,7 @@ namespace RabbitMqNext
 			get { return _correlationId; }
 			set
 			{
+				ThrowIfFrozen();
 				IsCorrelationIdPresent = !string.IsNullOrEmpty(value);
 				_correlationId = value;
 			}
@@ -158,6 +175,7 @@ namespace RabbitMqNext
 			get { return _replyTo; }
 			set
 			{
+				ThrowIfFrozen();
 				IsReplyToPresent = !string.IsNullOrEmpty(value);
 				_replyTo = value;
 			}
@@ -168,6 +186,7 @@ namespace RabbitMqNext
 			get { return _expiration; }
 			set
 			{
+				ThrowIfFrozen();
 				IsExpirationPresent = !string.IsNullOrEmpty(value);
 				_expiration = value;
 			}
@@ -178,6 +197,7 @@ namespace RabbitMqNext
 			get { return _messageId; }
 			set
 			{
+				ThrowIfFrozen();
 				IsMessageIdPresent = !string.IsNullOrEmpty(value);
 				_messageId = value;
 			}
@@ -188,6 +208,7 @@ namespace RabbitMqNext
 			get { return _type; }
 			set
 			{
+				ThrowIfFrozen();
 				IsTypePresent = !string.IsNullOrEmpty(value);
 				_type = value;
 			}
@@ -198,6 +219,7 @@ namespace RabbitMqNext
 			get { return _userId; }
 			set
 			{
+				ThrowIfFrozen();
 				IsUserIdPresent = !string.IsNullOrEmpty(value);
 				_userId = value;
 			}
@@ -208,6 +230,7 @@ namespace RabbitMqNext
 			get { return _appId; }
 			set
 			{
+				ThrowIfFrozen();
 				IsAppIdPresent = !string.IsNullOrEmpty(value);
 				_appId = value;
 			}
@@ -218,6 +241,7 @@ namespace RabbitMqNext
 			get { return _clusterId; }
 			set
 			{
+				ThrowIfFrozen();
 				IsClusterIdPresent = !string.IsNullOrEmpty(value);
 				_clusterId = value;
 			}
@@ -228,6 +252,7 @@ namespace RabbitMqNext
 			get { return _deliveryMode; }
 			set
 			{
+				ThrowIfFrozen();
 				IsDeliveryModePresent = value != 0;
 				_deliveryMode = value;
 			}
@@ -238,6 +263,7 @@ namespace RabbitMqNext
 			get { return _priority; }
 			set
 			{
+				ThrowIfFrozen();
 				IsPriorityPresent = value != 0;
 				_priority = value;
 			}
@@ -248,6 +274,7 @@ namespace RabbitMqNext
 			get { return _timestamp; }
 			set
 			{
+				ThrowIfFrozen();
 				IsTimestampPresent = true;
 				_timestamp = value;
 			}
@@ -258,27 +285,43 @@ namespace RabbitMqNext
 			get { return _headers; }
 			set
 			{
+				ThrowIfFrozen();
 				IsHeadersPresent = value != null;
 				_headers = value;
 			}
 		}
 
-		internal int ComputeSize()
+		internal bool IsEmpty
 		{
-			return ((_deliveryMode != 0) ? 1 : 0) +
-			       ((_priority != 0) ? 1 : 0) +
-			       ((IsTimestampPresent) ? 8 : 0) +
-			       (String.IsNullOrEmpty(_contentType) ? 0 : 1 + Encoding.UTF8.GetByteCount(_contentType)) +
-			       (String.IsNullOrEmpty(_contentEncoding) ? 0 : 1 + Encoding.UTF8.GetByteCount(_contentEncoding)) +
-			       (String.IsNullOrEmpty(_correlationId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_correlationId)) +
-			       (String.IsNullOrEmpty(_replyTo) ? 0 : 1 + Encoding.UTF8.GetByteCount(_replyTo)) +
-			       (String.IsNullOrEmpty(_type) ? 0 : 1 + Encoding.UTF8.GetByteCount(_type)) +
-			       (String.IsNullOrEmpty(_messageId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_messageId)) +
-			       (String.IsNullOrEmpty(_expiration) ? 0 : 1 + Encoding.UTF8.GetByteCount(_expiration)) +
-			       (String.IsNullOrEmpty(_userId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_userId)) +
-				   (String.IsNullOrEmpty(_appId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_appId)) +
-				   (String.IsNullOrEmpty(_clusterId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_clusterId)) +
-			       0; // Header!!;
+			get
+			{
+				if (_isFrozen) return true;
+				return _presenceSWord == 0;
+			}
 		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private void ThrowIfFrozen()
+		{
+			if (_isFrozen) throw new Exception("This object is frozen so it cannot be changed");
+		}
+
+//		internal int ComputeSize()
+//		{
+//			return ((_deliveryMode != 0) ? 1 : 0) +
+//			       ((_priority != 0) ? 1 : 0) +
+//			       ((IsTimestampPresent) ? 8 : 0) +
+//			       (String.IsNullOrEmpty(_contentType) ? 0 : 1 + Encoding.UTF8.GetByteCount(_contentType)) +
+//			       (String.IsNullOrEmpty(_contentEncoding) ? 0 : 1 + Encoding.UTF8.GetByteCount(_contentEncoding)) +
+//			       (String.IsNullOrEmpty(_correlationId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_correlationId)) +
+//			       (String.IsNullOrEmpty(_replyTo) ? 0 : 1 + Encoding.UTF8.GetByteCount(_replyTo)) +
+//			       (String.IsNullOrEmpty(_type) ? 0 : 1 + Encoding.UTF8.GetByteCount(_type)) +
+//			       (String.IsNullOrEmpty(_messageId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_messageId)) +
+//			       (String.IsNullOrEmpty(_expiration) ? 0 : 1 + Encoding.UTF8.GetByteCount(_expiration)) +
+//			       (String.IsNullOrEmpty(_userId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_userId)) +
+//				   (String.IsNullOrEmpty(_appId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_appId)) +
+//				   (String.IsNullOrEmpty(_clusterId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_clusterId)) +
+//			       0; // Header!!;
+//		}
 	}
 }

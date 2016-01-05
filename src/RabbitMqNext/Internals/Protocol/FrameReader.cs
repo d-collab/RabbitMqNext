@@ -23,7 +23,7 @@ namespace RabbitMqNext.Internals
 		{
 			try
 			{
-				var frameType = await _reader.ReadByte();
+				var frameType = _reader.ReadByte();
 //				Console.WriteLine("Frame type " + frameType);
 
 				if (frameType == 'A')
@@ -32,8 +32,8 @@ namespace RabbitMqNext.Internals
 					Console.WriteLine("Meh, protocol header received for some reason. darn it!");
 				}
 
-				ushort channel = await _reader.ReadUInt16();
-				int payloadLength = await _reader.ReadInt32();
+				ushort channel = _reader.ReadUInt16();
+				int payloadLength = _reader.ReadInt32();
 
 //				Console.WriteLine("> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
 
@@ -42,8 +42,8 @@ namespace RabbitMqNext.Internals
 
 				if (frameType == AmqpConstants.FrameMethod)
 				{
-					ushort classId = await _reader.ReadUInt16();
-					ushort methodId = await _reader.ReadUInt16();
+					ushort classId = _reader.ReadUInt16();
+					ushort methodId = _reader.ReadUInt16();
 
 					var classMethodId = classId << 16 | methodId;
 
@@ -82,7 +82,7 @@ namespace RabbitMqNext.Internals
 				}
 
 //				Console.WriteLine("will read FrameEnd");
-				int frameEndMarker = await _reader.ReadByte();
+				int frameEndMarker = _reader.ReadByte();
 //				Console.WriteLine("done read FrameEnd " + frameEndMarker);
 				if (frameEndMarker != AmqpConstants.FrameEnd)
 				{

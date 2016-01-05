@@ -18,30 +18,41 @@
 
 	internal class ConnectionStateMachine : FrameProcessor, IDisposable
 	{
-		internal readonly ManualResetEventSlim _commandsToSendEvent;
-		internal readonly ConcurrentQueue<CommandToSend> _commandOutbox;
-		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
+		private readonly AmqpPrimitivesWriter _amqpWriter;
+		private readonly CancellationToken _cancellationToken;
+
+		private readonly ManualResetEventSlim _commandsToSendEvent;
+		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
+		private readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 
 		internal readonly FrameReader _frameReader;
 
-		// volative writes through other means
-		private AmqpError _lastError;
+		private AmqpError _lastError; // volative writes through other means
 
-		private IDictionary<string, object> _serverProperties;
-		private string _mechanisms;
 		private ushort _channelMax;
-		private ushort _heartbeat;
-		private string _knownHosts;
 		internal uint _frameMax;
+
+//		private IDictionary<string, object> _serverProperties;
+//		private string _mechanisms;
+//		private ushort _heartbeat;
+//		private string _knownHosts;
 
 		internal const int MaxChannels = 10;
 		internal readonly AmqpChannel[] _channels = new AmqpChannel[MaxChannels + 1]; // 1-based index
 
+		private readonly ObjectPool<CommandToSend> _cmdToSendObjPool;
 
 
 		public ConnectionStateMachine(InternalBigEndianReader reader, 
-									  AmqpPrimitivesReader amqpReader)
+			AmqpPrimitivesReader amqpReader, AmqpPrimitivesWriter amqpWriter, 
+			CancellationToken cancellationToken)
 		{
+			_amqpWriter = amqpWriter;
+			_cancellationToken = cancellationToken;
+
+			_cmdToSendObjPool = new ObjectPool<CommandToSend>(
+				() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 100, true);
+
 			_commandsToSendEvent = new ManualResetEventSlim(false);
 			_commandOutbox = new ConcurrentQueue<CommandToSend>();
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
@@ -51,10 +62,16 @@
 
 		public async Task Start(string username, string password, string vhost)
 		{
+			var t1 = new Thread(WriteCommandsToSocket) { IsBackground = true, Name = "WriteCommandsToSocket" };
+			t1.Start();
+
+			var t2 = new Thread(ReadFramesLoop) { IsBackground = true, Name = "ReadFramesLoop" };
+			t2.Start();
+
 			await __SendGreeting();
 			await __SendConnectionStartOk(username, password);
 			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat: 0); // disabling heartbeats for now
-			_knownHosts = await __SendConnectionOpen(vhost);
+			var knownHosts = await __SendConnectionOpen(vhost);
 		}
 
 		public void NotifySocketClosed()
@@ -62,7 +79,7 @@
 			var err = new AmqpError() { ReplyText = "connection closed" };
 			Volatile.Write(ref _lastError, err);
 
-			DrainMethodsWithErrorAndClose(_lastError, 0, 0, 0);
+			DrainMethodsWithErrorAndClose(_lastError, 0, 0);
 		}
 
 		public override async Task DispatchMethod(ushort channel, int classMethodId)
@@ -80,7 +97,7 @@
 		public override async Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
 		{
 			var error = new AmqpError() {ClassId = classId, MethodId = methodId, ReplyCode = replyCode, ReplyText = replyText};
-			await DrainMethodsWithErrorAndClose(error, channel, classId, methodId);
+			await DrainMethodsWithErrorAndClose(error, classId, methodId);
 		}
 
 		public override async Task DispatchChannelCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
@@ -140,24 +157,90 @@
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
 								  Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
 								  Action<ushort, int, AmqpError> reply, bool expectsReply, 
-								  TaskCompletionSource<bool> tcs = null, object optArg = null)
+								  TaskCompletionSource<bool> tcs = null, object optArg = null, TaskLight tcsL = null)
 		{
 			ThrowIfErrorPending();
 
-			// TODO: objpool
-			_commandOutbox.Enqueue(new CommandToSend()
-			{
-				Channel = channel,
-				ClassId = classId, 
-				MethodId = methodId,
-				ReplyAction = reply,
-				commandGenerator = commandWriter,
-				ExpectsReply = expectsReply,
-				Tcs = tcs,
-				OptionalArg = optArg
-			});
+			var cmd = _cmdToSendObjPool.GetObject();
+			cmd.Channel = channel;
+			cmd.ClassId = classId; 
+			cmd.MethodId = methodId;
+			cmd.ReplyAction = reply;
+			cmd.commandGenerator = commandWriter;
+			cmd.ExpectsReply = expectsReply;
+			cmd.Tcs = tcs;
+			cmd.TcsLight = tcsL;
+			cmd.OptionalArg = optArg;
+
+			_commandOutbox.Enqueue(cmd);
 
 			_commandsToSendEvent.Set();
+		}
+
+		private void WriteCommandsToSocket()
+		{
+			try
+			{
+				while (!_cancellationToken.IsCancellationRequested)
+				{
+					_commandsToSendEvent.Wait(_cancellationToken);
+
+					CommandToSend cmdToSend;
+					while (_commandOutbox.TryDequeue(out cmdToSend))
+					{
+						// Console.WriteLine(" writing command ");
+
+						if (cmdToSend.ExpectsReply)
+						{
+							if (cmdToSend.Channel == 0)
+								_awaitingReplyQueue.Enqueue(cmdToSend);
+							else
+								_channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
+						}
+
+						// writes to socket
+						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
+												   cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+
+						// if writing to socket is enough, set as complete
+						if (!cmdToSend.ExpectsReply)
+						{
+							cmdToSend.ReplyAction3(0, 0, null);
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("WriteCommandsToSocket error " + ex.Message);
+				// Debugger.Log(1, "error", "WriteCommandsToSocket error " + ex.Message);
+				// throw;
+			}
+		}
+
+		private void ReadFramesLoop()
+		{
+			try
+			{
+				while (!_cancellationToken.IsCancellationRequested)
+				{
+					var t = ReadFrame();
+					t.Wait(_cancellationToken);
+				}
+			}
+			catch (ThreadAbortException)
+			{
+				// no-op
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("ReadFramesLoop error " + ex.Message);
+			}
+		}
+
+		private async Task ReadFrame()
+		{
+			await _frameReader.ReadAndDispatch();
 		}
 
 		private void ThrowIfErrorPending()
@@ -169,7 +252,7 @@
 			if (er != null) throw new Exception(er.ToErrorString());
 		}
 
-		private async Task DrainMethodsWithErrorAndClose(AmqpError amqpError, ushort channel, ushort classId, ushort methodId)
+		private async Task DrainMethodsWithErrorAndClose(AmqpError amqpError, ushort classId, ushort methodId)
 		{
 			Util.DrainMethodsWithError(_awaitingReplyQueue, amqpError, classId, methodId);
 
@@ -188,8 +271,8 @@
 					{
 						await _frameReader.Read_ConnectionStart((versionMajor, versionMinor, serverProperties, mechanisms, locales) =>
 						{
-							_serverProperties = serverProperties;
-							_mechanisms = mechanisms;
+//							_serverProperties = serverProperties;
+//							_mechanisms = mechanisms;
 
 							tcs.SetResult(true);
 						});
@@ -259,7 +342,7 @@
 						{
 							_channelMax = channelMax;
 							_frameMax = frameMax;
-							_heartbeat = heartbeat;
+							// _heartbeat = heartbeat;
 
 							tcs.SetResult(true);
 						});

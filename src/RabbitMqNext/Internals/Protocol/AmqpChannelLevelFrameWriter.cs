@@ -162,77 +162,99 @@ namespace RabbitMqNext.Internals
 		private static void WriteBasicPropertiesAsHeader(AmqpPrimitivesWriter writer, 
 			ushort channel, ulong bodySize, BasicProperties properties)
 		{
-			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameHeader, channel, w =>
+			if (properties.IsEmpty)
 			{
-				w.WriteUShort((ushort)60);
-				w.WriteUShort((ushort)0); // weight. not used
-				w.WriteULong(bodySize);
+				uint payloadSize = 4 + 8 + 2;
+				writer.WriteFrameStart(AmqpConstants.FrameHeader, channel, payloadSize);
+
+				writer.WriteUShort((ushort)60);
+				writer.WriteUShort((ushort)0); // weight. not used
+				writer.WriteULong(bodySize);
 
 				// no support for continuation. must be less than 15 bits used
-				w.WriteUShort(properties._presenceSWord);
+				writer.WriteUShort(properties._presenceSWord);
 
-				if (properties.IsContentTypePresent) { w.WriteShortstr(properties.ContentType); }
-				if (properties.IsContentEncodingPresent) { w.WriteShortstr(properties.ContentEncoding); }
-				if (properties.IsHeadersPresent) { w.WriteTable(properties.Headers); }
-				if (properties.IsDeliveryModePresent) { w.WriteOctet(properties.DeliveryMode); }
-				if (properties.IsPriorityPresent) { w.WriteOctet(properties.Priority); }
-				if (properties.IsCorrelationIdPresent) { w.WriteShortstr(properties.CorrelationId); }
-				if (properties.IsReplyToPresent) { w.WriteShortstr(properties.ReplyTo); }
-				if (properties.IsExpirationPresent) { w.WriteShortstr(properties.Expiration); }
-				if (properties.IsMessageIdPresent) { w.WriteShortstr(properties.MessageId); }
-				if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp); }
-				if (properties.IsTypePresent) { w.WriteShortstr(properties.Type); }
-				if (properties.IsUserIdPresent) { w.WriteShortstr(properties.UserId); }
-				if (properties.IsAppIdPresent) { w.WriteShortstr(properties.AppId); }
-				if (properties.IsClusterIdPresent) { w.WriteShortstr(properties.ClusterId); }
-			});
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			}
+			else
+			{
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameHeader, channel, w =>
+				{
+					w.WriteUShort((ushort)60);
+					w.WriteUShort((ushort)0); // weight. not used
+					w.WriteULong(bodySize);
+
+					// no support for continuation. must be less than 15 bits used
+					w.WriteUShort(properties._presenceSWord);
+
+					if (properties.IsContentTypePresent) { w.WriteShortstr(properties.ContentType); }
+					if (properties.IsContentEncodingPresent) { w.WriteShortstr(properties.ContentEncoding); }
+					if (properties.IsHeadersPresent) { w.WriteTable(properties.Headers); }
+					if (properties.IsDeliveryModePresent) { w.WriteOctet(properties.DeliveryMode); }
+					if (properties.IsPriorityPresent) { w.WriteOctet(properties.Priority); }
+					if (properties.IsCorrelationIdPresent) { w.WriteShortstr(properties.CorrelationId); }
+					if (properties.IsReplyToPresent) { w.WriteShortstr(properties.ReplyTo); }
+					if (properties.IsExpirationPresent) { w.WriteShortstr(properties.Expiration); }
+					if (properties.IsMessageIdPresent) { w.WriteShortstr(properties.MessageId); }
+					if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp); }
+					if (properties.IsTypePresent) { w.WriteShortstr(properties.Type); }
+					if (properties.IsUserIdPresent) { w.WriteShortstr(properties.UserId); }
+					if (properties.IsAppIdPresent) { w.WriteShortstr(properties.AppId); }
+					if (properties.IsClusterIdPresent) { w.WriteShortstr(properties.ClusterId); }
+				});
+			}
 		}
 
 		internal static void InternalBasicPublish(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
 		{
 			var basicPub = args as FrameParameters.BasicPublishArgs;
 
-			var buffer = basicPub.buffer;
-			var properties = basicPub.properties;
-			
-			
-			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+			try
 			{
-				w.WriteUShort(classId);
-				w.WriteUShort(methodId);
+				var buffer = basicPub.buffer;
+				var properties = basicPub.properties;
+			
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
 
-				w.WriteUShort(0); // reserved1
-				w.WriteShortstr(basicPub.exchange);
-				w.WriteShortstr(basicPub.routingKey);
-				w.WriteBits(basicPub.mandatory, basicPub.immediate);
-			});
+					w.WriteUShort(0); // reserved1
+					w.WriteShortstr(basicPub.exchange);
+					w.WriteShortstr(basicPub.routingKey);
+					w.WriteBits(basicPub.mandatory, basicPub.immediate);
+				});
 
-			WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
+				WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
 
-			// what's the max frame size we can write?
-			if (!writer.FrameMaxSize.HasValue)
-				throw new Exception("wtf? no frame max set!");
+				// what's the max frame size we can write?
+				if (!writer.FrameMaxSize.HasValue)
+					throw new Exception("wtf? no frame max set!");
 				
-			var maxSubFrameSize =
-				writer.FrameMaxSize == 0 ? (int)buffer.Count :
-											(int)writer.FrameMaxSize.Value - EmptyFrameSize;
+				var maxSubFrameSize =
+					writer.FrameMaxSize == 0 ? (int)buffer.Count :
+												(int)writer.FrameMaxSize.Value - EmptyFrameSize;
 
-			// write frames limited by the max size
-			int written = 0;
-			while (written < buffer.Count)
-			{
-				writer.WriteOctet(AmqpConstants.FrameBody);
-				writer.WriteUShort(channel);
+				// write frames limited by the max size
+				int written = 0;
+				while (written < buffer.Count)
+				{
+					writer.WriteOctet(AmqpConstants.FrameBody);
+					writer.WriteUShort(channel);
 
-				var countToWrite = Math.Min(buffer.Count - written, maxSubFrameSize);
-				writer.WriteLong((uint)countToWrite); // payload size
+					var countToWrite = Math.Min(buffer.Count - written, maxSubFrameSize);
+					writer.WriteLong((uint)countToWrite); // payload size
 
-				writer.WriteRaw(buffer.Array, buffer.Offset + written, countToWrite);
-				written += countToWrite;
+					writer.WriteRaw(buffer.Array, buffer.Offset + written, countToWrite);
+					written += countToWrite;
 
-				writer.WriteOctet(AmqpConstants.FrameEnd);
+					writer.WriteOctet(AmqpConstants.FrameEnd);
+				}
 			}
-			
+			finally
+			{
+				basicPub.Done();	
+			}
 		}
 	}
 }
