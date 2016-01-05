@@ -53,10 +53,10 @@
 				{
 					if (classMethodId == AmqpClassMethodChannelLevelConstants.BasicQosOk)
 					{
-						_connection._frameReader.Read_BasicQosOk(() =>
+						// _connection._frameReader.Read_BasicQosOk(() =>
 						{
 							tcs.SetResult(true);
-						});
+						}// );
 					}
 					else
 					{
@@ -86,10 +86,10 @@
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeDeclareOk)
 					{
-						_connection._frameReader.Read_ExchangeDeclareOk(() =>
+						// _connection._frameReader.Read_ExchangeDeclareOk(() =>
 						{
 							tcs.SetResult(true);
-						});
+						} // );
 					}
 					else if (!waitConfirmation)
 					{
@@ -112,11 +112,11 @@
 				exclusive, autoDelete, arguments, waitConfirmation);
 
 			_connection.SendCommand(_channelNum, 50, 10, writer,
-				reply: (channel, classMethodId, error) =>
+				reply: async (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueueDeclareOk)
 					{
-						_connection._frameReader.Read_QueueDeclareOk((queueName, messageCount, consumerCount) =>
+						await _connection._frameReader.Read_QueueDeclareOk((queueName, messageCount, consumerCount) =>
 						{
 							tcs.SetResult(new AmqpQueueInfo()
 							{
@@ -148,10 +148,10 @@
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueueBindOk)
 					{
-						_connection._frameReader.Read_QueueBindOk(() =>
+						// _connection._frameReader.Read_QueueBindOk(() =>
 						{
 							tcs.SetResult(true);
-						});
+						}//);
 					}
 					else if (!waitConfirmation)
 					{
@@ -206,11 +206,11 @@
 			var writer = AmqpChannelLevelFrameWriter.BasicConsume(queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
 
 			_connection.SendCommand(_channelNum, 60, 20, writer, 
-				reply: (channel, classMethodId, error) =>
+				reply: async (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
 					{
-						_connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
+						await _connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
 						{
 							tcs.SetResult(consumerTag2);
 						});
