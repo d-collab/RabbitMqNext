@@ -132,42 +132,6 @@ namespace RabbitMqNext.Internals
 			};
 		}
 
-		public static WriterDelegate BasicAck(ulong deliveryTag, bool multiple)
-		{
-			return (writer, channel, classId, methodId, args) =>
-			{
-				uint payloadSize = (uint)(8 + 5);
-
-				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
-
-				writer.WriteUShort(classId);
-				writer.WriteUShort(methodId);
-
-				writer.WriteULong(deliveryTag);
-				writer.WriteBit(multiple);
-
-				writer.WriteOctet(AmqpConstants.FrameEnd);
-			};
-		}
-
-		public static WriterDelegate BasicNAck(ulong deliveryTag, bool multiple, bool requeue)
-		{
-			return (writer, channel, classId, methodId, args) =>
-			{
-				uint payloadSize = (uint)(8 + 5);
-
-				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
-
-				writer.WriteUShort(classId);
-				writer.WriteUShort(methodId);
-
-				writer.WriteULong(deliveryTag);
-				writer.WriteBits(multiple, requeue);
-
-				writer.WriteOctet(AmqpConstants.FrameEnd);
-			};
-		}
-
 		public static WriterDelegate QueueBind(string queue, string exchange, 
 			string routingKey, IDictionary<string, object> arguments, 
 			bool waitConfirmation)

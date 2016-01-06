@@ -43,7 +43,7 @@ namespace RabbitMqNext.Internals
 
 //		public const int BasicPublish = (60 << 16) | 40;
 
-		// public const int BasicReturn = (60 << 16) | 50;
+		public const int BasicReturn = (60 << 16) | 50;
 
 		public const int BasicDeliver = (60 << 16) | 60;
 

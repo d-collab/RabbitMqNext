@@ -7,6 +7,8 @@
 
 	public interface IAmqpChannel
 	{
+		// event Action<ushort, string, string, string> MessageUndelivered;
+
 		int ChannelNumber { get; }
 
 		bool Closed { get; }

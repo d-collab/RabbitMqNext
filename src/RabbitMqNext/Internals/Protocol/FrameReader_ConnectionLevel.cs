@@ -28,7 +28,7 @@ namespace RabbitMqNext.Internals
 			continuation(reserved);
 		}
 
-		public async Task Read_ConnectionTune(Action<ushort, uint, ushort> continuation)
+		public Task Read_ConnectionTune(Action<ushort, uint, ushort> continuation)
 		{
 			ushort channelMax = _amqpReader.ReadShort();
 			uint frameMax = _amqpReader.ReadLong();
@@ -37,6 +37,8 @@ namespace RabbitMqNext.Internals
 			Console.WriteLine("< channelMax " + channelMax + " framemax " + frameMax + " hb " + heartbeat);
 
 			continuation(channelMax, frameMax, heartbeat);
+
+			return Task.CompletedTask;
 		}
 
 		public async Task Read_ConnectionClose2(Action<ushort, string, ushort, ushort> continuation)

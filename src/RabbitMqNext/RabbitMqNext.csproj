@@ -75,6 +75,7 @@
     <Compile Include="Internals\Protocol\FrameReader_ConnectionLevel.cs" />
     <Compile Include="Internals\ReusableTempWriter.cs" />
     <Compile Include="Internals\Util.cs" />
+    <Compile Include="MessageDelivery.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
     <Compile Include="Internals\RingBufferStream.cs" />
     <Compile Include="Internals\Sockets\SocketExtensions.cs" />

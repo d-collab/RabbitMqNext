@@ -18,9 +18,9 @@ Current stage:
 - connection close (started by server or client) [Done]
 - Channel close (started by server or client) [Done]
 - Queue Consume / Basic Deliver [Done]
-- 
+- BasicReturn [Done]
 
-- Control flow
+- ChannelFlow 
 - Heartbeat
 
 - Connection/channels recovery / Programming model friendly

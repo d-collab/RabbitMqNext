@@ -6,20 +6,6 @@ namespace RabbitMqNext.Internals
 
 	internal partial class FrameReader
 	{
-//		public void Read_BasicQosOk(Action continuation)
-//		{
-//			Console.WriteLine("< BasicQosOk  ");
-//
-//			continuation();
-//		}
-
-//		public void Read_ExchangeDeclareOk(Action continuation)
-//		{
-//			Console.WriteLine("< ExchangeDeclareOk");
-//
-//			continuation();
-//		}
-
 		public async Task Read_QueueDeclareOk(Action<string, uint, uint> continuation)
 		{
 			Console.WriteLine("< QueueDeclareOk");
@@ -30,13 +16,6 @@ namespace RabbitMqNext.Internals
 
 			continuation(queue, messageCount, consumerCount);
 		}
-
-//		public void Read_QueueBindOk(Action continuation)
-//		{
-//			Console.WriteLine("< QueueBindOk");
-//
-//			continuation();
-//		}
 
 		public async Task Read_Channel_Close2(Action<ushort, string, ushort, ushort> continuation)
 		{
@@ -66,11 +45,11 @@ namespace RabbitMqNext.Internals
 			var frameHeaderStart = await _amqpReader.ReadOctet();
 			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
 
-			ushort channel = _reader.ReadUInt16();
-			await _reader.SkipBy(4 + 2 + 2);
-//			int payloadLength = await _reader.ReadInt32();
-//			var classId = _reader.ReadUInt16();
-//			var weight = _reader.ReadUInt16();
+			await _reader.SkipBy(4 + 2 + 2 + 2);
+			// ushort channel = _reader.ReadUInt16();
+			// int payloadLength = await _reader.ReadInt32();
+			// var classId = _reader.ReadUInt16();
+			// var weight = _reader.ReadUInt16();
 			var bodySize = (long) await _reader.ReadUInt64();
 
 			var properties = await ReadRestOfContentHeader();
@@ -144,11 +123,51 @@ namespace RabbitMqNext.Internals
 			continuation(consumerTag);
 		}
 
-//		public void Read_Channel_CloseOk(Action continuation)
-//		{
-//			Console.WriteLine("< channel close OK coz ");
-//
-//			continuation();
-//		}
+		public async Task Read_BasicReturn(Func<ushort, string, string, string, uint, BasicProperties, Stream, Task> continuation)
+		{
+			var replyCode = _amqpReader.ReadShort();
+			var replyText = await _amqpReader.ReadShortStr();
+			var exchange = await _amqpReader.ReadShortStr();
+			var routingKey = await _amqpReader.ReadShortStr();
+
+			var frameEndMarker = await _amqpReader.ReadOctet();
+			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
+
+			// Frame Header / Content header
+
+			var frameHeaderStart = await _amqpReader.ReadOctet();
+			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
+
+			await _reader.SkipBy(4 + 2 + 2 + 2);
+			// ushort channel = _reader.ReadUInt16();
+			// int payloadLength = await _reader.ReadInt32();
+			// var classId = _reader.ReadUInt16();
+			// var weight = _reader.ReadUInt16();
+			var bodySize = (long)await _reader.ReadUInt64();
+
+			var properties = await ReadRestOfContentHeader();
+
+			// Frame Body(s)
+
+			frameHeaderStart = await _reader.ReadByte();
+			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
+
+			await _reader.SkipBy(2); // channel = _reader.ReadUInt16();
+			uint length = _reader.ReadUInt32();
+
+			// must leave pending Frame end
+
+			if (length == bodySize)
+			{
+				// continuation(replyCode, replyText, exchange, routingKey);
+				await
+					continuation(replyCode, replyText, exchange, 
+						routingKey, length, properties, (Stream) _reader._ringBufferStream);
+			}
+			else
+			{
+				throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize + " and first body is " + length + " bytes");
+			}
+		}
 	}
 }

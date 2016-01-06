@@ -40,7 +40,7 @@ namespace RabbitMqNext.Internals
 		/// <summary>
 		/// append param buffer to our ring (single threaded producer)
 		/// </summary>
-		public async Task Insert(byte[] buffer, int offset, int original)
+		public Task Insert(byte[] buffer, int offset, int original)
 		{
 			if (original > BufferSize) throw new ArgumentException("overflowing the buffer? nope");
 			if (_writePosition == -1)
@@ -108,16 +108,18 @@ namespace RabbitMqNext.Internals
 				offset += sizeForCopy; // offset of remainder
 				userBufferRemainLen -= sizeForCopy;
 			}
+
+			return Task.CompletedTask;
 		}
 
-		public async Task ReadAvailableBufferIntoSocketAsync(Socket socket)
+		public Task ReadAvailableBufferIntoSocketAsync(Socket socket)
 		{
 			if (_readPosition == -1)
 			{
 				if (_writePosition != -1)
 					_readPosition = 0;
 				else
-					return ; // nothing was written yet
+					return Task.CompletedTask; // nothing was written yet
 			}
 
 			while (!_cancellationToken.IsCancellationRequested)
@@ -142,9 +144,11 @@ namespace RabbitMqNext.Internals
 
 				_bufferFreeEvent.Set();
 			}
+
+			return Task.CompletedTask;
 		}
 
-		public async Task ReceiveFromTask(Socket socket)
+		public Task ReceiveFromTask(Socket socket)
 		{
 			if (_writePosition == -1)
 			{
@@ -195,9 +199,11 @@ namespace RabbitMqNext.Internals
 				// _writeEvent.Set2();
 				_writeEvent.Set();
 			}
+
+			return Task.CompletedTask;
 		}
 
-		public async Task<int> ReadTaskAsync(byte[] buffer, int offset, int count)
+		public Task<int> ReadTaskAsync(byte[] buffer, int offset, int count)
 		{
 			var read = this.Read(buffer, offset, count);
 
@@ -209,7 +215,7 @@ namespace RabbitMqNext.Internals
 				read = this.Read(buffer, offset, count);
 			}
 
-			return read;
+			return Task.FromResult(read);
 		}
 
 		#region Overrides of Stream

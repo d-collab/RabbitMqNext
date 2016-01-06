@@ -18,8 +18,8 @@
 
 		const bool WithAcks = false;
 
-		const int TotalPublish = 250000;
-//		const int TotalPublish = 10;
+//		const int TotalPublish = 250000;
+		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
 
 		private static byte[] MessageContent =
@@ -41,7 +41,7 @@
 
 //		    SubscribeForGCNotifications();
 
-			var t = StartOriginalClient(); // StartOriginalClient(); // Start();
+			var t = Start(); // StartOriginalClient(); // Start();
 		    t.Wait();
 
 			Console.WriteLine("All done");
@@ -72,9 +72,19 @@
 
 				var prop = new BasicProperties()
 				{
-					Type = "type1",
 					// DeliveryMode = 2,
+					Type = "type1",
 					Headers = new Dictionary<string, object> {{"serialization", 0}}
+				};
+
+				newChannel.MessageUndeliveredHandler = (undelivered) =>
+				{
+					Console.WriteLine("\t(Ops, message not routed: " + 
+						undelivered.replyCode + " " + 
+						undelivered.replyText + " " + 
+						undelivered.routingKey + ")");
+
+					return Task.CompletedTask;
 				};
 
 				Console.WriteLine("Started Publishing...");
@@ -83,9 +93,8 @@
 				for (int i = 0; i < TotalPublish; i++)
 				{
 					// prop.Headers["serialization"] = i;
-
 					// var buffer = Encoding.UTF8.GetBytes("Hello world");
-					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
+					await newChannel.BasicPublish("test_ex", "routing3", true, false, prop, new ArraySegment<byte>(MessageContent));
 				}
 				watch.Stop();
 

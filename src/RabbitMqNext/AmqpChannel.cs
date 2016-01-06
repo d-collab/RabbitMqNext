@@ -11,7 +11,6 @@
 	{
 		private readonly ushort _channelNum;
 		private readonly ConnectionStateMachine _connection;
-		// private readonly ConcurrentDictionary<string, Func<BasicProperties, ulong, Stream, int, Task>> _consumerSubscriptions;
 		private readonly ConcurrentDictionary<string, Func<MessageDelivery, Task>> _consumerSubscriptions;
 		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 
@@ -25,7 +24,6 @@
 			_channelNum = channelNum;
 			_connection = connection;
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
-			// _consumerSubscriptions = new ConcurrentDictionary<string, Func<BasicProperties, ulong, Stream, int, Task>>(StringComparer.Ordinal);
 			_consumerSubscriptions = new ConcurrentDictionary<string, Func<MessageDelivery, Task>>(StringComparer.Ordinal);
 
 			_taskLightPool = new ObjectPool<TaskLight>(() =>
@@ -35,7 +33,7 @@
 				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 10, preInitialize: true); 
 		}
 
-		
+		public Func<UndeliveredMessage, Task> MessageUndeliveredHandler;
 
 		public int ChannelNumber { get { return _channelNum; } }
 
@@ -267,6 +265,13 @@
 			return tcs.Task;
 		}
 
+		public Task BasicCancel(string consumerTag, bool waitConfirmation)
+		{
+			var tcs = new TaskCompletionSource<bool>();
+
+			return tcs.Task;
+		}
+
 		public Task Close()
 		{
 			if (_closed == 0) return InternalClose(true);
@@ -360,8 +365,11 @@
 			switch (classMethodId)
 			{
 				case AmqpClassMethodChannelLevelConstants.BasicDeliver:
-
 					await _connection._frameReader.Read_BasicDelivery(DispatchDeliveredMessage);
+					break;
+
+				case AmqpClassMethodChannelLevelConstants.BasicReturn:
+					await _connection._frameReader.Read_BasicReturn(DispatchBasicReturn);
 					break;
 
 				default:
@@ -397,7 +405,45 @@
 			}
 			else
 			{
-				// needs to consume the stream by exactly bodySize
+				// needs to consume the stream by exactly bodySize 
+				// this may lock!
+				stream.Seek(bodySize, SeekOrigin.Current);
+			}
+		}
+
+		private async Task DispatchBasicReturn(ushort replyCode, 
+									string replyText, string exchange, string routingKey, 
+									uint bodySize, BasicProperties properties, Stream stream)
+		{
+			var ev = this.MessageUndeliveredHandler;
+
+			// var consumed = 0;
+
+			if (ev != null)
+			{
+				var initPos = stream.Position;
+				var inst = new UndeliveredMessage()
+				{
+					bodySize = bodySize,
+					stream = stream,
+					properties = properties,
+					routingKey = routingKey,
+					replyCode = replyCode,
+					replyText = replyText,
+					exchange = exchange
+				};
+
+				await ev(inst);
+
+				if (stream.Position < initPos + bodySize)
+				{
+					// move to end
+					var offset = initPos + bodySize - stream.Position;
+					stream.Seek(offset, SeekOrigin.Current);
+				}
+			}
+			else
+			{
 				stream.Seek(bodySize, SeekOrigin.Current);
 			}
 		}
@@ -406,17 +452,5 @@
 		{
 			pool.PutObject(item);
 		}
-	}
-
-	public struct MessageDelivery
-	{
-//		public string consumerTag;
-		public ulong deliveryTag;
-		public bool redelivered;
-//		public string exchange;
-		public string routingKey;
-		public long bodySize;
-		public BasicProperties properties;
-		public Stream stream;
 	}
 }
