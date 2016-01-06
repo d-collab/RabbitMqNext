@@ -37,9 +37,14 @@
 			for (var i = 0; i < _capacity; i++)
 			{
 				var v = Interlocked.Exchange(ref _array[i], null);
-				if (v != null) return v;	
+				if (v != null)
+				{
+					// Console.WriteLine("Pool " + typeof(T).Name + " GetObject at index " + i);
+					return v;
+				}
 			}
-			
+
+			Console.WriteLine("Pool " + typeof(T).Name + " run out of items. creating new one ");
 			return _objectGenerator();
 		}
 
@@ -53,6 +58,7 @@
 				var v = Interlocked.CompareExchange(ref _array[i], item, null);
 				if (v == null)
 				{
+					// Console.WriteLine("Pool " + typeof(T).Name + " PutObject at index " + i);
 					break;
 				}
 			}

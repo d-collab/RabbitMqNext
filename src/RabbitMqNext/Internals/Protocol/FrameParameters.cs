@@ -2,6 +2,11 @@ namespace RabbitMqNext.Internals
 {
 	using System;
 
+	internal interface IFrameContentWriter
+	{
+		void Write(AmqpPrimitivesWriter amqpWriter, ushort channel, ushort classId, ushort methodId, object optionalArg);
+	}
+
 	internal static class FrameParameters
 	{
 		internal class CloseParams
@@ -10,7 +15,30 @@ namespace RabbitMqNext.Internals
 			public string replyText;
 		}
 
-		internal class BasicPublishArgs
+		internal class BasicAckArgs : IFrameContentWriter
+		{
+			public ulong deliveryTag;
+			public bool multiple;
+
+			public void Write(AmqpPrimitivesWriter amqpWriter, ushort channel, ushort classId, ushort methodId, object optionalArg)
+			{
+				AmqpChannelLevelFrameWriter.InternalBasicAck(amqpWriter, channel, classId, methodId, optionalArg);
+			}
+		}
+
+		internal class BasicNAckArgs : IFrameContentWriter
+		{
+			public ulong deliveryTag;
+			public bool multiple;
+			public bool requeue;
+
+			public void Write(AmqpPrimitivesWriter amqpWriter, ushort channel, ushort classId, ushort methodId, object optionalArg)
+			{
+				AmqpChannelLevelFrameWriter.InternalBasicNAck(amqpWriter, channel, classId, methodId, optionalArg);
+			}
+		}
+
+		internal class BasicPublishArgs : IFrameContentWriter
 		{
 			private readonly Action<BasicPublishArgs> _recycler;
 
@@ -30,6 +58,11 @@ namespace RabbitMqNext.Internals
 			{
 				if (_recycler != null)
 					_recycler(this);
+			}
+
+			public void Write(AmqpPrimitivesWriter amqpWriter, ushort channel, ushort classId, ushort methodId, object optionalArg)
+			{
+				AmqpChannelLevelFrameWriter.InternalBasicPublish(amqpWriter, channel, classId, methodId, optionalArg);
 			}
 		}
 	}

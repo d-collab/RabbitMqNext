@@ -30,9 +30,9 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_ConnectionTune(Action<ushort, uint, ushort> continuation)
 		{
-			var channelMax = await _amqpReader.ReadShort();
-			var frameMax = await _amqpReader.ReadLong();
-			var heartbeat = await _amqpReader.ReadShort();
+			ushort channelMax = _amqpReader.ReadShort();
+			uint frameMax = _amqpReader.ReadLong();
+			ushort heartbeat = _amqpReader.ReadShort();
 
 			Console.WriteLine("< channelMax " + channelMax + " framemax " + frameMax + " hb " + heartbeat);
 
@@ -41,10 +41,10 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_ConnectionClose2(Action<ushort, string, ushort, ushort> continuation)
 		{
-			var replyCode = await _amqpReader.ReadShort();
+			var replyCode =  _amqpReader.ReadShort();
 			var replyText = await _amqpReader.ReadShortStr();
-			var classId = await _amqpReader.ReadShort();
-			var methodId = await _amqpReader.ReadShort();
+			var classId =  _amqpReader.ReadShort();
+			var methodId =  _amqpReader.ReadShort();
 
 			Console.WriteLine("< close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 

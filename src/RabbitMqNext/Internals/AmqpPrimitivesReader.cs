@@ -26,7 +26,12 @@ namespace RabbitMqNext.Internals
 			return _reader.ReadByte();
 		}
 
-		public Task<ushort> ReadShort()
+//		public Task<ushort> ReadShort()
+//		{
+//			return _reader.ReadUInt16();
+//		}
+		
+		public ushort ReadShort()
 		{
 			return _reader.ReadUInt16();
 		}
@@ -36,7 +41,7 @@ namespace RabbitMqNext.Internals
 			// unbounded allocation! bad
 			IDictionary<string, object> table = new Dictionary<string, object>(capacity: 11);
 
-			long tableLength = await _reader.ReadUInt32();
+			uint tableLength = _reader.ReadUInt32();
 			if (tableLength == 0) return table;
 
 			var endOfTable = _reader.Position + tableLength;
@@ -64,7 +69,7 @@ namespace RabbitMqNext.Internals
 
 		public async Task<string> ReadLongstr()
 		{
-			var byteCount = (int) await _reader.ReadUInt32();
+			int byteCount = (int) _reader.ReadUInt32();
 			if (byteCount == 0) return string.Empty;
 
 			var buffer = _bufferPool.Rent(byteCount);
@@ -85,7 +90,7 @@ namespace RabbitMqNext.Internals
 			// unbounded allocation again! bad!
 			IList array = new List<object>(capacity: 10);
 
-			var arrayLength = (int) await _reader.ReadUInt32();
+			var arrayLength = (int) _reader.ReadUInt32();
 			if (arrayLength == 0) return array;
 			
 			var endPosition = _reader.Position + arrayLength;
@@ -153,7 +158,12 @@ namespace RabbitMqNext.Internals
 			return value;
 		}
 
-		public Task<uint> ReadLong()
+//		public Task<uint> ReadLong()
+//		{
+//			return _reader.ReadUInt32();
+//		}
+
+		public uint ReadLong()
 		{
 			return _reader.ReadUInt32();
 		}

@@ -13,11 +13,15 @@ Current stage:
 - Queue declare [Done]
 - Queue bind [Done]
 - Basic publish [Done]
-- Basic Ack
+- Basic Ack [Done]
+- Basic NAck [Done]
+- connection close (started by server or client) [Done]
+- Channel close (started by server or client) [Done]
+- Queue Consume / Basic Deliver [Done]
+- 
+
 - Control flow
-- Channel close (started by server or client)
 - Heartbeat
-- Queue Consume / Basic Deliver
 
 - Connection/channels recovery / Programming model friendly
 

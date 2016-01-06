@@ -11,7 +11,8 @@
 	{
 		private readonly ushort _channelNum;
 		private readonly ConnectionStateMachine _connection;
-		private readonly ConcurrentDictionary<string, Action<BasicProperties, Stream, int>> _consumerSubscriptions;
+		// private readonly ConcurrentDictionary<string, Func<BasicProperties, ulong, Stream, int, Task>> _consumerSubscriptions;
+		private readonly ConcurrentDictionary<string, Func<MessageDelivery, Task>> _consumerSubscriptions;
 		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 
 		private volatile int _closed = 0;
@@ -24,19 +25,17 @@
 			_channelNum = channelNum;
 			_connection = connection;
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
-			_consumerSubscriptions = new ConcurrentDictionary<string, Action<BasicProperties, Stream, int>>(StringComparer.Ordinal);
+			// _consumerSubscriptions = new ConcurrentDictionary<string, Func<BasicProperties, ulong, Stream, int, Task>>(StringComparer.Ordinal);
+			_consumerSubscriptions = new ConcurrentDictionary<string, Func<MessageDelivery, Task>>(StringComparer.Ordinal);
 
 			_taskLightPool = new ObjectPool<TaskLight>(() =>
-				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 20, preInitialize: true);
+				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
 			
 			_basicPubArgsPool = new ObjectPool<FrameParameters.BasicPublishArgs>(
-				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 20, preInitialize: true); 
+				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 10, preInitialize: true); 
 		}
 
-		private void GenericRecycler<T>(T item, ObjectPool<T> pool) where T : class
-		{
-			pool.PutObject(item);
-		}
+		
 
 		public int ChannelNumber { get { return _channelNum; } }
 
@@ -67,11 +66,51 @@
 			return tcs.Task;
 		}
 
+		/// <summary>
+		/// When sent by the client, this method acknowledges one or 
+		/// more messages delivered via the Deliver or Get-Ok methods.
+		/// </summary>
+		/// <param name="deliveryTag">single message or a set of messages up to and including a specific message.</param>
+		/// <param name="multiple">if true, up to and including a specific message</param>
 		public Task BasicAck(ulong deliveryTag, bool multiple)
 		{
-			throw new NotImplementedException();
-//			var tcs = new TaskCompletionSource<bool>();
-//			return tcs.Task;
+			var tcs = new TaskCompletionSource<bool>();
+
+			var args = new FrameParameters.BasicNAckArgs() { deliveryTag = deliveryTag, multiple = multiple };
+
+			_connection.SendCommand(_channelNum, 60, 80,
+				null, // writer
+				reply: null,
+				expectsReply: false,
+				tcs: tcs,
+				optArg: args);
+
+			return tcs.Task;
+		}
+
+		/// <summary>
+		/// This method allows a client to reject one or more incoming messages. 
+		/// It can be used to interrupt and cancel large incoming messages, or 
+		/// return untreatable messages to their original queue.
+		/// </summary>
+		/// <param name="deliveryTag">single message or a set of messages up to and including a specific message.</param>
+		/// <param name="multiple">if true, up to and including a specific message</param>
+		/// <param name="requeue">If requeue is true, the server will attempt to requeue the message.  
+		/// If requeue is false or the requeue  attempt fails the messages are discarded or dead-lettered.</param>
+		public Task BasicNAck(ulong deliveryTag, bool multiple, bool requeue)
+		{
+			var tcs = new TaskCompletionSource<bool>();
+
+			var args = new FrameParameters.BasicNAckArgs() { deliveryTag = deliveryTag, multiple = multiple, requeue = requeue };
+
+			_connection.SendCommand(_channelNum, 60, 120,
+				null, // writer
+				reply: null, 
+				expectsReply: false,
+				tcs: tcs,
+				optArg: args);
+
+			return tcs.Task;
 		}
 
 		public Task ExchangeDeclare(string exchange, string type, bool durable, bool autoDelete, IDictionary<string, object> arguments, bool waitConfirmation)
@@ -173,8 +212,7 @@
 				properties = BasicProperties.Empty;
 			}
 
-			// var tcs = new TaskCompletionSource<bool>();
-//			 var tcs = new TaskLight(null);
+			// var tcs = new TaskLight(null);
 			var tcs = _taskLightPool.GetObject();
 
 			var args = _basicPubArgsPool.GetObject();
@@ -187,16 +225,16 @@
 			args.buffer = buffer;
 
 			_connection.SendCommand(_channelNum, 60, 40,
-				AmqpChannelLevelFrameWriter.InternalBasicPublish, reply: null, expectsReply: false, 
+				null, // AmqpChannelLevelFrameWriter.InternalBasicPublish, 
+				reply: null, expectsReply: false, 
 				// tcs: tcs,
 				tcsL: tcs,
 				optArg: args);
 
 			return tcs;
-			// return tcs.Task;
 		}
 
-		public Task<string> BasicConsume(Action<BasicProperties, Stream, int> consumer,
+		public Task<string> BasicConsume(Func<MessageDelivery, Task> consumer,
 			string queue, string consumerTag, bool withoutAcks, bool exclusive, 
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
@@ -332,13 +370,30 @@
 			}
 		}
 
-		private void DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey,
+		private async Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, 
+			bool redelivered, string exchange, string routingKey,
 			long bodySize, BasicProperties properties, Stream stream)
 		{
-			Action<BasicProperties, Stream, int> consumer;
+			// Action<BasicProperties, Stream, int> consumer;
+			
+			Func<MessageDelivery, Task> consumer;
 			if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
 			{
-				consumer(properties, stream, (int)bodySize);
+				var delivery = new MessageDelivery()
+				{
+					bodySize = bodySize, properties = properties, routingKey = routingKey, 
+					stream = stream, deliveryTag = deliveryTag, redelivered = redelivered
+				};
+
+				var initPos = stream.Position;
+				// await consumer(properties, deliveryTag, stream, (int)bodySize);
+				await consumer(delivery);
+				if (stream.Position < initPos + bodySize)
+				{
+					// move to end
+					var offset = initPos + bodySize - stream.Position;
+					stream.Seek(offset, SeekOrigin.Current);
+				}
 			}
 			else
 			{
@@ -346,5 +401,22 @@
 				stream.Seek(bodySize, SeekOrigin.Current);
 			}
 		}
+
+		private void GenericRecycler<T>(T item, ObjectPool<T> pool) where T : class
+		{
+			pool.PutObject(item);
+		}
+	}
+
+	public struct MessageDelivery
+	{
+//		public string consumerTag;
+		public ulong deliveryTag;
+		public bool redelivered;
+//		public string exchange;
+		public string routingKey;
+		public long bodySize;
+		public BasicProperties properties;
+		public Stream stream;
 	}
 }

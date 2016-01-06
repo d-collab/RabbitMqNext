@@ -23,7 +23,7 @@
 
 		private readonly Socket _socket;
 		
-		private SocketStreams _socketToStream;
+		private SocketRingBuffers _socketToRingBuffer;
 		private AmqpPrimitivesReader _amqpReader;
 		private AmqpPrimitivesWriter _amqpWriter;
 
@@ -67,7 +67,7 @@
 		{
 			await _connectionState.DoCloseConnection(true);
 
-			while (_socketToStream.StillSending)
+			while (_socketToRingBuffer.StillSending)
 			{
 				await Task.Delay(TimeSpan.FromSeconds(1));
 			}
@@ -84,11 +84,11 @@
 		{
 			await InternalDoConnectSocket(hostname, port);
 
-			_socketToStream = new SocketStreams(_socket, _cancellationTokenSrc.Token, OnSocketClosed);
-			_amqpReader = new AmqpPrimitivesReader(_socketToStream.Reader);
-			_amqpWriter = new AmqpPrimitivesWriter(_socketToStream.Writer, bufferPool: null, memStreamPool: null);
+			_socketToRingBuffer = new SocketRingBuffers(_socket, _cancellationTokenSrc.Token, OnSocketClosed);
+			_amqpReader = new AmqpPrimitivesReader(_socketToRingBuffer.Reader);
+			_amqpWriter = new AmqpPrimitivesWriter(_socketToRingBuffer.Writer, bufferPool: null, memStreamPool: null);
 
-			_connectionState = new ConnectionStateMachine(_socketToStream.Reader, _amqpReader, _amqpWriter, _cancellationTokenSrc.Token);
+			_connectionState = new ConnectionStateMachine(_socketToRingBuffer.Reader, _amqpReader, _amqpWriter, _cancellationTokenSrc.Token);
 
 			await _connectionState.Start(username, password, vhost);
 			_amqpWriter.FrameMaxSize = _connectionState._frameMax;
@@ -132,8 +132,8 @@
 			if (_connectionState != null)
 				_connectionState.Dispose();
 
-			if (_socketToStream != null)
-				_socketToStream.Dispose();
+			if (_socketToRingBuffer != null)
+				_socketToRingBuffer.Dispose();
 		}
 	}
 }

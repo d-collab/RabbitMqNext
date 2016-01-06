@@ -26,6 +26,26 @@ namespace RabbitMqNext.Internals
 
 		public long Position { get { return _ringBufferStream.Position; } }
 
+		private void FillBufferWithLock(byte[] buffer, int count, bool reverse = true)
+		{
+			int totalRead = 0;
+			while (totalRead < count)
+			{
+				var t = _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
+				if (t.IsCompleted)
+					totalRead += t.Result;
+				else
+				{
+					t.Wait();
+					totalRead += t.Result;
+				}
+			}
+			if (reverse && BitConverter.IsLittleEndian && count > 1)
+			{
+				Array.Reverse(buffer);
+			}
+		}
+
 		public async Task FillBuffer(byte[] buffer, int count, bool reverse = true)
 		{
 			int totalRead = 0;
@@ -40,6 +60,14 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
+//		public async Task<byte> ReadByte()
+//		{
+//			await FillBuffer(_oneByteArray, 1);
+//			var b = _oneByteArray[0];
+////			return _cachedByteTaskResult[b];
+//			return b;
+//		}
+
 		public Task<byte> ReadByte()
 		{
 			var t = FillBuffer(_oneByteArray, 1);
@@ -49,19 +77,14 @@ namespace RabbitMqNext.Internals
 				var b = _oneByteArray[0];
 				return _cachedByteTaskResult[b];
 			}
-			else
+			// else
+			
+			return t.ContinueWith((_1, _) =>
 			{
-				return t.ContinueWith(new Func<Task, object, byte>((t1,state) =>
-				{
-					var b = _oneByteArray[0];
-					return b;
-				}), null, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
-
-//				return t.ContinueWith((t2) => {
-////					var b = _oneByteArray[0];
-////					return _cachedByteTaskResult[b];
-//				});
-			}
+				var b = _oneByteArray[0];
+				return b;
+			}, null, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
+			
 		}
 
 		public async Task<sbyte> ReadSByte()
@@ -99,15 +122,27 @@ namespace RabbitMqNext.Internals
 			return BitConverter.ToInt64(_eightByteArray, 0);
 		}
 
-		public async Task<ushort> ReadUInt16()
+//		public async Task<ushort> ReadUInt16()
+//		{
+//			await FillBuffer(_twoByteArray, 2);
+//			return BitConverter.ToUInt16(_twoByteArray, 0);
+//		}
+
+		public ushort ReadUInt16()
 		{
-			await FillBuffer(_twoByteArray, 2);
+			FillBufferWithLock(_twoByteArray, 2);
 			return BitConverter.ToUInt16(_twoByteArray, 0);
 		}
 
-		public async Task<uint> ReadUInt32()
+//		public async Task<uint> ReadUInt32()
+//		{
+//			await FillBuffer(_fourByteArray, 4);
+//			return BitConverter.ToUInt32(_fourByteArray, 0);
+//		}
+		
+		public uint ReadUInt32()
 		{
-			await FillBuffer(_fourByteArray, 4);
+			FillBufferWithLock(_fourByteArray, 4);
 			return BitConverter.ToUInt32(_fourByteArray, 0);
 		}
 
@@ -115,6 +150,16 @@ namespace RabbitMqNext.Internals
 		{
 			await FillBuffer(_eightByteArray, 8);
 			return BitConverter.ToUInt64(_eightByteArray, 0);
+		}
+
+		public async Task SkipBy(int byteCount)
+		{
+			var count = 0;
+			while (count < byteCount)
+			{
+				await FillBuffer(_oneByteArray, 1, false);
+				count++;
+			}
 		}
 	}
 }

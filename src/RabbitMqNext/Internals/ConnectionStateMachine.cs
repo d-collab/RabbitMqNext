@@ -44,7 +44,8 @@
 
 
 		public ConnectionStateMachine(InternalBigEndianReader reader, 
-			AmqpPrimitivesReader amqpReader, AmqpPrimitivesWriter amqpWriter, 
+			AmqpPrimitivesReader amqpReader, 
+			AmqpPrimitivesWriter amqpWriter, 
 			CancellationToken cancellationToken)
 		{
 			_amqpWriter = amqpWriter;
@@ -201,8 +202,17 @@
 						}
 
 						// writes to socket
-						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
-												   cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+						var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
+						if (frameWriter != null)
+						{
+							frameWriter.Write(_amqpWriter, cmdToSend.Channel,
+											  cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+						}
+						else
+						{
+							cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
+													   cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+						}
 
 						// if writing to socket is enough, set as complete
 						if (!cmdToSend.ExpectsReply)

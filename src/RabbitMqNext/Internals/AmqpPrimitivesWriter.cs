@@ -24,13 +24,13 @@ namespace RabbitMqNext.Internals
 		{
 			_writer = writer;
 
-			_bufferPool = bufferPool ?? new DefaultArrayPool<byte>(BufferSize, 10);
+			_bufferPool = bufferPool ?? new DefaultArrayPool<byte>(BufferSize, 5);
 			if (memStreamPool == null)
 			{
 				memStreamPool = new ObjectPool<ReusableTempWriter>(() => 
 				{
 					Console.WriteLine("Creating new writer...");
-					return new ReusableTempWriter(_bufferPool, _memStreamPool);
+					return new ReusableTempWriter(new DefaultArrayPool<byte>(BufferSize, 5), _memStreamPool);
 				});
 			}
 			_memStreamPool = memStreamPool;

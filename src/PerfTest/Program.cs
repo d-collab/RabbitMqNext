@@ -14,6 +14,10 @@
 
 	public class Program
 	{
+		const ushort Prefetch = 350;
+
+		const bool WithAcks = false;
+
 		const int TotalPublish = 250000;
 //		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
@@ -34,8 +38,10 @@
 			Console.WriteLine("Latency mode: " + GCSettings.LatencyMode);
 			GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 			Console.WriteLine("New Latency mode: " + GCSettings.LatencyMode);
-			
-			var t = Start(); // StartOriginalClient(); // Start();
+
+//		    SubscribeForGCNotifications();
+
+			var t = StartOriginalClient(); // StartOriginalClient(); // Start();
 		    t.Wait();
 
 			Console.WriteLine("All done");
@@ -54,7 +60,7 @@
 
 				var newChannel = await conn.CreateChannel();
 				Console.WriteLine("[channel created] " + newChannel.ChannelNumber);
-				await newChannel.BasicQos(0, 150, false);
+				await newChannel.BasicQos(0, Prefetch, false);
 
 				await newChannel.ExchangeDeclare("test_ex", "direct", true, false, null, true);
 
@@ -71,10 +77,12 @@
 					Headers = new Dictionary<string, object> {{"serialization", 0}}
 				};
 
+				Console.WriteLine("Started Publishing...");
+
 				var watch = Stopwatch.StartNew();
 				for (int i = 0; i < TotalPublish; i++)
 				{
-					prop.Headers["serialization"] = i;
+					// prop.Headers["serialization"] = i;
 
 					// var buffer = Encoding.UTF8.GetBytes("Hello world");
 					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
@@ -87,7 +95,7 @@
 
 				var newChannel2 = await conn.CreateChannel();
 				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
-				await newChannel2.BasicQos(0, 150, false);
+				await newChannel2.BasicQos(0, Prefetch, false);
 
 
 				var temp = new byte[1000000];
@@ -95,11 +103,19 @@
 				watch = Stopwatch.StartNew();
 				int totalReceived = 0;
 
-				var sub = await newChannel2.BasicConsume((properties, stream, len) =>
+				var sub = await newChannel2.BasicConsume( (delivery) =>
 				{
-					stream.Read(temp, 0, len);
+					delivery.stream.Read(temp, 0, (int) delivery.bodySize);
 
-					var str = Encoding.UTF8.GetString(temp, 0, len);
+					if (WithAcks)
+					{
+						if (totalReceived % 2 == 0)
+							newChannel2.BasicAck(delivery.deliveryTag, false);
+						else
+							newChannel2.BasicNAck(delivery.deliveryTag, false, false);
+					}
+					
+					// var str = Encoding.UTF8.GetString(temp, 0, len);
 					// Console.WriteLine("Received : " + str);
 
 					// newChannel2.BasicAck()
@@ -111,7 +127,9 @@
 						totalReceived = 0;
 					}
 
-				}, "queue1", "tag123", true, false, null, true);
+					return Task.CompletedTask;
+
+				}, "queue1", "tag123", !WithAcks, false, null, true);
 
 				Console.WriteLine("[subscribed to queue] " + sub);
 
@@ -144,7 +162,7 @@
 			}.CreateConnection();
 
 			var channel = conn.CreateModel();
-			channel.BasicQos(0, 150, false);
+			channel.BasicQos(0, Prefetch, false);
 
 			channel.ExchangeDeclare("test_ex", "direct", true, false, null);
 
@@ -156,6 +174,8 @@
 			prop.Type = "type1";
 			// DeliveryMode = 2,
 			prop.Headers = new Dictionary<string, object> { { "serialization", 0 } };
+
+			Console.WriteLine("Started Publishing...");
 
 			var watch = Stopwatch.StartNew();
 			for (int i = 0; i < TotalPublish; i++)
@@ -170,8 +190,20 @@
 
 			var totalReceived = 0;
 			watch = Stopwatch.StartNew();
-			channel.BasicConsume("queue1", true, new OldStyleConsumer(body =>
+			channel.BasicConsume("queue1", !WithAcks, new OldStyleConsumer((deliveryTag, prop2, body) =>
 			{
+				if (WithAcks)
+				{
+					if (totalReceived%2 == 0)
+					{
+						channel.BasicAck(deliveryTag, false);
+					}
+					else
+					{
+						channel.BasicNack(deliveryTag, false, false);
+					}
+				}
+
 				if (++totalReceived == TotalPublish)
 				{
 					watch.Stop();
@@ -184,11 +216,62 @@
 			// Thread.CurrentThread.Join(TimeSpan.FromSeconds(30));
 		}
 
+		private static void SubscribeForGCNotifications()
+		{
+			GC.RegisterForFullGCNotification(1, 1);
+
+			Task.Factory.StartNew(() =>
+			{
+				while (true)
+				{
+					GCNotificationStatus s = GC.WaitForFullGCApproach();
+					if (s == GCNotificationStatus.Succeeded)
+					{
+						Console.WriteLine("GC Notification raised.");
+						// OnFullGCApproachNotify();
+					}
+					else if (s == GCNotificationStatus.Canceled)
+					{
+						Console.WriteLine("GC Notification cancelled.");
+						break;
+					}
+					else
+					{
+						// This can occur if a timeout period
+						// is specified for WaitForFullGCApproach(Timeout) 
+						// or WaitForFullGCComplete(Timeout)  
+						// and the time out period has elapsed. 
+						Console.WriteLine("GC Notification not applicable.");
+						break;
+					}
+
+					// Check for a notification of a completed collection.
+					s = GC.WaitForFullGCComplete();
+					if (s == GCNotificationStatus.Succeeded)
+					{
+						Console.WriteLine("GC Notifiction raised.");
+						// OnFullGCCompleteEndNotify();
+					}
+					else if (s == GCNotificationStatus.Canceled)
+					{
+						Console.WriteLine("GC Notification cancelled.");
+						break;
+					}
+					else
+					{
+						// Could be a time out.
+						Console.WriteLine("GC Notification not applicable.");
+						break;
+					}
+				}
+			}, TaskCreationOptions.LongRunning);
+		}
+
 		class OldStyleConsumer : IBasicConsumer
 		{
-			private readonly Action<byte[]> _action;
+			private readonly Action<ulong, IBasicProperties, byte[]> _action;
 
-			public OldStyleConsumer(Action<byte[]> action)
+			public OldStyleConsumer(Action<ulong, IBasicProperties, byte[]> action)
 			{
 				_action = action;
 			}
@@ -208,7 +291,7 @@
 			public void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey,
 				IBasicProperties properties, byte[] body)
 			{
-				_action(body);
+				_action(deliveryTag, properties, body);
 			}
 
 			public void HandleModelShutdown(object model, ShutdownEventArgs reason)

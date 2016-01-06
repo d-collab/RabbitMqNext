@@ -2,6 +2,7 @@ namespace RabbitMqNext.Internals
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Text;
 	using WriterDelegate = System.Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object>;
 
 	static class AmqpChannelLevelFrameWriter
@@ -68,11 +69,6 @@ namespace RabbitMqNext.Internals
 			};
 		}
 
-		public static WriterDelegate BasicPublish()
-		{
-			return InternalBasicPublish;
-		}
-
 		public static void ChannelClose(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
 		{
 			var closeArgs = (FrameParameters.CloseParams) args;
@@ -131,6 +127,42 @@ namespace RabbitMqNext.Internals
 				writer.WriteLong(prefetchSize);
 				writer.WriteUShort(prefetchCount);
 				writer.WriteBit(global);
+
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			};
+		}
+
+		public static WriterDelegate BasicAck(ulong deliveryTag, bool multiple)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				uint payloadSize = (uint)(8 + 5);
+
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
+
+				writer.WriteUShort(classId);
+				writer.WriteUShort(methodId);
+
+				writer.WriteULong(deliveryTag);
+				writer.WriteBit(multiple);
+
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			};
+		}
+
+		public static WriterDelegate BasicNAck(ulong deliveryTag, bool multiple, bool requeue)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				uint payloadSize = (uint)(8 + 5);
+
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
+
+				writer.WriteUShort(classId);
+				writer.WriteUShort(methodId);
+
+				writer.WriteULong(deliveryTag);
+				writer.WriteBits(multiple, requeue);
 
 				writer.WriteOctet(AmqpConstants.FrameEnd);
 			};
@@ -203,6 +235,43 @@ namespace RabbitMqNext.Internals
 					if (properties.IsClusterIdPresent) { w.WriteShortstr(properties.ClusterId); }
 				});
 			}
+		}
+
+		internal static void InternalBasicAck(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
+		{
+			var b_args = args as FrameParameters.BasicAckArgs;
+
+			// return (writer, channel, classId, methodId, args) =>
+			{
+				uint payloadSize = (uint)(8 + 5);
+
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
+
+				writer.WriteUShort(classId);
+				writer.WriteUShort(methodId);
+
+				writer.WriteULong(b_args.deliveryTag);
+				writer.WriteBit(b_args.multiple);
+
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			};
+		}
+
+		internal static void InternalBasicNAck(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
+		{
+			var b_args = args as FrameParameters.BasicNAckArgs;
+
+			uint payloadSize = (uint)(8 + 5);
+
+			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
+
+			writer.WriteUShort(classId);
+			writer.WriteUShort(methodId);
+
+			writer.WriteULong(b_args.deliveryTag);
+			writer.WriteBits(b_args.multiple, b_args.requeue);
+
+			writer.WriteOctet(AmqpConstants.FrameEnd);
 		}
 
 		internal static void InternalBasicPublish(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)

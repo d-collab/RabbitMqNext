@@ -24,9 +24,9 @@ namespace RabbitMqNext.Internals
 		{
 			Console.WriteLine("< QueueDeclareOk");
 
-			var queue = await _amqpReader.ReadShortStr();
-			var messageCount = await _amqpReader.ReadLong();
-			var consumerCount = await _amqpReader.ReadLong();
+			string queue = await _amqpReader.ReadShortStr();
+			uint messageCount = _amqpReader.ReadLong();
+			uint consumerCount = _amqpReader.ReadLong();
 
 			continuation(queue, messageCount, consumerCount);
 		}
@@ -40,17 +40,17 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_Channel_Close2(Action<ushort, string, ushort, ushort> continuation)
 		{
-			var replyCode = await _amqpReader.ReadShort();
+			var replyCode = _amqpReader.ReadShort();
 			var replyText = await _amqpReader.ReadShortStr();
-			var classId = await _amqpReader.ReadShort();
-			var methodId = await _amqpReader.ReadShort();
+			var classId = _amqpReader.ReadShort();
+			var methodId = _amqpReader.ReadShort();
 
 			Console.WriteLine("< channel close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
 			continuation(replyCode, replyText, classId, methodId);
 		}
 
-		public async Task Read_BasicDelivery(Action<string, ulong, bool, string, string, long, BasicProperties, Stream> continuation)
+		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, long, BasicProperties, Stream, Task> continuation)
 		{
 			var consumerTag = await _amqpReader.ReadShortStr();
 			var deliveryTag = await _amqpReader.ReadULong();
@@ -66,10 +66,11 @@ namespace RabbitMqNext.Internals
 			var frameHeaderStart = await _amqpReader.ReadOctet();
 			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
 
-			ushort channel = await _reader.ReadUInt16();
-			int payloadLength = await _reader.ReadInt32();
-			var classId = await _reader.ReadUInt16();
-			var weight = await _reader.ReadUInt16();
+			ushort channel = _reader.ReadUInt16();
+			await _reader.SkipBy(4 + 2 + 2);
+//			int payloadLength = await _reader.ReadInt32();
+//			var classId = _reader.ReadUInt16();
+//			var weight = _reader.ReadUInt16();
 			var bodySize = (long) await _reader.ReadUInt64();
 
 			var properties = await ReadRestOfContentHeader();
@@ -81,14 +82,15 @@ namespace RabbitMqNext.Internals
 			frameHeaderStart = await _reader.ReadByte();
 			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
-			channel = await _reader.ReadUInt16();
-			var length = await _reader.ReadUInt32();
+			await _reader.SkipBy(2);
+			// channel =   _reader.ReadUInt16();
+			uint length = _reader.ReadUInt32();
 
 			// Pending Frame end
 
 			if (length == bodySize)
 			{
-				continuation(consumerTag, deliveryTag,
+				await continuation(consumerTag, deliveryTag,
 					redelivered, exchange,
 					routingKey, length, properties, (Stream) _reader._ringBufferStream);
 			}
@@ -100,7 +102,7 @@ namespace RabbitMqNext.Internals
 
 		private async Task<BasicProperties> ReadRestOfContentHeader()
 		{
-			var presence = await _reader.ReadUInt16();
+			var presence = _reader.ReadUInt16();
 
 			BasicProperties properties;
 
