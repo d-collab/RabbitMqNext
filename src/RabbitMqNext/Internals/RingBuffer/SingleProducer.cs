@@ -35,9 +35,23 @@
 			}
 		}
 
-		public Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		public async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
-			throw new NotImplementedException();
+			var written = 0;
+			while (written < count && !_cancellationToken.IsCancellationRequested)
+			{
+				var claimSize = count - written;
+				var available = await _ringBuffer.ClaimWriteRegionAsync(claimSize); // may block
+
+				if (available == 0)
+				{
+					throw new Exception("wtf1");
+				}
+
+				_ringBuffer.WriteToClaimedRegion(buffer, offset + written, available);
+
+				written += available;
+			}
 		}
 	}
 }

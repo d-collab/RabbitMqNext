@@ -1,12 +1,9 @@
 ﻿namespace EchoClient
 {
 	using System;
-	using System.Buffers;
 	using System.Net;
 	using System.Net.Sockets;
-	using System.Runtime;
 	using System.Threading;
-	using System.Threading.Tasks;
 	using RabbitMqNext.Internals;
 
 	class Program
@@ -17,7 +14,7 @@
 		private static AmqpPrimitivesWriter _amqpWriter;
 		private static AmqpPrimitivesReader _amqpReader;
 
-		const string TargetHost = "localhost";
+		const string TargetHost = "media";
 		const int port = 6767;
 
 		static void Main(string[] args)
@@ -53,6 +50,7 @@
 
 			_socket2Streams = new SocketRingBuffers(socket, cancellationToken.Token, delegate
 			{
+				cancellationToken.Cancel();
 				Console.WriteLine("closed...");
 			});
 			_amqpWriter = new AmqpPrimitivesWriter(_socket2Streams.Writer, null, null);
@@ -86,8 +84,12 @@
 		{
 			try
 			{
+				ulong iteration = 0L;
+
 				while (!cancellationToken.IsCancellationRequested)
 				{
+					Console.WriteLine("Wr Iteration started " + iteration);
+
 					for (uint i = 0; i < TotalBytesToWrite; i++)
 					{
 						_socket2Streams.Writer.Write((byte)((byte)i % 256));
@@ -107,6 +109,8 @@
 					{
 						_amqpWriter.WriteLongstr(Str);
 					}
+
+					Console.WriteLine("Wr Iteration complete " + iteration++);
 				}
 			}
 			catch (Exception ex)
@@ -120,8 +124,12 @@
 		{
 			try
 			{
+				ulong iteration = 0L;
+
 				while (!cancellationToken.IsCancellationRequested)
 				{
+					Console.WriteLine("R Iteration started " + iteration);
+
 					for (uint i = 0; i < TotalBytesToWrite; i++)
 					{
 						byte b = await _socket2Streams.Reader.ReadByte();
@@ -133,7 +141,6 @@
 								" Expecting " + exp + " but got " + b);
 						}
 					}
-					// 
 					for (uint i = 0; i < TotalShortsToWrite; i++)
 					{
 						ushort b = _socket2Streams.Reader.ReadUInt16();
@@ -170,6 +177,8 @@
 								" Expecting \n" + b + " but got \n" + Str);
 						}
 					}
+
+					Console.WriteLine("R Iteration complete " + iteration++);
 				}
 			}
 			catch (Exception ex)

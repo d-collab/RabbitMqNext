@@ -62,6 +62,9 @@
     </Compile>
     <Compile Include="Internals\MemoryStreamSlim.cs" />
     <Compile Include="Internals\ReusableTempWriter.cs" />
+    <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetCASEvent.cs" />
+    <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetEvent.cs" />
+    <Compile Include="Internals\RingBuffer\Locks\AsyncManualResetEvent.cs" />
     <Compile Include="Internals\RingBuffer\RingBuffer2.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs" />
     <Compile Include="Internals\RingBuffer\SingleConsumer.cs" />

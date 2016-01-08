@@ -2,7 +2,9 @@
 {
 	using System;
 	using System.Net.Sockets;
+	using System.Runtime.CompilerServices;
 	using System.Threading;
+	using System.Threading.Tasks;
 
 
 	/// <summary>
@@ -107,25 +109,7 @@
 
 			while (!_cancellationToken.IsCancellationRequested)
 			{
-				uint writeCursor = _writePosition; // volative read
-				uint readCursor = _readPosition;   // volative read
-
-				uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize); 
-				uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize); 
-
-				uint entriesFree = 0;
-
-				var writeWillWrap = (readPos > writePos && writePos + desiredCount > readPos - 1);
-				
-				if (writeWillWrap)
-				{
-					var availableTilWrap = readPos - writePos - 1;
-					entriesFree = availableTilWrap;
-				}
-				else
-				{
-					entriesFree = _bufferSize - writePos;
-				}
+				uint entriesFree = InternalGetReadyToWriteEntries(desiredCount);
 
 				if (entriesFree == 0) // full, we need to wait for consumer
 				{
@@ -135,6 +119,30 @@
 				}
 
 				return (int) Math.Min(entriesFree, desiredCount);
+			}
+
+			return 0; // was cancelled
+		}
+
+		public async Task<int> ClaimWriteRegionAsync(int desiredCount)
+		{
+			if (desiredCount > _bufferSize)
+				throw new ArgumentOutOfRangeException("desiredCount", "cannot be larger than bufferSize");
+
+			// _cancellationToken.ThrowIfCancellationRequested();
+
+			while (!_cancellationToken.IsCancellationRequested)
+			{
+				uint entriesFree = InternalGetReadyToWriteEntries(desiredCount);
+
+				if (entriesFree == 0) // full, we need to wait for consumer
+				{
+					// yield/spin/whatever then...
+					await _waitingStrategy.WaitAsync();
+					continue;
+				}
+
+				return (int)Math.Min(entriesFree, desiredCount);
 			}
 
 			return 0; // was cancelled
@@ -164,24 +172,7 @@
 
 			while (!_cancellationToken.IsCancellationRequested)
 			{
-				uint writeCursor = _writePosition; // 1 volative read
-				uint readCursor = _readPosition;   // 1 volative read
-
-				uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize);
-				uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize);
-
-				uint entriesFree = 0;
-
-				var writeHasWrapped = writePos < readPos;
-
-				if (writeHasWrapped) // so everything ahead of readpos is available
-				{
-					entriesFree = _bufferSize - readPos;
-				}
-				else
-				{
-					entriesFree = writePos - readPos;
-				}
+				var entriesFree = InternalGetReadyToReadEntries();
 
 				if (entriesFree == 0 && waitIfNothingAvailable) // empty, we need to wait for producer
 				{
@@ -189,6 +180,28 @@
 //					Console.WriteLine("waiting on producer...");
 					_waitingStrategy.Wait();
 //					Console.Write(" * ");
+					continue;
+				}
+
+				return Math.Min(desiredCount, (int)entriesFree);
+			}
+
+			return 0;
+		}
+
+		public async Task<int> ClaimReadRegionAsync(int desiredCount)
+		{
+			if (desiredCount > _bufferSize) throw new ArgumentOutOfRangeException("desiredCount", "desiredCount cannot be larger than buffer size: " + desiredCount + " buffer " + _bufferSize);
+
+			while (!_cancellationToken.IsCancellationRequested)
+			{
+				var entriesFree = InternalGetReadyToReadEntries();
+
+				if (entriesFree == 0) // empty, we need to wait for producer
+				{
+					// yield/spin/whatever then...
+					// Console.WriteLine("waiting on producer...");
+					await _waitingStrategy.WaitAsync();
 					continue;
 				}
 
@@ -316,6 +329,57 @@
 		public void Dispose()
 		{
 			_waitingStrategy.Dispose();
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private uint InternalGetReadyToReadEntries()
+		{
+			uint writeCursor = _writePosition; // volative read
+			uint readCursor = _readPosition;   // volative read
+
+			uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize);
+			uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize);
+
+			uint entriesFree = 0;
+
+			var writeHasWrapped = writePos < readPos;
+
+			if (writeHasWrapped) // so everything ahead of readpos is available
+			{
+				entriesFree = _bufferSize - readPos;
+			}
+			else
+			{
+				entriesFree = writePos - readPos;
+			}
+
+			return entriesFree;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private uint InternalGetReadyToWriteEntries(int desiredCount)
+		{
+			uint writeCursor = _writePosition; // volative read
+			uint readCursor = _readPosition;   // volative read
+
+			uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize); 
+			uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize); 
+
+			uint entriesFree = 0;
+
+			var writeWillWrap = (readPos > writePos && writePos + desiredCount > readPos - 1);
+
+			if (writeWillWrap)
+			{
+				var availableTilWrap = readPos - writePos - 1;
+				entriesFree = availableTilWrap;
+			}
+			else
+			{
+				entriesFree = _bufferSize - writePos;
+			}
+
+			return entriesFree;
 		}
 	}
 }

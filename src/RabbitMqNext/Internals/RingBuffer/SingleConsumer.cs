@@ -21,7 +21,7 @@
 			int totalRead = 0;
 			while (!_cancellationToken.IsCancellationRequested)
 			{
-				var claimedSize = _ringBuffer.ClaimReadRegion(waitIfNothingAvailable: fillBuffer);
+				var claimedSize = _ringBuffer.ClaimReadRegion(waitIfNothingAvailable: fillBuffer, desiredCount: count);
 
 				if (claimedSize == 0) // something's wrong if fillBuffer == true
 				{
@@ -43,6 +43,27 @@
 			return totalRead;
 		}
 
+		public async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		{
+			while (!_cancellationToken.IsCancellationRequested)
+			{
+				var claimedSize = await _ringBuffer.ClaimReadRegionAsync(count);
+
+				if (claimedSize == 0) // something's wrong if fillBuffer == true
+				{
+					return 0;
+				}
+
+				var lenToRead = Math.Min(count, claimedSize);
+
+				_ringBuffer.ReadClaimedRegion(buffer, offset, lenToRead);
+
+				return lenToRead;
+			}
+
+			return 0;
+		}
+
 		public int Skip(long offset)
 		{
 			checked
@@ -55,11 +76,6 @@
 				}
 				return claimedSize;
 			}
-		}
-
-		public Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-		{
-			throw new NotImplementedException();
 		}
 	}
 }
