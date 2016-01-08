@@ -35,15 +35,19 @@ namespace RabbitMqNext.Internals
 				ushort channel = _reader.ReadUInt16();
 				int payloadLength = await _reader.ReadInt32();
 
-//				Console.WriteLine("> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
+//				var initialPosition = _reader._ringBufferStream.Position;
+				// Console.WriteLine("> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
 
 				// needs special case for heartbeat, flow, etc.. 
 				// since they are not replies to methods we sent and alter the client's behavior
 
+				ushort classId = 0;
+				ushort methodId = 0;
+
 				if (frameType == AmqpConstants.FrameMethod)
 				{
-					ushort classId = _reader.ReadUInt16();
-					ushort methodId = _reader.ReadUInt16();
+					classId = _reader.ReadUInt16();
+					methodId = _reader.ReadUInt16();
 
 					var classMethodId = classId << 16 | methodId;
 
@@ -68,18 +72,27 @@ namespace RabbitMqNext.Internals
 						await _frameProcessor.DispatchMethod(channel, classMethodId);
 					}
 				}
-				else if (frameType == AmqpConstants.FrameHeader)
-				{
-					Console.WriteLine("received FrameHeader");
-				}
-				else if (frameType == AmqpConstants.FrameBody)
-				{
-					Console.WriteLine("received FrameBody");
-				}
+//				else if (frameType == AmqpConstants.FrameHeader)
+//				{
+//					Console.WriteLine("received FrameHeader");
+//				}
+//				else if (frameType == AmqpConstants.FrameBody)
+//				{
+//					Console.WriteLine("received FrameBody");
+//				}
 				else if (frameType == AmqpConstants.FrameHeartbeat)
 				{
 					Console.WriteLine("received FrameHeartbeat");
 				}
+
+//				var curPos = _reader._ringBufferStream.Position;
+//				var expectedPos = initialPosition + payloadLength;
+//
+//				if (expectedPos != curPos)
+//				{
+//					Console.WriteLine("Expecting stream pos to be at " + expectedPos + " but is at " + curPos + 
+//						" for frame type " + frameType + " and class " + classId + " and method " + methodId);
+//				}
 
 //				Console.WriteLine("will read FrameEnd");
 				int frameEndMarker = await _reader.ReadByte();

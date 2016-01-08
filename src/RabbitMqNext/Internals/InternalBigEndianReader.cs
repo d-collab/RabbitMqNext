@@ -2,10 +2,12 @@ namespace RabbitMqNext.Internals
 {
 	using System;
 	using System.Threading.Tasks;
+	using RingBuffer;
 
-	internal class InternalBigEndianReader
+	// Consider Buffer.SetByte/GetByte for perf
+	public class InternalBigEndianReader
 	{
-		internal readonly RingBufferStream _ringBufferStream;
+		internal readonly RingBufferStreamAdapter _ringBufferStream;
 
 		private readonly byte[] _oneByteArray = new byte[1];
 		private readonly byte[] _twoByteArray = new byte[2];
@@ -14,7 +16,7 @@ namespace RabbitMqNext.Internals
 
 		private readonly Task<byte>[] _cachedByteTaskResult = new Task<byte>[256];
 
-		public InternalBigEndianReader(RingBufferStream ringBufferStream)
+		internal InternalBigEndianReader(RingBufferStreamAdapter ringBufferStream)
 		{
 			_ringBufferStream = ringBufferStream;
 
@@ -31,14 +33,15 @@ namespace RabbitMqNext.Internals
 			int totalRead = 0;
 			while (totalRead < count)
 			{
-				var t = _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
-				if (t.IsCompleted)
-					totalRead += t.Result;
-				else
-				{
-					t.Wait();
-					totalRead += t.Result;
-				}
+				totalRead += _ringBufferStream.Read(buffer, totalRead, count - totalRead);
+//				var t = _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
+//				if (t.IsCompleted)
+//					totalRead += t.Result;
+//				else
+//				{
+//					t.Wait();
+//					totalRead += t.Result;
+//				}
 			}
 			if (reverse && BitConverter.IsLittleEndian && count > 1)
 			{
@@ -51,7 +54,8 @@ namespace RabbitMqNext.Internals
 			int totalRead = 0;
 			while (totalRead < count)
 			{
-				var read = await _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
+				// var read = await _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
+				var read = await _ringBufferStream.ReadAsync(buffer, totalRead, count - totalRead, _ringBufferStream.CancellationToken);
 				totalRead += read;
 			}
 			if (reverse && BitConverter.IsLittleEndian && count > 1)
@@ -60,32 +64,31 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-//		public async Task<byte> ReadByte()
-//		{
-//			await FillBuffer(_oneByteArray, 1);
-//			var b = _oneByteArray[0];
-////			return _cachedByteTaskResult[b];
-//			return b;
-//		}
-
-		public Task<byte> ReadByte()
+		public async Task<byte> ReadByte()
 		{
-			var t = FillBuffer(_oneByteArray, 1);
-
-			if (t.IsCompleted)
-			{
-				var b = _oneByteArray[0];
-				return _cachedByteTaskResult[b];
-			}
-			// else
-			
-			return t.ContinueWith((_1, _) =>
-			{
-				var b = _oneByteArray[0];
-				return b;
-			}, null, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
-			
+			await FillBuffer(_oneByteArray, 1);
+			var b = _oneByteArray[0];
+//			return _cachedByteTaskResult[b];
+			return b;
 		}
+
+//		public Task<byte> ReadByte()
+//		{
+//			var t = FillBuffer(_oneByteArray, 1);
+//
+//			if (t.IsCompleted)
+//			{
+//				var b = _oneByteArray[0];
+//				return _cachedByteTaskResult[b];
+//			}
+//			// else
+//			
+//			return t.ContinueWith((_1, _) =>
+//			{
+//				var b = _oneByteArray[0];
+//				return b;
+//			}, null, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
+//		}
 
 		public async Task<sbyte> ReadSByte()
 		{

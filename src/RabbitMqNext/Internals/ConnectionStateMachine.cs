@@ -99,7 +99,7 @@
 		public override async Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
 		{
 			var error = new AmqpError() {ClassId = classId, MethodId = methodId, ReplyCode = replyCode, ReplyText = replyText};
-			await DrainMethodsWithErrorAndClose(error, classId, methodId);
+			DrainMethodsWithErrorAndClose(error, classId, methodId);
 		}
 
 		public override async Task DispatchChannelCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
@@ -109,19 +109,17 @@
 			await channelInst.DrainMethodsWithErrorAndClose(error, classId, methodId);
 		}
 
-		private Task InternalDispatchMethodToConnection(ushort channel, int classMethodId)
+		private async Task InternalDispatchMethodToConnection(ushort channel, int classMethodId)
 		{
 			CommandToSend sent;
 			if (_awaitingReplyQueue.TryDequeue(out sent))
 			{
-				sent.ReplyAction3(channel, classMethodId, null);
+				await sent.ReplyAction3(channel, classMethodId, null);
 			}
 			else
 			{
 				// nothing was really waiting for a reply
 			}
-
-			return Task.CompletedTask;
 		}
 
 		private async Task InternalDispatchMethodToChannel(ushort channel, int classMethodId)
@@ -143,7 +141,7 @@
 			}
 			else if (channelInst._awaitingReplyQueue.TryDequeue(out cmdAwaiting))
 			{
-				cmdAwaiting.ReplyAction3(channel, classMethodId, null);
+				await cmdAwaiting.ReplyAction3(channel, classMethodId, null);
 			}
 			else
 			{
@@ -158,7 +156,7 @@
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
 								  Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
-								  Action<ushort, int, AmqpError> reply, bool expectsReply, 
+								  Func<ushort, int, AmqpError, Task> reply, bool expectsReply, 
 								  TaskCompletionSource<bool> tcs = null, object optArg = null, TaskLight tcsL = null)
 		{
 			ThrowIfErrorPending();
@@ -179,7 +177,7 @@
 			_commandsToSendEvent.Set();
 		}
 
-		private void WriteCommandsToSocket()
+		private async void WriteCommandsToSocket()
 		{
 			try
 			{
@@ -217,7 +215,7 @@
 						// if writing to socket is enough, set as complete
 						if (!cmdToSend.ExpectsReply)
 						{
-							cmdToSend.ReplyAction3(0, 0, null);
+							await cmdToSend.ReplyAction3(0, 0, null);
 						}
 					}
 				}
@@ -230,14 +228,14 @@
 			}
 		}
 
-		private void ReadFramesLoop()
+		private async void ReadFramesLoop()
 		{
 			try
 			{
 				while (!_cancellationToken.IsCancellationRequested)
 				{
-					var t = ReadFrame();
-					t.Wait(_cancellationToken);
+					await ReadFrame();
+					// t.Wait(_cancellationToken);
 				}
 			}
 			catch (ThreadAbortException)
@@ -264,11 +262,11 @@
 			if (er != null) throw new Exception(er.ToErrorString());
 		}
 
-		private async Task DrainMethodsWithErrorAndClose(AmqpError amqpError, ushort classId, ushort methodId)
+		private void DrainMethodsWithErrorAndClose(AmqpError amqpError, ushort classId, ushort methodId)
 		{
 			Util.DrainMethodsWithError(_awaitingReplyQueue, amqpError, classId, methodId);
 
-			await __SendConnectionCloseOk();
+			__SendConnectionCloseOk();
 		}
 
 		private Task __SendGreeting()
@@ -378,16 +376,16 @@
 				{
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionCloseOk)
 					{
-						_frameReader.Read_ConnectionCloseOk(() =>
+						// _frameReader.Read_ConnectionCloseOk(() =>
 						{
 							tcs.SetResult(true);
-						});
+						}//);
 					}
 					else
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
-
+					return Task.CompletedTask;
 				}, 
 				expectsReply: true, 
 				optArg: new FrameParameters.CloseParams()
@@ -399,13 +397,11 @@
 			return tcs.Task;
 		}
 
-		private Task __SendConnectionCloseOk()
+		private void __SendConnectionCloseOk()
 		{
 			var tcs = new TaskCompletionSource<bool>();
-
 			SendCommand(0, 10, 51, AmqpConnectionFrameWriter.ConnectionCloseOk, reply: null, expectsReply: false, tcs: tcs);
-
-			return tcs.Task;
+//			return tcs.Task;
 		}
 
 		internal async Task DoCloseConnection(bool sendClose)

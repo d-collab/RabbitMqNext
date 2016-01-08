@@ -2,14 +2,15 @@
 {
 	using System;
 	using System.Threading;
-	
+	using System.Threading.Tasks;
+
 
 	internal class SingleConsumer
 	{
-		private readonly RingBufferStream2 _ringBuffer;
+		private readonly RingBuffer2 _ringBuffer;
 		private readonly CancellationToken _cancellationToken;
 
-		public SingleConsumer(RingBufferStream2 ringBuffer, CancellationToken cancellationToken)
+		public SingleConsumer(RingBuffer2 ringBuffer, CancellationToken cancellationToken)
 		{
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
@@ -20,11 +21,11 @@
 			int totalRead = 0;
 			while (!_cancellationToken.IsCancellationRequested)
 			{
-				var claimedSize = _ringBuffer.ClaimReadRegion(); // may block
+				var claimedSize = _ringBuffer.ClaimReadRegion(waitIfNothingAvailable: fillBuffer);
 
-				if (claimedSize == 0)
+				if (claimedSize == 0) // something's wrong if fillBuffer == true
 				{
-					throw new Exception("wtf2");
+					return 0;
 				}
 
 				var lenToRead = Math.Min(count - totalRead, claimedSize);
@@ -40,6 +41,25 @@
 			}
 
 			return totalRead;
+		}
+
+		public int Skip(long offset)
+		{
+			checked
+			{
+				var iOffset = (int) offset;
+				var claimedSize = _ringBuffer.ClaimReadRegion(iOffset, waitIfNothingAvailable: false);
+				if (claimedSize > 0)
+				{
+					_ringBuffer.CommitRead(claimedSize); // commit as if we consumed the buffer
+				}
+				return claimedSize;
+			}
+		}
+
+		public Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }

@@ -66,6 +66,7 @@ namespace RabbitMqNext.Internals
 			}
 			else
 			{
+				// TODO: better/faster option?
 				Buffer.BlockCopy(buffer, offset, _buffer, _position, count);	
 			}
 			_position += count;

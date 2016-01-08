@@ -59,6 +59,7 @@
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
+					return Task.CompletedTask;
 				}, expectsReply: true);
 
 			return tcs.Task;
@@ -136,6 +137,7 @@
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
+					return Task.CompletedTask;
 				}, expectsReply: waitConfirmation);
 
 			return tcs.Task;
@@ -159,6 +161,8 @@
 							{
 								Name = queueName, Consumers =  consumerCount, Messages = messageCount
 							});
+
+							return Task.CompletedTask;
 						});
 					}
 					else if (!waitConfirmation)
@@ -198,6 +202,7 @@
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
+					return Task.CompletedTask;
 				}, expectsReply: waitConfirmation);
 
 			return tcs.Task;
@@ -250,6 +255,8 @@
 						await _connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
 						{
 							tcs.SetResult(consumerTag2);
+
+							return Task.CompletedTask;
 						});
 					}
 					else if (!waitConfirmation)
@@ -339,7 +346,7 @@
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
-
+					return Task.CompletedTask;
 				}, 
 				expectsReply: true,
 				optArg: new FrameParameters.CloseParams()
@@ -382,8 +389,6 @@
 			bool redelivered, string exchange, string routingKey,
 			long bodySize, BasicProperties properties, Stream stream)
 		{
-			// Action<BasicProperties, Stream, int> consumer;
-			
 			Func<MessageDelivery, Task> consumer;
 			if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
 			{
@@ -393,21 +398,7 @@
 					stream = stream, deliveryTag = deliveryTag, redelivered = redelivered
 				};
 
-				var initPos = stream.Position;
-				// await consumer(properties, deliveryTag, stream, (int)bodySize);
 				await consumer(delivery);
-				if (stream.Position < initPos + bodySize)
-				{
-					// move to end
-					var offset = initPos + bodySize - stream.Position;
-					stream.Seek(offset, SeekOrigin.Current);
-				}
-			}
-			else
-			{
-				// needs to consume the stream by exactly bodySize 
-				// this may lock!
-				stream.Seek(bodySize, SeekOrigin.Current);
 			}
 		}
 
@@ -421,7 +412,7 @@
 
 			if (ev != null)
 			{
-				var initPos = stream.Position;
+				// var initPos = stream.Position;
 				var inst = new UndeliveredMessage()
 				{
 					bodySize = bodySize,
@@ -434,17 +425,6 @@
 				};
 
 				await ev(inst);
-
-				if (stream.Position < initPos + bodySize)
-				{
-					// move to end
-					var offset = initPos + bodySize - stream.Position;
-					stream.Seek(offset, SeekOrigin.Current);
-				}
-			}
-			else
-			{
-				stream.Seek(bodySize, SeekOrigin.Current);
 			}
 		}
 

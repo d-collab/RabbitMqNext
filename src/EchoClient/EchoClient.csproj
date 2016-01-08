@@ -4,15 +4,17 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{48FF9289-A49D-48E9-AF6C-89CB85E934D0}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{7640E204-7DD9-40E0-A3AB-D9F38A5CB391}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>RabbitMqNext</RootNamespace>
-    <AssemblyName>RabbitMqNext</AssemblyName>
+    <RootNamespace>EchoClient</RootNamespace>
+    <AssemblyName>EchoClient</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -20,21 +22,17 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Castle.Core">
-      <HintPath>..\..\lib\Castle.Core.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -44,36 +42,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Amqp\AmqpConstants.cs" />
-    <Compile Include="Amqp\Types\AmqpTimestamp.cs" />
-    <Compile Include="Buffers\ArrayPool.cs" />
-    <Compile Include="Buffers\ArrayPoolBucket.cs" />
-    <Compile Include="Buffers\DefaultArrayPool.cs" />
-    <Compile Include="Buffers\ObjectPool.cs" />
-    <Compile Include="Buffers\Utilities.cs" />
-    <Compile Include="Internals\AmqpError.cs" />
-    <Compile Include="Internals\AmqpPrimitivesReader.cs" />
-    <Compile Include="Internals\AmqpPrimitivesWriter.cs" />
-    <Compile Include="Internals\InternalBigEndianReader.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Internals\InternalBigEndianWriter.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Internals\MemoryStreamSlim.cs" />
-    <Compile Include="Internals\ReusableTempWriter.cs" />
-    <Compile Include="Internals\RingBuffer\RingBuffer2.cs" />
-    <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs" />
-    <Compile Include="Internals\RingBuffer\SingleConsumer.cs" />
-    <Compile Include="Internals\RingBuffer\SingleProducer.cs" />
-    <Compile Include="Internals\RingBuffer\SocketConsumer.cs" />
-    <Compile Include="Internals\RingBuffer\SocketProducer.cs" />
-    <Compile Include="Internals\RingBuffer\Utils.cs" />
-    <Compile Include="Internals\RingBuffer\WaitingStrategy.cs" />
-    <Compile Include="Internals\SocketRingBuffers.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Properties\AsmInfo.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RabbitMqNext\RabbitMqNext.csproj">
+      <Project>{48ff9289-a49d-48e9-af6c-89cb85e934d0}</Project>
+      <Name>RabbitMqNext</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

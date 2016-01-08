@@ -1,20 +1,8 @@
 ﻿namespace RabbitMqNext.Internals.RingBuffer
 {
 	using System;
+	using System.Net.Sockets;
 	using System.Threading;
-	using System.Threading.Tasks;
-
-	public abstract class Stream2
-	{
-		// public abstract void Write(byte[] buffer, int offset, int count);
-
-		public abstract Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken);
-
-		public abstract Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken);
-
-		// public abstract ulong Position { get; }
-		// public abstract ulong Length { get; }
-	}
 
 
 	/// <summary>
@@ -50,19 +38,19 @@
 	/// -- avail to read bat  ^ :  BufferSize - r_n + w_n  (total)
 	/// 
 	/// -- avail to write bat * :  BufferSize - w_n
-	/// -- write will wrap (n)  :  if r_n > w_n  and (w_n + n > r_n)
-	/// -- avail to write bat ^ :  r_n - w_n
+	/// -- write will wrap (n)  :  if r_n > w_n  and (w_n + n > r_n - 1)
+	/// -- avail to write bat ^ :  r_n - w_n - 1
 	/// 
 	///   where n = count 
 	/// * must check for wrap first
 	/// ^ when restricted by wrap
 	/// ]]>
 	/// </remarks>
-	// TODO: fast modulo of power of twos return i & (n-1); -> http://stackoverflow.com/questions/14997165/fastest-way-to-get-a-positive-modulo-in-c-c
-	internal class RingBufferStream2 : IDisposable // Stream2
+	internal class RingBuffer2 : IDisposable // Stream2
 	{
-		// public const long BufferSize = 0x1A0000; // 1703936
 		private const int MinBufferSize = 32;
+		private const int DefaultBufferSize = 0x100000;     //  1.048.576 1mb
+		// private const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
 
 		private readonly byte[] _buffer;
 
@@ -74,32 +62,40 @@
 		private readonly uint _bufferSize;
 
 		/// <summary>
+		/// Creates with default buffer size and 
+		/// default locking strategy
+		/// </summary>
+		/// <param name="cancellationToken"></param>
+		public RingBuffer2(CancellationToken cancellationToken) : this(cancellationToken, DefaultBufferSize, new LockWaitingStrategy(cancellationToken))
+		{
+		}
+
+		/// <summary>
 		/// 
 		/// </summary>
-		public RingBufferStream2(CancellationToken cancellationToken, 
-								 int bufferSize, 
-								 WaitingStrategy waitingStrategy)
+		public RingBuffer2(CancellationToken cancellationToken, int bufferSize, WaitingStrategy waitingStrategy)
 		{
 			if (bufferSize <= 0) throw new ArgumentOutOfRangeException("bufferSize");
 			if (bufferSize < MinBufferSize) throw new ArgumentException("buffer must be at least " + MinBufferSize, "bufferSize");
-			if (!IsPowerOfTwo(bufferSize)) throw new ArgumentException("bufferSize must be multiple of 2", "bufferSize");
+			if (!Utils.IsPowerOfTwo(bufferSize)) throw new ArgumentException("bufferSize must be multiple of 2", "bufferSize");
 
 			_cancellationToken = cancellationToken;
 			_waitingStrategy = waitingStrategy;
 			_bufferSize = (uint) bufferSize;
 
 			_buffer = new byte[bufferSize];
+		}
 
-			
-
+		public int ClaimWriteRegion()
+		{
+			return ClaimWriteRegion(BufferSize);
 		}
 
 		/// <summary>
 		/// <![CDATA[
 		/// -- avail to write bat * :  BufferSize - w_n
-		/// -- write will wrap (n)  :  if r_n > w_n  and (w_n + n > r_n)
-		///    where  n = count 
-		/// -- avail to write bat ^ :  r_n - w_n
+		/// -- write will wrap (n)  :  if r_n > w_n  and (w_n + n > r_n - 1)
+		/// -- avail to write bat ^ :  r_n - w_n - 1
 		/// ]]>
 		/// </summary>
 		public int ClaimWriteRegion(int desiredCount)
@@ -111,19 +107,19 @@
 
 			while (!_cancellationToken.IsCancellationRequested)
 			{
-				uint writeCursor = _writePosition; // 1 volative read
-				uint readCursor = _readPosition;   // 1 volative read
+				uint writeCursor = _writePosition; // volative read
+				uint readCursor = _readPosition;   // volative read
 
 				uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize); 
 				uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize); 
 
 				uint entriesFree = 0;
 
-				var writeWillWrap = (readPos > writePos && writePos + desiredCount > readPos);
+				var writeWillWrap = (readPos > writePos && writePos + desiredCount > readPos - 1);
 				
 				if (writeWillWrap)
 				{
-					var availableTilWrap = readPos - writePos;
+					var availableTilWrap = readPos - writePos - 1;
 					entriesFree = availableTilWrap;
 				}
 				else
@@ -134,9 +130,7 @@
 				if (entriesFree == 0) // full, we need to wait for consumer
 				{
 					// yield/spin/whatever then...
-//					Console.WriteLine("Waiting consumer.");
 					_waitingStrategy.Wait();
-//					Console.WriteLine("OK1");
 					continue;
 				}
 
@@ -144,6 +138,14 @@
 			}
 
 			return 0; // was cancelled
+		}
+
+		public int ClaimReadRegion(bool waitIfNothingAvailable = false)
+		{
+			checked
+			{
+				return ClaimReadRegion((int)_bufferSize, waitIfNothingAvailable);
+			}
 		}
 
 		/// <summary>
@@ -154,8 +156,10 @@
 		/// -- avail to read bat  ^ :  BufferSize - r_n + w_n  (total)
 		/// ]]>
 		/// </summary>
-		public int ClaimReadRegion()
+		public int ClaimReadRegion(int desiredCount, bool waitIfNothingAvailable = false)
 		{
+			if (desiredCount > _bufferSize) throw new ArgumentOutOfRangeException("desiredCount", "desiredCount cannot be larger than buffer size: " + desiredCount + " buffer " + _bufferSize);
+
 //			_cancellationToken.ThrowIfCancellationRequested();
 
 			while (!_cancellationToken.IsCancellationRequested)
@@ -168,9 +172,9 @@
 
 				uint entriesFree = 0;
 
-				var readHasWrapped = writePos < readPos;
+				var writeHasWrapped = writePos < readPos;
 
-				if (readHasWrapped)
+				if (writeHasWrapped) // so everything ahead of readpos is available
 				{
 					entriesFree = _bufferSize - readPos;
 				}
@@ -179,18 +183,16 @@
 					entriesFree = writePos - readPos;
 				}
 
-				if (entriesFree == 0) // empty, we need to wait for producer
+				if (entriesFree == 0 && waitIfNothingAvailable) // empty, we need to wait for producer
 				{
 					// yield/spin/whatever then...
-//					Console.WriteLine("Waiting producer.");
+//					Console.WriteLine("waiting on producer...");
 					_waitingStrategy.Wait();
-//					Console.WriteLine("OK2");
+//					Console.Write(" * ");
 					continue;
 				}
 
-				{
-					return (int)entriesFree;
-				}
+				return Math.Min(desiredCount, (int)entriesFree);
 			}
 
 			return 0;
@@ -200,7 +202,7 @@
 		{
 #if DEBUG
 			if (offset < 0) throw new ArgumentOutOfRangeException("offset", "must be greater or equal to 0");
-			if (count < 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
+			if (count <= 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
 #endif
 
 			uint writeCursor = _writePosition; // 1 volative read
@@ -215,9 +217,27 @@
 
 			// TODO: check better options: http://xoofx.com/blog/2010/10/23/high-performance-memcpy-gotchas-in-c/
 			Buffer.BlockCopy(buffer, offset, _buffer, writePos, count);
-			// Buffer.MemoryCopy();? <--- does it need pinning?
 
 			_writePosition += (uint) count; // volative write
+
+			_waitingStrategy.Signal(); // signal - if someone is waiting
+		}
+
+		public void WriteToClaimedRegion(Socket socket, int count)
+		{
+			uint writeCursor = _writePosition; // volative read
+			int writePos = 0;
+
+#if DEBUG
+			checked
+#endif
+			{
+				writePos = (int)(writeCursor & (_bufferSize - 1)); // (int) (writeCursor % _bufferSize);
+			}
+
+			var received = socket.Receive(_buffer, writePos, count, SocketFlags.None);
+
+			_writePosition += (uint)received; // volative write
 
 			_waitingStrategy.Signal(); // signal - if someone is waiting
 		}
@@ -226,7 +246,7 @@
 		{
 #if DEBUG
 			if (offset < 0) throw new ArgumentOutOfRangeException("offset", "must be greater or equal to 0");
-			if (count < 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
+			if (count <= 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
 #endif
 
 			uint readCursor = _readPosition; // volative read
@@ -245,36 +265,57 @@
 			_waitingStrategy.Signal(); // signal - if someone is waiting
 		}
 
-		public int BufferSize2
+		public void ReadClaimedRegion(Socket socket, int count)
+		{
+			uint readCursor = _readPosition; // volative read
+			int readPos = 0;
+#if DEBUG
+			checked
+#endif
+			{
+				readPos = (int)(readCursor & (_bufferSize - 1)); // (int)(readCursor % _bufferSize);
+			}
+
+			var totalSent = 0;
+			while (totalSent < count)
+			{
+				var sent = socket.Send(_buffer, readPos + totalSent, count - totalSent, SocketFlags.None);
+				totalSent += sent;
+			}
+
+			_readPosition += (uint)totalSent; // volative write
+
+			_waitingStrategy.Signal(); // signal - if someone is waiting
+
+		}
+
+		/// <summary>
+		/// count must be the result of the previous call to <see cref="ClaimReadRegion"/>
+		/// </summary>
+		public void CommitRead(int count)
+		{
+			if (count <= 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
+
+			_readPosition += (uint)count; // volative write
+			_waitingStrategy.Signal(); // signal - if someone is waiting
+		}
+
+		public int BufferSize
 		{
 			get { return (int) _bufferSize; }
+		}
+
+		public CancellationToken CancellationToken { get { return _cancellationToken; } }
+
+		public bool HasUnreadContent
+		{
+			// two volatives reads
+			get { return _writePosition != _readPosition; }
 		}
 
 		public void Dispose()
 		{
 			_waitingStrategy.Dispose();
-		}
-
-		private static bool IsPowerOfTwo(int n)
-		{
-			var bitcount = 0;
-
-			for (int i = 0; i < 4; i++)
-			{
-				var b = (byte) n & 0xFF;
-
-				for (int j = 0; j < 8; j++)
-				{
-					var mask = (byte) 1 << j;
-					if ((b & mask) != 0)
-					{
-						if (++bitcount > 1) return false;
-					}
-				}
-
-				n = n >> 8;
-			}
-			return (bitcount == 1) ? true : false;
 		}
 	}
 }

@@ -2,14 +2,15 @@
 {
 	using System;
 	using System.Threading;
-	
+	using System.Threading.Tasks;
+
 
 	internal class SingleProducer
 	{
-		private readonly RingBufferStream2 _ringBuffer;
+		private readonly RingBuffer2 _ringBuffer;
 		private readonly CancellationToken _cancellationToken;
 
-		public SingleProducer(RingBufferStream2 ringBuffer, CancellationToken cancellationToken)
+		public SingleProducer(RingBuffer2 ringBuffer, CancellationToken cancellationToken)
 		{
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
@@ -32,6 +33,11 @@
 
 				written += available;
 			}
+		}
+
+		public Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }

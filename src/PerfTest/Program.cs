@@ -19,8 +19,11 @@
 		const bool WithAcks = false;
 
 //		const int TotalPublish = 250000;
-		const int TotalPublish = 10;
+		const int TotalPublish = 1000;
 //		const int TotalPublish = 100000;
+
+		const string TargetHost = "media";
+		const string VHost = "clear_test";
 
 		private static byte[] MessageContent =
 			Encoding.UTF8.GetBytes(
@@ -54,7 +57,7 @@
 			Connection conn = null;
 			try
 			{
-				conn = await new ConnectionFactory().Connect("localhost", vhost: "clear_test");
+				conn = await new ConnectionFactory().Connect(TargetHost, vhost: VHost);
 
 				Console.WriteLine("[Connected]");
 
@@ -94,7 +97,7 @@
 				{
 					// prop.Headers["serialization"] = i;
 					// var buffer = Encoding.UTF8.GetBytes("Hello world");
-					await newChannel.BasicPublish("test_ex", "routing3", true, false, prop, new ArraySegment<byte>(MessageContent));
+					await newChannel.BasicPublish("test_ex", "routing1", true, false, prop, new ArraySegment<byte>(MessageContent));
 				}
 				watch.Stop();
 
@@ -114,7 +117,7 @@
 
 				var sub = await newChannel2.BasicConsume( (delivery) =>
 				{
-					delivery.stream.Read(temp, 0, (int) delivery.bodySize);
+					delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
 
 					if (WithAcks)
 					{
@@ -164,8 +167,8 @@
 		{
 			var conn = new RabbitMQ.Client.ConnectionFactory()
 			{
-				HostName = "localhost",
-				VirtualHost = "clear_test",
+				HostName = TargetHost,
+				VirtualHost = VHost,
 				UserName = "guest",
 				Password = "guest"
 			}.CreateConnection();

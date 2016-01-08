@@ -31,6 +31,7 @@
 		public override void Wait()
 		{
 			_manualResetEvent.Wait();
+			_manualResetEvent.Reset();
 		}
 
 		public override void Signal()
@@ -41,32 +42,6 @@
 		public override void Dispose()
 		{
 			_manualResetEvent.Dispose();
-		}
-	}
-
-	internal class SpinLockWaitingStrategy : WaitingStrategy
-	{
-		private volatile int _state = 0;
-		private readonly SpinLock _lock = new SpinLock(false);
-
-		public SpinLockWaitingStrategy(CancellationToken token)
-			: base(token)
-		{
-		}
-
-		public override void Wait()
-		{
-			bool taken = false;
-			_lock.Enter(ref taken);
-		}
-
-		public override void Signal()
-		{
-			_lock.Exit(false);
-		}
-
-		public override void Dispose()
-		{
 		}
 	}
 }

@@ -6,7 +6,7 @@ namespace RabbitMqNext.Internals
 
 	internal partial class FrameReader
 	{
-		public async Task Read_QueueDeclareOk(Action<string, uint, uint> continuation)
+		public async Task Read_QueueDeclareOk(Func<string, uint, uint, Task> continuation)
 		{
 			Console.WriteLine("< QueueDeclareOk");
 
@@ -14,10 +14,10 @@ namespace RabbitMqNext.Internals
 			uint messageCount = _amqpReader.ReadLong();
 			uint consumerCount = _amqpReader.ReadLong();
 
-			continuation(queue, messageCount, consumerCount);
+			await continuation(queue, messageCount, consumerCount);
 		}
 
-		public async Task Read_Channel_Close2(Action<ushort, string, ushort, ushort> continuation)
+		public async Task Read_Channel_Close2(Func<ushort, string, ushort, ushort, Task> continuation)
 		{
 			var replyCode = _amqpReader.ReadShort();
 			var replyText = await _amqpReader.ReadShortStr();
@@ -26,7 +26,7 @@ namespace RabbitMqNext.Internals
 
 			Console.WriteLine("< channel close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
-			continuation(replyCode, replyText, classId, methodId);
+			await continuation(replyCode, replyText, classId, methodId);
 		}
 
 		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, long, BasicProperties, Stream, Task> continuation)
@@ -45,11 +45,11 @@ namespace RabbitMqNext.Internals
 			var frameHeaderStart = await _amqpReader.ReadOctet();
 			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
 
-			await _reader.SkipBy(4 + 2 + 2 + 2);
-			// ushort channel = _reader.ReadUInt16();
-			// int payloadLength = await _reader.ReadInt32();
-			// var classId = _reader.ReadUInt16();
-			// var weight = _reader.ReadUInt16();
+			// await _reader.SkipBy(4 + 2 + 2 + 2);
+			ushort channel = _reader.ReadUInt16();
+			int payloadLength = await _reader.ReadInt32();
+			var classId = _reader.ReadUInt16();
+			var weight = _reader.ReadUInt16();
 			var bodySize = (long) await _reader.ReadUInt64();
 
 			var properties = await ReadRestOfContentHeader();
@@ -61,17 +61,25 @@ namespace RabbitMqNext.Internals
 			frameHeaderStart = await _reader.ReadByte();
 			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
-			await _reader.SkipBy(2);
-			// channel =   _reader.ReadUInt16();
+			// await _reader.SkipBy(2);
+			channel =   _reader.ReadUInt16();
 			uint length = _reader.ReadUInt32();
 
 			// Pending Frame end
 
 			if (length == bodySize)
 			{
-				await continuation(consumerTag, deliveryTag,
-					redelivered, exchange,
+				var position = _reader._ringBufferStream.Position;
+				
+				await continuation(consumerTag, deliveryTag, redelivered, exchange,
 					routingKey, length, properties, (Stream) _reader._ringBufferStream);
+
+				if (_reader._ringBufferStream.Position < position + length)
+				{
+					var offset = (position + length) - _reader._ringBufferStream.Position;
+					
+					_reader._ringBufferStream.Seek(offset, SeekOrigin.Current);
+				}
 			}
 			else
 			{
@@ -114,13 +122,13 @@ namespace RabbitMqNext.Internals
 			return properties;
 		}
 
-		public async Task Read_BasicConsumeOk(Action<string> continuation)
+		public async Task Read_BasicConsumeOk(Func<string, Task> continuation)
 		{
 			var consumerTag = await _amqpReader.ReadShortStr();
 
 			Console.WriteLine("< BasicConsumeOk ");
 
-			continuation(consumerTag);
+			await continuation(consumerTag);
 		}
 
 		public async Task Read_BasicReturn(Func<ushort, string, string, string, uint, BasicProperties, Stream, Task> continuation)
@@ -160,9 +168,19 @@ namespace RabbitMqNext.Internals
 			if (length == bodySize)
 			{
 				// continuation(replyCode, replyText, exchange, routingKey);
+				
+				var position = _reader._ringBufferStream.Position;
+
 				await
 					continuation(replyCode, replyText, exchange, 
 						routingKey, length, properties, (Stream) _reader._ringBufferStream);
+
+				if (_reader._ringBufferStream.Position < position + length)
+				{
+					var offset = (position + length) - _reader._ringBufferStream.Position;
+
+					_reader._ringBufferStream.Seek(offset, SeekOrigin.Current);
+				}
 			}
 			else
 			{

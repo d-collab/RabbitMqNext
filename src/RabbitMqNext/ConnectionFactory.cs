@@ -8,11 +8,9 @@
 	{
 //		public ILogger Logger { get; set; }
 
-		public ConnectionFactory()
-		{
-		}
-
-		public async Task<Connection> Connect(string hostname, string vhost = "/", string username = "guest", string password = "guest", int port = 5672)
+		public async Task<Connection> Connect(string hostname, 
+			string vhost = "/", string username = "guest", 
+			string password = "guest", int port = 5672)
 		{
 			var conn = new Connection();
 
@@ -20,9 +18,10 @@
 			{
 				await conn.Connect(hostname, vhost, username, password, port);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				conn.Dispose();
+				throw;
 			}
 			
 			return conn;

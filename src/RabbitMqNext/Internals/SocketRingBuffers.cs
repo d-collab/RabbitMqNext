@@ -3,96 +3,112 @@ namespace RabbitMqNext.Internals
 	using System;
 	using System.Net.Sockets;
 	using System.Threading;
-	using System.Threading.Tasks;
+	using RingBuffer;
 
-	internal class SocketRingBuffers : IDisposable
+	public class SocketRingBuffers : IDisposable
 	{
-		private readonly Socket _socket;
-		private readonly CancellationToken _cancellationToken; // does not own it
-		private readonly RingBufferStream _ringBufferStream;
-		private readonly RingBufferStream _outputRingBuffer;
-		private readonly Action _notifyWhenClosed;
+		private readonly RingBufferStreamAdapter _inputRingBuffer;
+		private readonly RingBufferStreamAdapter _outputRingBuffer;
 
-		internal readonly InternalBigEndianWriter Writer;
-		internal readonly InternalBigEndianReader Reader;
+		public readonly InternalBigEndianWriter Writer;
+		public readonly InternalBigEndianReader Reader;
+
+		private readonly RingBuffer2 _inputBuffer, _outputBuffer;
+		private readonly SocketConsumer _socketConsumer;
+		private readonly SocketProducer _socketProducer;
+
+		private readonly Action _notifyWhenClosed;
 
 		private int _socketIsClosed = 0;
 
 		public SocketRingBuffers(Socket socket, CancellationToken cancellationToken, Action notifyWhenClosed)
 		{
-			_socket = socket;
-			_cancellationToken = cancellationToken;
 			_notifyWhenClosed = notifyWhenClosed;
 
-			_ringBufferStream = new RingBufferStream(cancellationToken);
-			_outputRingBuffer = new RingBufferStream(cancellationToken);
+			_inputBuffer = new RingBuffer2(cancellationToken);
+			_outputBuffer = new RingBuffer2(cancellationToken);
 
-//			Task.Factory.StartNew((_) => ReadLoop(), cancellationToken, TaskCreationOptions.LongRunning);
-//			Task.Factory.StartNew((_) => WriteLoop(), cancellationToken, TaskCreationOptions.LongRunning);
+			_inputRingBuffer = new RingBufferStreamAdapter(_inputBuffer);
+			_outputRingBuffer = new RingBufferStreamAdapter(_outputBuffer);
 
-			new Thread(ReadLoop) { IsBackground = true, Name = "StreamReadLoop" }.Start();
-			new Thread(WriteLoop) { IsBackground = true, Name = "StreamWriteLoop" }.Start();
+			// WriteLoop
+			_socketConsumer = new SocketConsumer(socket, _outputBuffer, cancellationToken);
+			_socketConsumer.OnNotifyClosed += OnSocketClosed;
+
+			// ReadLoop
+			_socketProducer = new SocketProducer(socket, _inputBuffer, cancellationToken);
+			_socketProducer.OnNotifyClosed += OnSocketClosed;
 
 			Writer = new InternalBigEndianWriter(_outputRingBuffer);
-			Reader = new InternalBigEndianReader(_ringBufferStream);
+			Reader = new InternalBigEndianReader(_inputRingBuffer);
+		}
+
+		private void OnSocketClosed(Socket arg1, Exception arg2)
+		{
+			if (Interlocked.CompareExchange(ref _socketIsClosed, 1, 0) == 0)
+			{
+				this._notifyWhenClosed();
+			}
 		}
 
 		public bool StillSending
 		{
-			get { return _outputRingBuffer.Position < _outputRingBuffer.Length; }
+			// get { return _outputRingBuffer.Position < _outputRingBuffer.Length; }
+			get { return _outputBuffer.HasUnreadContent; }
 		}
 
-		private async void WriteLoop()
-		{
-			try
-			{
-				while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
-				{
-					// No intermediary buffer needed
-					await _outputRingBuffer.ReadAvailableBufferIntoSocketAsync(_socket);
-				}
-			}
-			catch (SocketException ex)
-			{
-				Interlocked.Increment(ref _socketIsClosed);
-				_notifyWhenClosed();
-				Console.WriteLine("[Error] 5 - " + ex.Message);
-				// throw;
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("[Error] 6 - " + ex.Message);
-				// throw;
-			}
-		}
+//		private async void WriteLoop()
+//		{
+//			try
+//			{
+//				while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
+//				{
+//					// No intermediary buffer needed
+//					await _outputRingBuffer.ReadAvailableBufferIntoSocketAsync(_socket);
+//				}
+//			}
+//			catch (SocketException ex)
+//			{
+//				Interlocked.Increment(ref _socketIsClosed);
+//				_notifyWhenClosed();
+//				Console.WriteLine("[Error] 5 - " + ex.Message);
+//				// throw;
+//			}
+//			catch (Exception ex)
+//			{
+//				Console.WriteLine("[Error] 6 - " + ex.Message);
+//				// throw;
+//			}
+//		}
 
-		private async void ReadLoop()
-		{
-			while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
-			{
-				try
-				{
-					// will block
-					await _ringBufferStream.ReceiveFromTask(_socket);
-				}
-				catch (SocketException ex)
-				{
-					Interlocked.Increment(ref _socketIsClosed);
-					_notifyWhenClosed();
-					Console.WriteLine("[Error] 3 - " + ex.Message);
-//					throw;
-				}
-				catch (Exception ex)
-				{
-					Console.WriteLine("[Error] 4 - " + ex.Message);
-					// throw;
-				}
-			}
-		}
+//		private async void ReadLoop()
+//		{
+//			while (!_cancellationToken.IsCancellationRequested && _socketIsClosed == 0)
+//			{
+//				try
+//				{
+//					// will block
+//					await _ringBufferStream.ReceiveFromTask(_socket);
+//				}
+//				catch (SocketException ex)
+//				{
+//					Interlocked.Increment(ref _socketIsClosed);
+//					_notifyWhenClosed();
+//					Console.WriteLine("[Error] 3 - " + ex.Message);
+////					throw;
+//				}
+//				catch (Exception ex)
+//				{
+//					Console.WriteLine("[Error] 4 - " + ex.Message);
+//					// throw;
+//				}
+//			}
+//		}
 
 		public void Dispose()
 		{
-			_ringBufferStream.Dispose();
+			_inputRingBuffer.Dispose();
+			_outputRingBuffer.Dispose();
 		}
 	}
 }

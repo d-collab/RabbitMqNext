@@ -6,7 +6,6 @@ namespace RabbitMqNext.Internals
 	using System.Collections.Generic;
 	using System.Text;
 
-
 	internal class AmqpPrimitivesWriter
 	{
 		internal const int BufferSize = 1024 * 128;

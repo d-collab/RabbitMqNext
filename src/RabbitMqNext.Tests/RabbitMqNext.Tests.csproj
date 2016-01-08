@@ -35,17 +35,14 @@
     <Reference Include="Castle.Core">
       <HintPath>..\..\lib\Castle.Core.dll</HintPath>
     </Reference>
-    <Reference Include="FluentAssertions, Version=4.1.1.0, Culture=neutral, PublicKeyToken=33f2691a05b67b6a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\FluentAssertions.4.1.1\lib\net45\FluentAssertions.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="FluentAssertions">
+      <HintPath>..\..\packages\FluentAssertions.4.1.1\lib\net45\FluentAssertions.dll</HintPath>
     </Reference>
-    <Reference Include="FluentAssertions.Core, Version=4.1.1.0, Culture=neutral, PublicKeyToken=33f2691a05b67b6a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\FluentAssertions.4.1.1\lib\net45\FluentAssertions.Core.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="FluentAssertions.Core">
+      <HintPath>..\..\packages\FluentAssertions.4.1.1\lib\net45\FluentAssertions.Core.dll</HintPath>
     </Reference>
-    <Reference Include="nunit.framework, Version=2.6.4.14350, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\NUnit.2.6.4\lib\nunit.framework.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="nunit.framework">
+      <HintPath>..\..\packages\NUnit.2.6.4\lib\nunit.framework.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -54,12 +51,6 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="AmqpPrimitivesWriterTestCase.cs" />
-    <Compile Include="AsyncManualResetEventTestCase.cs" />
-    <Compile Include="ObjectPoolTestCase.cs" />
-    <Compile Include="RingBufferStreamTestCase.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -72,6 +63,9 @@
       <Project>{48FF9289-A49D-48E9-AF6C-89CB85E934D0}</Project>
       <Name>RabbitMqNext</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="RingBufferStream2TestCase.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />

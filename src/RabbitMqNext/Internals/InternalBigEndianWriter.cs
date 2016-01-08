@@ -4,6 +4,7 @@ namespace RabbitMqNext.Internals
 	using System.IO;
 	using System.Runtime.CompilerServices;
 
+	// Consider Buffer.SetByte/GetByte for perf
 	public class InternalBigEndianWriter //: BinaryWriter
 	{
 		private readonly Stream _outStream;
