@@ -9,7 +9,7 @@
 	{
 		private readonly SingleConsumer _consumer;
 		private readonly SingleProducer _producer;
-		private readonly RingBuffer2 _ringBuffer;
+		internal readonly RingBuffer2 _ringBuffer;
 
 		internal RingBufferStreamAdapter(RingBuffer2 ringBuffer)
 		{

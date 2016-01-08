@@ -3,6 +3,7 @@ namespace RabbitMqNext.Internals
 	using System;
 	using System.IO;
 	using System.Threading.Tasks;
+	using RingBuffer;
 
 	internal partial class FrameReader
 	{
@@ -69,16 +70,18 @@ namespace RabbitMqNext.Internals
 
 			if (length == bodySize)
 			{
-				var position = _reader._ringBufferStream.Position;
-				
+				var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+
 				await continuation(consumerTag, deliveryTag, redelivered, exchange,
 					routingKey, length, properties, (Stream) _reader._ringBufferStream);
 
-				if (_reader._ringBufferStream.Position < position + length)
+				if (marker.LengthRead < length)
 				{
-					var offset = (position + length) - _reader._ringBufferStream.Position;
-					
-					_reader._ringBufferStream.Seek(offset, SeekOrigin.Current);
+					checked
+					{
+						int offset = (int) ( length - marker.LengthRead );
+						await _reader.SkipBy(offset);
+					}
 				}
 			}
 			else
@@ -169,17 +172,19 @@ namespace RabbitMqNext.Internals
 			{
 				// continuation(replyCode, replyText, exchange, routingKey);
 				
-				var position = _reader._ringBufferStream.Position;
+				var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
 
 				await
 					continuation(replyCode, replyText, exchange, 
 						routingKey, length, properties, (Stream) _reader._ringBufferStream);
 
-				if (_reader._ringBufferStream.Position < position + length)
+				if (marker.LengthRead < length)
 				{
-					var offset = (position + length) - _reader._ringBufferStream.Position;
-
-					_reader._ringBufferStream.Seek(offset, SeekOrigin.Current);
+					checked
+					{
+						int offset = (int)(length - marker.LengthRead);
+						await _reader.SkipBy(offset);
+					}
 				}
 			}
 			else

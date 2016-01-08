@@ -412,7 +412,6 @@
 
 			if (ev != null)
 			{
-				// var initPos = stream.Position;
 				var inst = new UndeliveredMessage()
 				{
 					bodySize = bodySize,

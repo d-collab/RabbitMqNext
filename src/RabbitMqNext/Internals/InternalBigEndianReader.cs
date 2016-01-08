@@ -26,7 +26,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public long Position { get { return _ringBufferStream.Position; } }
+		// public long Position { get { return _ringBufferStream.Position; } }
 
 		private void FillBufferWithLock(byte[] buffer, int count, bool reverse = true)
 		{

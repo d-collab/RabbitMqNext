@@ -52,9 +52,9 @@
 	internal class RingBuffer2 : IDisposable // Stream2
 	{
 		private const int MinBufferSize = 32;
-		// private const int DefaultBufferSize = 0x100000;  //  1.048.576 1mb
+		private const int DefaultBufferSize = 0x100000;     //  1.048.576 1mb
 		// private const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
-		private const int DefaultBufferSize = 0x20000;      //  131.072
+		// private const int DefaultBufferSize = 0x20000;   //    131.072
 
 		private readonly byte[] _buffer;
 

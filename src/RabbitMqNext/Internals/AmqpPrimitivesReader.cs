@@ -6,6 +6,7 @@ namespace RabbitMqNext.Internals
 	using System.Collections.Generic;
 	using System.Text;
 	using System.Threading.Tasks;
+	using RingBuffer;
 
 
 	internal class AmqpPrimitivesReader
@@ -39,18 +40,16 @@ namespace RabbitMqNext.Internals
 		public async Task<IDictionary<string, object>> ReadTable()
 		{
 			// unbounded allocation! bad
-			IDictionary<string, object> table = new Dictionary<string, object>(capacity: 11);
+			var table = new Dictionary<string, object>(capacity: 11);
 
 			uint tableLength = _reader.ReadUInt32();
 			if (tableLength == 0) return table;
 
-			var endOfTable = _reader.Position + tableLength;
-
-			while (_reader.Position < endOfTable)
+			var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+			while (marker.LengthRead < tableLength)
 			{
 				var key = await ReadShortStr();
 				var value = await ReadFieldValue();
-
 				table[key] = value;
 			}
 
@@ -92,9 +91,9 @@ namespace RabbitMqNext.Internals
 
 			var arrayLength = (int) _reader.ReadUInt32();
 			if (arrayLength == 0) return array;
-			
-			var endPosition = _reader.Position + arrayLength;
-			while (_reader.Position < endPosition)
+
+			var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+			while (marker.LengthRead < arrayLength)
 			{
 				var value = await ReadFieldValue();
 				array.Add(value);
