@@ -3,7 +3,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 	using System;
 	using System.Net.Sockets;
 	using System.Threading;
-	using System.Threading.Tasks;
+
 
 	/// <summary>
 	/// Gets the available content from 
@@ -17,12 +17,16 @@ namespace RabbitMqNext.Internals.RingBuffer
 		private readonly Socket _socket;
 		private readonly RingBuffer2 _ringBuffer;
 		private readonly CancellationToken _cancellationToken;
+		private readonly bool _asyncSend;
 
-		public SocketConsumer(Socket socket, RingBuffer2 ringBuffer, CancellationToken cancellationToken)
+		public SocketConsumer(Socket socket, RingBuffer2 ringBuffer, 
+							  CancellationToken cancellationToken, 
+							  bool asyncSend = false)
 		{
 			_socket = socket;
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
+			_asyncSend = asyncSend;
 			// Task.Factory.StartNew(WriteSocketFromRingBuffer, cancellationToken, TaskCreationOptions.LongRunning);
 
 			ThreadFactory.CreateBackgroundThread(WriteSocketFromRingBuffer, "SocketConsumer");
@@ -30,7 +34,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 
 		public event Action<Socket, Exception> OnNotifyClosed;
 
-		private void WriteSocketFromRingBuffer(object obj)
+		private async void WriteSocketFromRingBuffer(object obj)
 		{
 			try
 			{
@@ -40,7 +44,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 
 					if (available == 0) throw new Exception("wtf2");
 
-					_ringBuffer.ReadClaimedRegion(_socket, available);
+					await _ringBuffer.ReadClaimedRegion(_socket, available, _asyncSend);
 				}
 			}
 			catch (SocketException ex)

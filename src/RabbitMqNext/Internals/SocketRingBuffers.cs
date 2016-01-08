@@ -7,8 +7,8 @@ namespace RabbitMqNext.Internals
 
 	public class SocketRingBuffers : IDisposable
 	{
-		private readonly RingBufferStreamAdapter _inputRingBuffer;
-		private readonly RingBufferStreamAdapter _outputRingBuffer;
+		internal readonly RingBufferStreamAdapter _inputRingBufferStream;
+		internal readonly RingBufferStreamAdapter _outputRingBufferStream;
 
 		public readonly InternalBigEndianWriter Writer;
 		public readonly InternalBigEndianReader Reader;
@@ -28,8 +28,8 @@ namespace RabbitMqNext.Internals
 			_inputBuffer = new RingBuffer2(cancellationToken);
 			_outputBuffer = new RingBuffer2(cancellationToken);
 
-			_inputRingBuffer = new RingBufferStreamAdapter(_inputBuffer);
-			_outputRingBuffer = new RingBufferStreamAdapter(_outputBuffer);
+			_inputRingBufferStream = new RingBufferStreamAdapter(_inputBuffer);
+			_outputRingBufferStream = new RingBufferStreamAdapter(_outputBuffer);
 
 			// WriteLoop
 			_socketConsumer = new SocketConsumer(socket, _outputBuffer, cancellationToken);
@@ -39,8 +39,8 @@ namespace RabbitMqNext.Internals
 			_socketProducer = new SocketProducer(socket, _inputBuffer, cancellationToken);
 			_socketProducer.OnNotifyClosed += OnSocketClosed;
 
-			Writer = new InternalBigEndianWriter(_outputRingBuffer);
-			Reader = new InternalBigEndianReader(_inputRingBuffer);
+			Writer = new InternalBigEndianWriter(_outputRingBufferStream);
+			Reader = new InternalBigEndianReader(_inputRingBufferStream);
 		}
 
 		private void OnSocketClosed(Socket arg1, Exception arg2)
@@ -107,8 +107,8 @@ namespace RabbitMqNext.Internals
 
 		public void Dispose()
 		{
-			_inputRingBuffer.Dispose();
-			_outputRingBuffer.Dispose();
+			_inputRingBufferStream.Dispose();
+			_outputRingBufferStream.Dispose();
 		}
 	}
 }

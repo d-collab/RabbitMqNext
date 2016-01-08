@@ -11,16 +11,23 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		public void Set()
 		{
-			TaskCompletionSource<bool> toRelease = null;
+//			TaskCompletionSource<bool> toRelease = null;
 			lock (m_waits)
 			{
 				if (m_waits.Count > 0)
-					toRelease = m_waits.Dequeue();
+				{
+					while (m_waits.Count != 0)
+					{
+						m_waits.Dequeue().SetResult(true);	
+					}
+					// toRelease = m_waits.Dequeue();
+					// m_waits.Dequeue().SetResult(true);
+				}
 				else if (!m_signaled)
 					m_signaled = true;
 			}
-			if (toRelease != null)
-				toRelease.SetResult(true);
+//			if (toRelease != null)
+//				toRelease.SetResult(true);
 		}
 
 		public Task WaitAsync(CancellationToken token)
@@ -34,7 +41,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 				}
 				else
 				{
-					var tcs = new TaskCompletionSource<bool>(/*TaskCreationOptions.RunContinuationsAsynchronously*/);
+					var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 					m_waits.Enqueue(tcs);
 					return tcs.Task;
 				}

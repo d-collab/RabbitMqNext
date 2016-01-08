@@ -76,6 +76,7 @@
     <Compile Include="Internals\SocketRingBuffers.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Internals\Sockets\SocketExtensions.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

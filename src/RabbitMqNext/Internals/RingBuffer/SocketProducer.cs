@@ -3,7 +3,6 @@ namespace RabbitMqNext.Internals.RingBuffer
 	using System;
 	using System.Net.Sockets;
 	using System.Threading;
-	
 
 	/// <summary>
 	/// Writes to ringbuffer content from socket
@@ -16,19 +15,22 @@ namespace RabbitMqNext.Internals.RingBuffer
 		private readonly Socket _socket;
 		private readonly RingBuffer2 _ringBuffer;
 		private readonly CancellationToken _cancellationToken;
+		private readonly bool _asyncRecv;
 
-		public SocketProducer(Socket socket, RingBuffer2 ringBuffer, CancellationToken cancellationToken)
+		public SocketProducer(Socket socket, RingBuffer2 ringBuffer, 
+							  CancellationToken cancellationToken, bool asyncRecv = false)
 		{
 			_socket = socket;
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
+			_asyncRecv = asyncRecv;
 			// Task.Factory.StartNew(ReadSocketIntoRingBuffer, cancellationToken, TaskCreationOptions.LongRunning);
 			ThreadFactory.CreateBackgroundThread(ReadSocketIntoRingBuffer, "SocketProducer");
 		}
 
 		public event Action<Socket, Exception> OnNotifyClosed;
 
-		private  void ReadSocketIntoRingBuffer(object obj)
+		private async void ReadSocketIntoRingBuffer(object obj)
 		{
 			try
 			{
@@ -38,7 +40,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 
 					if (available == 0) throw new Exception("wtf1");
 
-					_ringBuffer.WriteToClaimedRegion(_socket, available);
+					await _ringBuffer.WriteToClaimedRegion(_socket, available, asyncRecv: _asyncRecv);
 				}
 			}
 			catch (SocketException ex)

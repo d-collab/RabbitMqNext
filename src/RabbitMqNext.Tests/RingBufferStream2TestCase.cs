@@ -12,9 +12,91 @@
 
 
 	[TestFixture]
-	public class RingBufferStream2TestCase
+	public class RingBuffer2TestCase
 	{
 		private static readonly Random _rnd = new Random();
+
+		[Test]
+		public void WritesOf31ReadsOf31_BufferOf32()
+		{
+			var token = new CancellationToken();
+			var ringBuffer = new RingBuffer2(token, 32, new LockWaitingStrategy(token));
+			var producer = new SingleProducer(ringBuffer, token);
+			var consumer = new SingleConsumer(ringBuffer, token);
+
+			var input = new byte[31];
+			var output = new byte[31];
+			for (int j = 0; j < input.Length; j++)
+			{
+				input[j] = (byte)(j % 256);
+			}
+
+			for (ulong i = 0L; i < 1431655765 + 32; i++)
+			{
+				producer.Write(input, 0, input.Length);
+
+				var read = consumer.Read(output, 0, output.Length, fillBuffer: true);
+				read.Should().Be(output.Length);
+
+				for (int x = 0; x < output.Length; x++)
+				{
+					output[x].Should().Be((byte)(x % 256));
+				}
+
+				if (i % 1000000 == 0)
+				{
+					Console.WriteLine("Iteration " + i);
+				}
+			}
+		}
+
+		[Test]
+		public void WritesOf3ReadsOf9_BufferOf32()
+		{
+			var token = new CancellationToken();
+			var ringBuffer = new RingBuffer2(token, 32, new LockWaitingStrategy(token));
+			var producer = new SingleProducer(ringBuffer, token);
+			var consumer = new SingleConsumer(ringBuffer, token);
+
+			var input  = new byte[3];
+			var output = new byte[9];
+
+			for (ulong i = 0L; i < 1431655765 + 32; i++)
+			{
+				input[0] = (byte) (i % 256);
+				input[1] = (byte) (i + 1 % 256);
+				input[2] = (byte) (i + 2 % 256);
+				producer.Write(input, 0, input.Length);
+	
+				input[0] = (byte) (i + 3 % 256);
+				input[1] = (byte) (i + 4 % 256);
+				input[2] = (byte) (i + 5 % 256);
+				producer.Write(input, 0, input.Length);
+	
+				input[0] = (byte) (i + 6 % 256);
+				input[1] = (byte) (i + 7 % 256);
+				input[2] = (byte) (i + 8 % 256);
+				producer.Write(input, 0, input.Length);
+	
+				var read = consumer.Read(output, 0, output.Length, fillBuffer: true);
+				read.Should().Be(output.Length);
+	
+				output[0].Should().Be((byte)(i + 0 % 256));
+				output[1].Should().Be((byte)(i + 1 % 256));
+				output[2].Should().Be((byte)(i + 2 % 256));
+				output[3].Should().Be((byte)(i + 3 % 256));
+				output[4].Should().Be((byte)(i + 4 % 256));
+				output[5].Should().Be((byte)(i + 5 % 256));
+				output[6].Should().Be((byte)(i + 6 % 256));
+				output[7].Should().Be((byte)(i + 7 % 256));
+				output[8].Should().Be((byte)(i + 8 % 256));
+
+				if (i%1000000 == 0)
+				{
+					Console.WriteLine("Iteration " + i);
+				}
+			}
+		}
 
 		[Test]
 		public void Basic()
@@ -22,15 +104,86 @@
 			var token = new CancellationToken();
 			var ringBuffer = new RingBuffer2(token, 32, new LockWaitingStrategy(token));
 
+			ringBuffer.GlobalReadPos.Should().Be(0);
+			ringBuffer.GlobalWritePos.Should().Be(0);
+			ringBuffer.ReadPos.Should().Be(0);
+			ringBuffer.WritePos.Should().Be(0);
+
 			var producer = new SingleProducer(ringBuffer, token);
-			var originalBuf = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+			var originalBuf = new byte[] { 0, 1, 2, 3, 4, 5, 6 };
 			producer.Write(originalBuf, 0, originalBuf.Length);
 
-			var consumer = new SingleConsumer(ringBuffer, token);
-			var otherBuf = new byte[1000];
-			var totalRead = consumer.Read(otherBuf, 0, otherBuf.Length, fillBuffer: false);
+			ringBuffer.GlobalReadPos.Should().Be(0);
+			ringBuffer.GlobalWritePos.Should().Be(7);
+			ringBuffer.ReadPos.Should().Be(0);
+			ringBuffer.WritePos.Should().Be(7);
 
+			var consumer = new SingleConsumer(ringBuffer, token);
+			var otherBuf = new byte[32];
+			var totalRead = consumer.Read(otherBuf, 0, otherBuf.Length, fillBuffer: false);
 			totalRead.Should().Be(originalBuf.Length);
+
+			ringBuffer.GlobalReadPos.Should().Be(7);
+			ringBuffer.GlobalWritePos.Should().Be(7);
+			ringBuffer.ReadPos.Should().Be(7);
+			ringBuffer.WritePos.Should().Be(7);
+
+			totalRead = consumer.Read(otherBuf, 0, otherBuf.Length, fillBuffer: false);
+			totalRead.Should().Be(0);
+			ringBuffer.GlobalReadPos.Should().Be(7);
+			ringBuffer.GlobalWritePos.Should().Be(7);
+			ringBuffer.ReadPos.Should().Be(7);
+			ringBuffer.WritePos.Should().Be(7);
+
+			producer.Write(originalBuf, 0, originalBuf.Length);
+			ringBuffer.GlobalReadPos.Should().Be(7);
+			ringBuffer.GlobalWritePos.Should().Be(14);
+			ringBuffer.ReadPos.Should().Be(7);
+			ringBuffer.WritePos.Should().Be(14);
+
+			producer.Write(originalBuf, 0, originalBuf.Length);
+			ringBuffer.GlobalReadPos.Should().Be(7);
+			ringBuffer.GlobalWritePos.Should().Be(21);
+			ringBuffer.ReadPos.Should().Be(7);
+			ringBuffer.WritePos.Should().Be(21);
+
+			producer.Write(originalBuf, 0, originalBuf.Length);
+			ringBuffer.GlobalReadPos.Should().Be(7);
+			ringBuffer.GlobalWritePos.Should().Be(28);
+			ringBuffer.ReadPos.Should().Be(7);
+			ringBuffer.WritePos.Should().Be(28);
+
+			producer.Write(originalBuf, 0, originalBuf.Length);
+			ringBuffer.GlobalReadPos.Should().Be(7);
+			ringBuffer.GlobalWritePos.Should().Be(35);
+			ringBuffer.ReadPos.Should().Be(7);
+			ringBuffer.WritePos.Should().Be(3);
+
+			// writer wrap
+			producer.Write(new byte[] { 120,119,118 }, 0, 3);
+			ringBuffer.GlobalReadPos.Should().Be(7);
+			ringBuffer.GlobalWritePos.Should().Be(38);
+			ringBuffer.ReadPos.Should().Be(7);
+			ringBuffer.WritePos.Should().Be(6);
+
+			// read whole thing
+			totalRead = consumer.Read(otherBuf, 0, otherBuf.Length - 1, fillBuffer: true);
+			totalRead.Should().Be(otherBuf.Length - 1);
+			ringBuffer.GlobalReadPos.Should().Be(38);
+			ringBuffer.GlobalWritePos.Should().Be(38);
+			ringBuffer.ReadPos.Should().Be(6);
+			ringBuffer.WritePos.Should().Be(6);
+
+			for (ulong i = 0L; i < uint.MaxValue + (ulong)128L; i++)
+			{
+				var v = (byte) (i%256);
+				originalBuf[0] = v;
+				producer.Write(originalBuf, 0, 1);
+				var read = consumer.Read(otherBuf, 0, 2, fillBuffer: false);
+				read.Should().Be(1);
+				otherBuf[0].Should().Be(v);
+			}
+			
 		}
 
 		[Test]

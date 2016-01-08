@@ -35,7 +35,7 @@
 				socket.EndSend, segment.Array, segment.Offset + offset, segment.Count, (object)null);
 		}
 
-		private static Task<int> SendTaskAsync(this Socket socket, byte[] buffer, int offset, int length, SocketFlags flags = SocketFlags.None)
+		public static Task<int> SendTaskAsync(this Socket socket, byte[] buffer, int offset, int length, SocketFlags flags = SocketFlags.None)
 		{
 			// TODO: timeout
 			return Task<int>.Factory.FromAsync(

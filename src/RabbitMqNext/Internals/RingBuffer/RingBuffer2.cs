@@ -1,6 +1,7 @@
 ﻿namespace RabbitMqNext.Internals.RingBuffer
 {
 	using System;
+	using System.Diagnostics;
 	using System.Net.Sockets;
 	using System.Runtime.CompilerServices;
 	using System.Threading;
@@ -51,8 +52,9 @@
 	internal class RingBuffer2 : IDisposable // Stream2
 	{
 		private const int MinBufferSize = 32;
-		private const int DefaultBufferSize = 0x100000;     //  1.048.576 1mb
+		// private const int DefaultBufferSize = 0x100000;  //  1.048.576 1mb
 		// private const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
+		private const int DefaultBufferSize = 0x20000;      //  131.072
 
 		private readonly byte[] _buffer;
 
@@ -93,13 +95,6 @@
 			return ClaimWriteRegion(BufferSize);
 		}
 
-		/// <summary>
-		/// <![CDATA[
-		/// -- avail to write bat * :  BufferSize - w_n
-		/// -- write will wrap (n)  :  if r_n > w_n  and (w_n + n > r_n - 1)
-		/// -- avail to write bat ^ :  r_n - w_n - 1
-		/// ]]>
-		/// </summary>
 		public int ClaimWriteRegion(int desiredCount)
 		{
 			if (desiredCount > _bufferSize) 
@@ -114,7 +109,7 @@
 				if (entriesFree == 0) // full, we need to wait for consumer
 				{
 					// yield/spin/whatever then...
-					_waitingStrategy.Wait();
+					_waitingStrategy.WaitForRead();
 					continue;
 				}
 
@@ -138,7 +133,7 @@
 				if (entriesFree == 0) // full, we need to wait for consumer
 				{
 					// yield/spin/whatever then...
-					await _waitingStrategy.WaitAsync();
+					await _waitingStrategy.WaitForReadAsync();
 					continue;
 				}
 
@@ -156,14 +151,6 @@
 			}
 		}
 
-		/// <summary>
-		/// <![CDATA[
-		/// -- avail to read bat  * :  w_n - r_n
-		/// -- write has wrapped    :  w_n < r_n
-		/// -- avail to read bat  ^ :  BufferSize - r_n (for batch)
-		/// -- avail to read bat  ^ :  BufferSize - r_n + w_n  (total)
-		/// ]]>
-		/// </summary>
 		public int ClaimReadRegion(int desiredCount, bool waitIfNothingAvailable = false)
 		{
 			if (desiredCount > _bufferSize) throw new ArgumentOutOfRangeException("desiredCount", "desiredCount cannot be larger than buffer size: " + desiredCount + " buffer " + _bufferSize);
@@ -177,9 +164,7 @@
 				if (entriesFree == 0 && waitIfNothingAvailable) // empty, we need to wait for producer
 				{
 					// yield/spin/whatever then...
-//					Console.WriteLine("waiting on producer...");
-					_waitingStrategy.Wait();
-//					Console.Write(" * ");
+					_waitingStrategy.WaitForWrite();
 					continue;
 				}
 
@@ -201,7 +186,7 @@
 				{
 					// yield/spin/whatever then...
 					// Console.WriteLine("waiting on producer...");
-					await _waitingStrategy.WaitAsync();
+					await _waitingStrategy.WaitForWriteAsync();
 					continue;
 				}
 
@@ -225,7 +210,7 @@
 			checked
 #endif
 			{
-				writePos = (int) (writeCursor & (_bufferSize - 1)); // (int) (writeCursor % _bufferSize);
+				writePos = (int) (writeCursor % _bufferSize);
 			}
 
 			// TODO: check better options: http://xoofx.com/blog/2010/10/23/high-performance-memcpy-gotchas-in-c/
@@ -233,26 +218,30 @@
 
 			_writePosition += (uint) count; // volative write
 
-			_waitingStrategy.Signal(); // signal - if someone is waiting
+			_waitingStrategy.SignalWriteDone(); // signal - if someone is waiting
 		}
 
-		public void WriteToClaimedRegion(Socket socket, int count)
+		public async Task WriteToClaimedRegion(Socket socket, int count, bool asyncRecv = false)
 		{
 			uint writeCursor = _writePosition; // volative read
 			int writePos = 0;
 
-#if DEBUG
-			checked
-#endif
-			{
-				writePos = (int)(writeCursor & (_bufferSize - 1)); // (int) (writeCursor % _bufferSize);
-			}
+			writePos = (int) (writeCursor % _bufferSize);
 
-			var received = socket.Receive(_buffer, writePos, count, SocketFlags.None);
+			int received = 0;
+
+			if (!asyncRecv)
+			{
+				received = socket.Receive(_buffer, writePos, count, SocketFlags.None);
+			}
+			else
+			{
+				received = await socket.ReceiveTaskAsync(_buffer, writePos, count);
+			}
 
 			_writePosition += (uint)received; // volative write
 
-			_waitingStrategy.Signal(); // signal - if someone is waiting
+			_waitingStrategy.SignalWriteDone(); // signal - if someone is waiting
 		}
 
 		public void ReadClaimedRegion(byte[] buffer, int offset, int count)
@@ -275,10 +264,10 @@
 			
 			_readPosition += (uint)count; // volative write
 
-			_waitingStrategy.Signal(); // signal - if someone is waiting
+			_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 		}
 
-		public void ReadClaimedRegion(Socket socket, int count)
+		public async Task ReadClaimedRegion(Socket socket, int count, bool asyncSend = false)
 		{
 			uint readCursor = _readPosition; // volative read
 			int readPos = 0;
@@ -286,20 +275,28 @@
 			checked
 #endif
 			{
-				readPos = (int)(readCursor & (_bufferSize - 1)); // (int)(readCursor % _bufferSize);
+				readPos = (int) (readCursor % _bufferSize);
 			}
 
 			var totalSent = 0;
 			while (totalSent < count)
 			{
-				var sent = socket.Send(_buffer, readPos + totalSent, count - totalSent, SocketFlags.None);
+				var sent = 0;
+				if (!asyncSend)
+				{
+					sent = socket.Send(_buffer, readPos + totalSent, count - totalSent, SocketFlags.None);
+				}
+				else
+				{
+					sent = await socket.SendTaskAsync(_buffer, readPos + totalSent, count - totalSent);
+				}
+				// Console.WriteLine("--> sent " + sent + " of  " + count);
 				totalSent += sent;
 			}
 
 			_readPosition += (uint)totalSent; // volative write
 
-			_waitingStrategy.Signal(); // signal - if someone is waiting
-
+			_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 		}
 
 		/// <summary>
@@ -310,7 +307,7 @@
 			if (count <= 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
 
 			_readPosition += (uint)count; // volative write
-			_waitingStrategy.Signal(); // signal - if someone is waiting
+			_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 		}
 
 		public int BufferSize
@@ -332,13 +329,13 @@
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private uint InternalGetReadyToReadEntries()
+		internal uint InternalGetReadyToReadEntries()
 		{
 			uint writeCursor = _writePosition; // volative read
 			uint readCursor = _readPosition;   // volative read
 
-			uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize);
-			uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize);
+			uint writePos = (writeCursor % _bufferSize); // writeCursor & (_bufferSize - 1);
+			uint readPos = (readCursor % _bufferSize);   // readCursor & (_bufferSize - 1);
 
 			uint entriesFree = 0;
 
@@ -353,17 +350,19 @@
 				entriesFree = writePos - readPos;
 			}
 
+			Debug.Assert(entriesFree <= _bufferSize);
+
 			return entriesFree;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private uint InternalGetReadyToWriteEntries(int desiredCount)
+		internal uint InternalGetReadyToWriteEntries(int desiredCount)
 		{
 			uint writeCursor = _writePosition; // volative read
 			uint readCursor = _readPosition;   // volative read
 
-			uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize); 
-			uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize); 
+			uint writePos = (writeCursor % _bufferSize);  // writeCursor & (_bufferSize - 1); 
+			uint readPos = (readCursor % _bufferSize);    // readCursor & (_bufferSize - 1);  
 
 			uint entriesFree = 0;
 
@@ -379,7 +378,17 @@
 				entriesFree = _bufferSize - writePos;
 			}
 
+			Debug.Assert(entriesFree <= _bufferSize);
+
 			return entriesFree;
 		}
+
+		// For unit testing only
+
+		internal uint GlobalReadPos { get { return _readPosition; } }
+		internal uint GlobalWritePos { get { return _writePosition; } }
+
+		internal uint ReadPos { get { return _readPosition % _bufferSize; } }
+		internal uint WritePos { get { return _writePosition % _bufferSize; } }
 	}
 }

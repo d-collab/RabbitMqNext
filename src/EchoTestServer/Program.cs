@@ -3,7 +3,6 @@
 	using System;
 	using System.Net;
 	using System.Net.Sockets;
-	using System.Runtime;
 	using System.Threading;
 
 	class Program
@@ -92,6 +91,7 @@
 
 				const int BufferLen = 0xF100000;
 				var temp = new byte[BufferLen];
+				byte nextByte = 0;
 
 				while (socket.Connected)
 				{
@@ -100,12 +100,18 @@
 						var read = socket.Receive(temp, 0, BufferLen, SocketFlags.None);
 						if (read > 0)
 						{
-	//						Console.WriteLine("Recv " );
-	//						for (int i = 0; i < read; i++)
-	//						{
-	//							Console.Write(temp[i] + ", ");
-	//						}
-	//						Console.WriteLine("");
+//							Console.WriteLine("Recv total " + read);
+							for (int i = 0; i < read; i++)
+							{
+								var b = temp[i];
+								var exp = nextByte;
+								if (exp != b)
+								{
+									Console.WriteLine("Expecting " + exp + " but got " + b);	
+								}
+
+								nextByte++;
+							}
 
 	//						if (SimulateInstability)
 	//							Thread.Sleep(_rnd.Next(10));
@@ -113,7 +119,9 @@
 							var written = 0;
 							while (written < read)
 							{
-								written += socket.Send(temp, written, read - written, SocketFlags.None);
+								var sent = socket.Send(temp, written, read - written, SocketFlags.None);
+								written += sent;
+//								Console.WriteLine("Sent " + sent + " of " + read);
 							}
 						}
 					}

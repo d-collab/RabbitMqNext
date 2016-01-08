@@ -1,6 +1,7 @@
 ﻿namespace EchoClient
 {
 	using System;
+	using System.Diagnostics;
 	using System.Net;
 	using System.Net.Sockets;
 	using System.Threading;
@@ -11,8 +12,8 @@
 		private static AutoResetEvent _event = new AutoResetEvent(false);
 		private static SocketRingBuffers _socket2Streams;
 		private static CancellationTokenSource cancellationToken = new CancellationTokenSource();
-		private static AmqpPrimitivesWriter _amqpWriter;
-		private static AmqpPrimitivesReader _amqpReader;
+//		private static AmqpPrimitivesWriter _amqpWriter;
+//		private static AmqpPrimitivesReader _amqpReader;
 
 		const string TargetHost = "media";
 		const int port = 6767;
@@ -53,24 +54,24 @@
 				cancellationToken.Cancel();
 				Console.WriteLine("closed...");
 			});
-			_amqpWriter = new AmqpPrimitivesWriter(_socket2Streams.Writer, null, null);
-			_amqpReader = new AmqpPrimitivesReader(_socket2Streams.Reader);
+//			_amqpWriter = new AmqpPrimitivesWriter(_socket2Streams.Writer, null, null);
+//			_amqpReader = new AmqpPrimitivesReader(_socket2Streams.Reader);
 
 //			Task.Factory.StartNew(WriteFrames, cancellationToken, TaskCreationOptions.LongRunning);
 //			Task.Factory.StartNew(ReadFrames, cancellationToken, TaskCreationOptions.LongRunning);
 			new Thread(WriteFrames) { IsBackground = true, Name = "A"}.Start();
 			new Thread(ReadFrames) { IsBackground = true, Name = "B" }.Start();
 
-			_event.WaitOne();
+				_event.WaitOne();
 
 			Console.WriteLine("Done..");
 			// Thread.CurrentThread.Join();
 		}
 
-		const int TotalBytesToWrite = 10000;
+		const int TotalBytesToWrite = 16384;
 		const int TotalShortsToWrite = 10000;
 		const int TotalIntsToWrite = 10000;
-		const int TotalStringsToWrite = 10000;
+		const int TotalStringsToWrite = 10;
 		const string Str =
 			"Traces generated from a single logical operation can be tagged " +
 			"with an operation-unique identity, in order to distinguish them " +
@@ -86,31 +87,44 @@
 			{
 				ulong iteration = 0L;
 
+				var temp = new byte[1];
+
+				var watch = Stopwatch.StartNew();
+
 				while (!cancellationToken.IsCancellationRequested)
 				{
-					Console.WriteLine("Wr Iteration started " + iteration);
+//					Console.WriteLine("Wr Iteration started " + iteration);
 
 					for (uint i = 0; i < TotalBytesToWrite; i++)
 					{
-						_socket2Streams.Writer.Write((byte)((byte)i % 256));
+						// _socket2Streams.Writer.Write((byte)((byte)i % 256));
+						temp[0] = (byte)(i % 256);
+						_socket2Streams._outputRingBufferStream.Write(temp, 0, 1);
 					}
 
-					for (uint i = 0; i < TotalShortsToWrite; i++)
+//					for (uint i = 0; i < TotalShortsToWrite; i++)
+//					{
+//						_socket2Streams.Writer.Write((ushort)(i % ushort.MaxValue));
+//					}
+//
+//					for (uint i = 0; i < TotalIntsToWrite; i++)
+//					{
+//						_socket2Streams.Writer.Write((uint)(i % uint.MaxValue));
+//					}
+//
+//					for (uint i = 0; i < TotalStringsToWrite; i++)
+//					{
+//						_amqpWriter.WriteLongstr(Str);
+//					}
+
+//					Thread.CurrentThread.Join(TimeSpan.FromSeconds(5));
+
+					if (iteration++%1000 == 0)
 					{
-						_socket2Streams.Writer.Write((ushort)(i % ushort.MaxValue));
+						watch.Stop();
+						Console.WriteLine("Wr Iteration complete " + iteration + " took " + watch.Elapsed.TotalMilliseconds + "ms");
+						watch.Restart();
 					}
-
-					for (uint i = 0; i < TotalIntsToWrite; i++)
-					{
-						_socket2Streams.Writer.Write((uint)(i % uint.MaxValue));
-					}
-
-					for (uint i = 0; i < TotalStringsToWrite; i++)
-					{
-						_amqpWriter.WriteLongstr(Str);
-					}
-
-					Console.WriteLine("Wr Iteration complete " + iteration++);
 				}
 			}
 			catch (Exception ex)
@@ -126,59 +140,74 @@
 			{
 				ulong iteration = 0L;
 
+				var watch = Stopwatch.StartNew();
+
+				var temp = new byte[1024];
+
 				while (!cancellationToken.IsCancellationRequested)
 				{
-					Console.WriteLine("R Iteration started " + iteration);
+//					Console.WriteLine("R Iteration started " + iteration);
 
 					for (uint i = 0; i < TotalBytesToWrite; i++)
 					{
-						byte b = await _socket2Streams.Reader.ReadByte();
-						var exp = (byte)i % 256;
+						// byte b = await _socket2Streams.Reader.ReadByte();
+						var read = _socket2Streams._inputRingBufferStream.Read(temp, 0, 1);
+						byte b = temp[0];
+						var exp = (byte) i % 256;
 						if (b != exp)
 						{
-							Console.WriteLine("[1] Issue found at " +
-								_socket2Streams.Reader._ringBufferStream.Position +
+							Console.WriteLine("[1] Issue found at " + i +
+								// _socket2Streams.Reader._ringBufferStream.Position +
 								" Expecting " + exp + " but got " + b);
 						}
 					}
-					for (uint i = 0; i < TotalShortsToWrite; i++)
-					{
-						ushort b = _socket2Streams.Reader.ReadUInt16();
-						var exp = (ushort)i % ushort.MaxValue;
-						if (b != exp)
-						{
-							Console.WriteLine("[2] Issue found at " +
-								_socket2Streams.Reader._ringBufferStream.Position +
-								" Expecting " + exp + " but got " + b);
-						}
-					}
+					
+//					Console.WriteLine("R Iteration_bytes");
 
-					for (uint i = 0; i < TotalIntsToWrite; i++)
-					{
-						// _socket2Streams.Writer.Write((uint)i % uint.MaxValue);
-						uint b = _socket2Streams.Reader.ReadUInt32();
-						var exp = (uint)i % uint.MaxValue;
-						if (b != exp)
-						{
-							Console.WriteLine("[3] Issue found at " +
-								_socket2Streams.Reader._ringBufferStream.Position +
-								" Expecting " + exp + " but got " + b);
-						}
-					}
+//					for (uint i = 0; i < TotalShortsToWrite; i++)
+//					{
+//						ushort b = _socket2Streams.Reader.ReadUInt16();
+//						var exp = (ushort)i % ushort.MaxValue;
+//						if (b != exp)
+//						{
+//							Console.WriteLine("[2] Issue found at " +
+//								// _socket2Streams.Reader._ringBufferStream.Position +
+//								" Expecting " + exp + " but got " + b);
+//						}
+//					}
+//					Console.WriteLine("R Iteration_shorts");
+//
+//					for (uint i = 0; i < TotalIntsToWrite; i++)
+//					{
+//						// _socket2Streams.Writer.Write((uint)i % uint.MaxValue);
+//						uint b = _socket2Streams.Reader.ReadUInt32();
+//						var exp = (uint)i % uint.MaxValue;
+//						if (b != exp)
+//						{
+//							Console.WriteLine("[3] Issue found at " +
+//								// _socket2Streams.Reader._ringBufferStream.Position +
+//								" Expecting " + exp + " but got " + b);
+//						}
+//					}
+//					Console.WriteLine("R Iteration_ints");
+//					for (uint i = 0; i < TotalStringsToWrite; i++)
+//					{
+//						var b = await _amqpReader.ReadLongstr();
+//	
+//						if (b != Str)
+//						{
+//							Console.WriteLine("[3] Issue found at " +
+//								// _socket2Streams.Reader._ringBufferStream.Position +
+//								" Expecting \n" + b + " but got \n" + Str);
+//						}
+//					}
 
-					for (uint i = 0; i < TotalStringsToWrite; i++)
+					if (iteration++ % 1000 == 0)
 					{
-						var b = await _amqpReader.ReadLongstr();
-	
-						if (b != Str)
-						{
-							Console.WriteLine("[3] Issue found at " +
-								_socket2Streams.Reader._ringBufferStream.Position +
-								" Expecting \n" + b + " but got \n" + Str);
-						}
+						watch.Stop();
+						Console.WriteLine("Read Iteration complete " + iteration + " took " + watch.Elapsed.TotalMilliseconds + "ms");
+						watch.Restart();
 					}
-
-					Console.WriteLine("R Iteration complete " + iteration++);
 				}
 			}
 			catch (Exception ex)
