@@ -64,12 +64,13 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task<byte> ReadByte()
+		public Task<byte> ReadByte()
 		{
-			await FillBuffer(_oneByteArray, 1);
+			// await FillBuffer(_oneByteArray, 1);
+			FillBufferWithLock(_oneByteArray, 1, false);
 			var b = _oneByteArray[0];
-//			return _cachedByteTaskResult[b];
-			return b;
+			return _cachedByteTaskResult[b];
+//			return b;
 		}
 
 //		public Task<byte> ReadByte()
