@@ -18,40 +18,44 @@
 
 		public void Write(byte[] buffer, int offset, int count)
 		{
-			var written = 0;
-			while (written < count && !_cancellationToken.IsCancellationRequested)
-			{
-				var claimSize = count - written;
-				var available = _ringBuffer.ClaimWriteRegion(claimSize); // may block
+			_ringBuffer.Write(buffer, offset, count, writeAll: true);
 
-				if (available == 0) 
-				{
-					throw new Exception("wtf1");
-				}
-
-				_ringBuffer.WriteToClaimedRegion(buffer, offset + written, available);
-
-				written += available;
-			}
+//			var written = 0;
+//			while (written < count && !_cancellationToken.IsCancellationRequested)
+//			{
+//				var claimSize = count - written;
+//				var available = _ringBuffer.ClaimWriteRegion(claimSize); // may block
+//
+//				if (available == 0) 
+//				{
+//					throw new Exception("wtf1");
+//				}
+//
+//				_ringBuffer.Write(buffer, offset + written, available);
+//
+//				written += available;
+//			}
 		}
 
-		public async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		public Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
-			var written = 0;
-			while (written < count && !_cancellationToken.IsCancellationRequested)
-			{
-				var claimSize = count - written;
-				var available = await _ringBuffer.ClaimWriteRegionAsync(claimSize); // may block
+			return _ringBuffer.WriteAsync(buffer, offset, count, true, cancellationToken);
 
-				if (available == 0)
-				{
-					throw new Exception("wtf1");
-				}
-
-				_ringBuffer.WriteToClaimedRegion(buffer, offset + written, available);
-
-				written += available;
-			}
+//			var written = 0;
+//			while (written < count && !_cancellationToken.IsCancellationRequested)
+//			{
+//				var claimSize = count - written;
+//				var available = await _ringBuffer.ClaimWriteRegionAsync(claimSize); // may block
+//
+//				if (available == 0)
+//				{
+//					throw new Exception("wtf1");
+//				}
+//
+//				_ringBuffer.Write(buffer, offset + written, available);
+//
+//				written += available;
+//			}
 		}
 	}
 }

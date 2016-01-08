@@ -174,7 +174,7 @@
 			ringBuffer.ReadPos.Should().Be(6);
 			ringBuffer.WritePos.Should().Be(6);
 
-			for (ulong i = 0L; i < uint.MaxValue + (ulong)128L; i++)
+			for (ulong i = 0L; i < 1024 * 120; i++)
 			{
 				var v = (byte) (i%256);
 				originalBuf[0] = v;

@@ -36,11 +36,11 @@ namespace RabbitMqNext.Internals.RingBuffer
 			{
 				while (!_cancellationToken.IsCancellationRequested)
 				{
-					var available = _ringBuffer.ClaimWriteRegion(); // may block
+//					var available = _ringBuffer.ClaimWriteRegion(); // may block
+//					if (available == 0) throw new Exception("wtf1");
+//					await _ringBuffer.WriteToClaimedRegionFrom(_socket, available, asyncRecv: _asyncRecv);
 
-					if (available == 0) throw new Exception("wtf1");
-
-					await _ringBuffer.WriteToClaimedRegion(_socket, available, asyncRecv: _asyncRecv);
+					await _ringBuffer.WriteBufferFromSocketRecv(_socket, asyncRecv: _asyncRecv);
 				}
 			}
 			catch (SocketException ex)
@@ -66,6 +66,4 @@ namespace RabbitMqNext.Internals.RingBuffer
 			}
 		}
 	}
-
-	
 }

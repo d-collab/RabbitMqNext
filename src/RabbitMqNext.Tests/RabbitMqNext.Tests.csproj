@@ -65,8 +65,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="RingBuffer2_SocketIntegration_TestCase.cs" />
-    <Compile Include="RingBufferStream2TestCase.cs" />
+    <Compile Include="RingBuffer2OpsTestCase.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />

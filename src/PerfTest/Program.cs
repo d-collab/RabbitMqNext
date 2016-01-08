@@ -18,20 +18,21 @@
 
 		const bool WithAcks = false;
 
-//		const int TotalPublish = 250000;
-		const int TotalPublish = 10;
+		const int TotalPublish = 250000;
+//		const int TotalPublish = 100;
 //		const int TotalPublish = 100000;
 
-		const string TargetHost = "media";
+		const string TargetHost = "localhost";
 		const string VHost = "clear_test";
 
-		private static byte[] MessageContent =
-			Encoding.UTF8.GetBytes(
-				"The Completed event provides a way for client applications to " +
-				"complete an asynchronous socket operation. An event handler should " +
-				"be attached to the event within a SocketAsyncEventArgs instance when " +
-				"an asynchronous socket operation is initiated, otherwise the application " +
-				"will not be able to determine when the operation completes.");
+		private static string Message =
+			"The Completed event provides a way for client applications to " +
+			"complete an asynchronous socket operation. An event handler should " +
+			"be attached to the event within a SocketAsyncEventArgs instance when " +
+			"an asynchronous socket operation is initiated, otherwise the application " +
+			"will not be able to determine when the operation completes.";
+
+		private static byte[] MessageContent = Encoding.UTF8.GetBytes(Message);
 
 	    public static void Main()
 	    {
@@ -76,8 +77,8 @@
 				var prop = new BasicProperties()
 				{
 					// DeliveryMode = 2,
-					Type = "type1",
-					Headers = new Dictionary<string, object> {{"serialization", 0}}
+//					Type = "type1",
+//					Headers = new Dictionary<string, object> {{"serialization", 0}}
 				};
 
 				newChannel.MessageUndeliveredHandler = (undelivered) =>
@@ -95,29 +96,28 @@
 				var watch = Stopwatch.StartNew();
 				for (int i = 0; i < TotalPublish; i++)
 				{
-					// prop.Headers["serialization"] = i;
-					// var buffer = Encoding.UTF8.GetBytes("Hello world");
-					await newChannel.BasicPublish("test_ex", "routing1", true, false, prop, new ArraySegment<byte>(MessageContent));
+				//	prop.Headers["serialization"] = i;
+					var buffer = Encoding.ASCII.GetBytes("The " + i + " " + Message);
+					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(buffer));
+
+					// await Task.Delay(TimeSpan.FromMilliseconds(100));
 				}
 				watch.Stop();
 
 				Console.WriteLine("BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
 
-
-
 				var newChannel2 = await conn.CreateChannel();
 				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
 				await newChannel2.BasicQos(0, Prefetch, false);
-
-
+ 
 				var temp = new byte[1000000];
 
 				watch = Stopwatch.StartNew();
 				int totalReceived = 0;
 
-				var sub = await newChannel2.BasicConsume( (delivery) =>
+				var sub = await newChannel2.BasicConsume(async (delivery) =>
 				{
-					delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
+					var len = await delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
 
 					if (WithAcks)
 					{
@@ -127,8 +127,8 @@
 							newChannel2.BasicNAck(delivery.deliveryTag, false, false);
 					}
 					
-					// var str = Encoding.UTF8.GetString(temp, 0, len);
-					// Console.WriteLine("Received : " + str);
+					var str = Encoding.UTF8.GetString(temp, 0, len);
+					Console.WriteLine("Received : " + str.Length);
 
 					// newChannel2.BasicAck()
 
@@ -139,7 +139,7 @@
 						totalReceived = 0;
 					}
 
-					return Task.CompletedTask;
+					// return Task.CompletedTask;
 
 				}, "queue1", "tag123", !WithAcks, false, null, true);
 

@@ -56,10 +56,15 @@
     <Compile Include="Buffers\Utilities.cs" />
     <Compile Include="Connection.cs" />
     <Compile Include="ConnectionFactory.cs" />
+    <Compile Include="IAmqpChannel.cs" />
     <Compile Include="Internals\AmqpClassMethodConnectionLevelConstants.cs" />
     <Compile Include="Internals\AmqpError.cs" />
-    <Compile Include="Internals\AmqpPrimitivesReader.cs" />
-    <Compile Include="Internals\AmqpPrimitivesWriter.cs" />
+    <Compile Include="Internals\AmqpPrimitivesReader.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Internals\AmqpPrimitivesWriter.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Internals\CommandToSend.cs" />
     <Compile Include="Internals\ConnectionStateMachine.cs" />
     <Compile Include="Internals\FrameProcessor.cs" />
@@ -75,7 +80,9 @@
     <Compile Include="Internals\Protocol\AmqpConnectionFrameWriter.cs" />
     <Compile Include="Internals\Protocol\FrameParameters.cs" />
     <Compile Include="Internals\Protocol\FrameReader.cs" />
-    <Compile Include="Internals\Protocol\FrameReader_ChannelLevel.cs" />
+    <Compile Include="Internals\Protocol\FrameReader_ChannelLevel.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Internals\Protocol\FrameReader_ConnectionLevel.cs" />
     <Compile Include="Internals\ReusableTempWriter.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetCASEvent.cs" />
@@ -83,7 +90,9 @@
     <Compile Include="Internals\RingBuffer\Locks\AsyncManualResetEvent.cs" />
     <Compile Include="Internals\RingBuffer\RingBuffer2.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferPositionMarker.cs" />
-    <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs" />
+    <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Internals\RingBuffer\SingleConsumer.cs" />
     <Compile Include="Internals\RingBuffer\SingleProducer.cs" />
     <Compile Include="Internals\RingBuffer\SocketConsumer.cs" />
