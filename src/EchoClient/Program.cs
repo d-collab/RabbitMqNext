@@ -15,7 +15,7 @@
 //		private static AmqpPrimitivesWriter _amqpWriter;
 //		private static AmqpPrimitivesReader _amqpReader;
 
-		const string TargetHost = "media";
+		const string TargetHost = "localhost";
 		const int port = 6767;
 
 		static void Main(string[] args)
@@ -97,9 +97,9 @@
 
 					for (uint i = 0; i < TotalBytesToWrite; i++)
 					{
-						// _socket2Streams.Writer.Write((byte)((byte)i % 256));
-						temp[0] = (byte)(i % 256);
-						_socket2Streams._outputRingBufferStream.Write(temp, 0, 1);
+						_socket2Streams.Writer.Write((byte)((byte)i % 256));
+//						temp[0] = (byte)(i % 256);
+//						_socket2Streams._outputRingBufferStream.Write(temp, 0, 1);
 					}
 
 //					for (uint i = 0; i < TotalShortsToWrite; i++)
@@ -122,7 +122,7 @@
 					if (iteration++%1000 == 0)
 					{
 						watch.Stop();
-						Console.WriteLine("Wr Iteration complete " + iteration + " took " + watch.Elapsed.TotalMilliseconds + "ms");
+						Console.WriteLine("Wr Iteration complete " + iteration + " took \t" + watch.Elapsed.TotalMilliseconds + " ms");
 						watch.Restart();
 					}
 				}
@@ -150,9 +150,9 @@
 
 					for (uint i = 0; i < TotalBytesToWrite; i++)
 					{
-						// byte b = await _socket2Streams.Reader.ReadByte();
-						var read = _socket2Streams._inputRingBufferStream.Read(temp, 0, 1);
-						byte b = temp[0];
+						byte b = await _socket2Streams.Reader.ReadByte();
+						// var read = _socket2Streams._inputRingBufferStream.Read(temp, 0, 1);
+						// byte b = temp[0];
 						var exp = (byte) i % 256;
 						if (b != exp)
 						{
@@ -205,7 +205,7 @@
 					if (iteration++ % 1000 == 0)
 					{
 						watch.Stop();
-						Console.WriteLine("Read Iteration complete " + iteration + " took " + watch.Elapsed.TotalMilliseconds + "ms");
+						Console.WriteLine("Read Iteration complete " + iteration + " took \t" + watch.Elapsed.TotalMilliseconds + " ms");
 						watch.Restart();
 					}
 				}

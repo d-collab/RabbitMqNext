@@ -19,7 +19,7 @@
 		const bool WithAcks = false;
 
 //		const int TotalPublish = 250000;
-		const int TotalPublish = 1000;
+		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
 
 		const string TargetHost = "media";

@@ -44,16 +44,25 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AmqpChannel.cs" />
+    <Compile Include="AmqpQueueInfo.cs" />
     <Compile Include="Amqp\AmqpConstants.cs" />
     <Compile Include="Amqp\Types\AmqpTimestamp.cs" />
+    <Compile Include="Amqp\BasicProperties.cs" />
     <Compile Include="Buffers\ArrayPool.cs" />
     <Compile Include="Buffers\ArrayPoolBucket.cs" />
     <Compile Include="Buffers\DefaultArrayPool.cs" />
     <Compile Include="Buffers\ObjectPool.cs" />
     <Compile Include="Buffers\Utilities.cs" />
+    <Compile Include="Connection.cs" />
+    <Compile Include="ConnectionFactory.cs" />
+    <Compile Include="Internals\AmqpClassMethodConnectionLevelConstants.cs" />
     <Compile Include="Internals\AmqpError.cs" />
     <Compile Include="Internals\AmqpPrimitivesReader.cs" />
     <Compile Include="Internals\AmqpPrimitivesWriter.cs" />
+    <Compile Include="Internals\CommandToSend.cs" />
+    <Compile Include="Internals\ConnectionStateMachine.cs" />
+    <Compile Include="Internals\FrameProcessor.cs" />
     <Compile Include="Internals\InternalBigEndianReader.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -61,6 +70,13 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Internals\MemoryStreamSlim.cs" />
+    <Compile Include="Internals\Protocol.cs" />
+    <Compile Include="Internals\Protocol\AmqpChannelLevelFrameWriter.cs" />
+    <Compile Include="Internals\Protocol\AmqpConnectionFrameWriter.cs" />
+    <Compile Include="Internals\Protocol\FrameParameters.cs" />
+    <Compile Include="Internals\Protocol\FrameReader.cs" />
+    <Compile Include="Internals\Protocol\FrameReader_ChannelLevel.cs" />
+    <Compile Include="Internals\Protocol\FrameReader_ConnectionLevel.cs" />
     <Compile Include="Internals\ReusableTempWriter.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetCASEvent.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetEvent.cs" />
@@ -73,11 +89,15 @@
     <Compile Include="Internals\RingBuffer\SocketProducer.cs" />
     <Compile Include="Internals\RingBuffer\Utils.cs" />
     <Compile Include="Internals\RingBuffer\WaitingStrategy.cs" />
+    <Compile Include="Internals\RingBuffer\WaitingStrategy.LockWaitingStrategy.cs" />
     <Compile Include="Internals\SocketRingBuffers.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Internals\Sockets\SocketExtensions.cs" />
+    <Compile Include="Internals\Util.cs" />
+    <Compile Include="MessageDelivery.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
+    <Compile Include="TaskLight.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
