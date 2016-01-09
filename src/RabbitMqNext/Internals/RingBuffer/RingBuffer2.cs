@@ -5,6 +5,7 @@
 	using System.IO;
 	using System.Net.Sockets;
 	using System.Runtime.CompilerServices;
+	using System.Text;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -53,10 +54,10 @@
 	internal class RingBuffer2 : IDisposable // Stream2
 	{
 		private const int MinBufferSize = 32;
-		// private const int DefaultBufferSize = 0x100000;  //  1.048.576 1mb
+		private const int DefaultBufferSize = 0x100000;     //  1.048.576 1mb
 		// private const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
 		// private const int DefaultBufferSize = 0x20000;   //    131.072
-		private const int DefaultBufferSize = 0x10000;      //     65.536
+		// private const int DefaultBufferSize = 0x10000;   //     65.536
 
 		private readonly byte[] _buffer;
 
@@ -103,7 +104,9 @@
 			int totalwritten = 0;
 			while (totalwritten < count)
 			{
-				var available = (int) this.InternalGetReadyToWriteEntries(count - totalwritten);
+				AvailableAndPos availPos = this.InternalGetReadyToWriteEntries(count - totalwritten);
+//				var available = (int) this.InternalGetReadyToWriteEntries(count - totalwritten);
+				var available = (int) availPos.available;
 				if (available == 0)
 				{
 					if (writeAll)
@@ -114,12 +117,14 @@
 					break;
 				}
 
-				uint writeCursor = _writePosition; // 1 volative read
-				int writePos = 0;
-				checked
-				{
-					writePos = (int)(writeCursor % _bufferSize);
-				}
+//				uint writeCursor = _writePosition; // 1 volative read
+//				int writePos = 0;
+//				checked
+//				{
+//					writePos = (int) (writeCursor & (_bufferSize - 1));
+//				}
+
+				int writePos = (int) availPos.position;
 
 				Buffer.BlockCopy(buffer, offset + totalwritten, _buffer, writePos, available);
 
@@ -142,11 +147,14 @@
 
 		public async Task WriteBufferFromSocketRecv(Socket socket, bool asyncRecv = false)
 		{
+			AvailableAndPos availPos;
 			int available = 0;
 			
-			while (available == 0)
+			while (true)
 			{
-				available = (int) this.InternalGetReadyToWriteEntries(BufferSize);
+				availPos = this.InternalGetReadyToWriteEntries(BufferSize);
+				// available = (int) this.InternalGetReadyToWriteEntries(BufferSize);
+				available = availPos.available;
 
 				if (available == 0)
 					_waitingStrategy.WaitForRead();
@@ -154,12 +162,14 @@
 					break;
 			}
 
-			uint writeCursor = _writePosition; // 1 volative read
-			int writePos = 0;
-			checked
-			{
-				writePos = (int)(writeCursor % _bufferSize);
-			}
+//			uint writeCursor = _writePosition; // 1 volative read
+//			int writePos = 0;
+//			checked
+//			{
+//				writePos = (int) (writeCursor & (_bufferSize - 1));
+//			}
+
+			int writePos = availPos.position;
 
 			int received = 0;
 			if (!asyncRecv)
@@ -182,11 +192,14 @@
 			if (offset < 0) throw new ArgumentOutOfRangeException("offset", "must be greater or equal to 0");
 			if (count <= 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
 #endif
+
 			int totalRead = 0;
 
 			while (totalRead < count)
 			{
-				var available = (int) this.InternalGetReadyToReadEntries(count - totalRead);
+				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead);
+				// var available = (int) this.InternalGetReadyToReadEntries(count - totalRead);
+				var available = (int) availPos.available;
 				if (available == 0)
 				{
 					if (fillBuffer)
@@ -197,14 +210,15 @@
 					break;
 				}
 
-				uint readCursor = _readPosition; // volative read
-				int readPos = 0;
-				checked
-				{
-					readPos = (int)(readCursor & (_bufferSize - 1)); // (int)(readCursor % _bufferSize);
-				}
+//				uint readCursor = _readPosition; // volative read
+//				int readPos = 0;
+//				checked
+//				{
+//					readPos = (int)(readCursor & (_bufferSize - 1)); // (int)(readCursor % _bufferSize);
+//				}
+				int readPos = (int) availPos.position;
 
-				Buffer.BlockCopy(_buffer, readPos, buffer, offset, available);
+				Buffer.BlockCopy(_buffer, readPos, buffer, offset + totalRead, available);
 
 				totalRead += available;
 
@@ -229,19 +243,23 @@
 
 			while (totalRead == 0)
 			{
-				var available = (int)this.InternalGetReadyToReadEntries(BufferSize);
+				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(BufferSize);
+				int available = availPos.available;
+//				var available = (int)this.InternalGetReadyToReadEntries(BufferSize);
 				if (available == 0)
 				{
 					_waitingStrategy.WaitForWrite();
 					continue;
 				}
 
-				uint readCursor = _readPosition; // volative read
-				int readPos = 0;
-				checked
-				{
-					readPos = (int)(readCursor & (_bufferSize - 1)); // (int)(readCursor % _bufferSize);
-				}
+//				uint readCursor = _readPosition; // volative read
+//				int readPos = 0;
+//				checked
+//				{
+//					readPos = (int)(readCursor & (_bufferSize - 1)); // (int)(readCursor % _bufferSize);
+//				}
+
+				int readPos = availPos.position;
 
 				var totalSent = 0;
 				while (totalSent < available)
@@ -267,13 +285,15 @@
 			}
 		}
 
-		public int Skip(int offset)
+		public Task Skip(int offset)
 		{
 			int totalSkipped = 0;
 
 			while (totalSkipped < offset)
 			{
-				var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
+				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(offset - totalSkipped);
+				var available = availPos.available;
+				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
 				if (available == 0)
 				{
 					_waitingStrategy.WaitForWrite();
@@ -283,11 +303,11 @@
 				totalSkipped += available;
 
 				_readPosition += (uint)available; // volative write
+
+				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 			}
 
-			_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
-
-			return totalSkipped;
+			return Task.CompletedTask;
 		}
 
 		public int BufferSize
@@ -308,16 +328,16 @@
 			_waitingStrategy.Dispose();
 		}
 
-		// [MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal uint InternalGetReadyToReadEntries(int desiredCount)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal AvailableAndPos InternalGetReadyToReadEntries(int desiredCount)
 		{
 			uint writeCursor = _writePosition; // volative read
 			uint readCursor = _readPosition;   // volative read
 
-			uint writePos = (writeCursor % _bufferSize); // writeCursor & (_bufferSize - 1);
-			uint readPos = (readCursor % _bufferSize);   // readCursor & (_bufferSize - 1);
+			uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize);
+			uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize);
 
-			uint entriesFree = 0;
+			uint entriesFree;
 
 			var writeHasWrapped = writePos < readPos;
 
@@ -330,24 +350,28 @@
 				entriesFree = writePos - readPos;
 			}
 
+#if DEBUG
 			if (entriesFree > _bufferSize)
 			{
 				var msg = "Assert failed read: " + entriesFree + " must be less or equal to " + (BufferSize);
 				System.Diagnostics.Debug.WriteLine(msg);
 				throw new Exception(msg);
 			}
+#endif
 
-			return Math.Min(entriesFree, (uint)desiredCount);
+			var available = Math.Min(entriesFree, (uint)desiredCount);
+			// return available;
+			return new AvailableAndPos() { available = (int)available, position = (int)readPos };
 		}
 
-		// [MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal uint InternalGetReadyToWriteEntries(int desiredCount)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal AvailableAndPos InternalGetReadyToWriteEntries(int desiredCount)
 		{
 			uint writeCursor = _writePosition; // volative read
 			uint readCursor = _readPosition;   // volative read
 
-			uint writePos = (writeCursor % _bufferSize);  // writeCursor & (_bufferSize - 1); 
-			uint readPos = (readCursor % _bufferSize);    // readCursor & (_bufferSize - 1);  
+			uint writePos = writeCursor & (_bufferSize - 1); 
+			uint readPos = readCursor & (_bufferSize - 1);  
 
 			uint entriesFree = 0;
 
@@ -367,6 +391,7 @@
 					entriesFree = _bufferSize - writePos;
 			}
 
+#if DEBUG
 			if (writeWrapped)
 			{
 				if (!(entriesFree <= _bufferSize - 1))
@@ -385,16 +410,23 @@
 					throw new Exception(msg);
 				}
 			}
+#endif
 
-			return Math.Min(entriesFree, (uint) desiredCount);
+			var available = Math.Min(entriesFree, (uint) desiredCount);
+//			return available;
+			return new AvailableAndPos() { available = (int)available, position = (int)writePos };
+		}
+
+		internal struct AvailableAndPos
+		{
+			public int available, position;
 		}
 
 		// For unit testing only
 
 		internal uint GlobalReadPos { get { return _readPosition; } }
 		internal uint GlobalWritePos { get { return _writePosition; } }
-
-		internal uint ReadPos { get { return _readPosition % _bufferSize; } }
-		internal uint WritePos { get { return _writePosition % _bufferSize; } }
+		internal uint LocalReadPos { get { return _readPosition % _bufferSize; } }
+		internal uint LocalWritePos { get { return _writePosition % _bufferSize; } }
 	}
 }

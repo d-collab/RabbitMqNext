@@ -111,7 +111,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		{
 			AtomicChange(1, SignalledStatePos, SignalledStateMask);
 
-			var tcss = new List<TaskCompletionSource<bool>>();
+			List<TaskCompletionSource<bool>> tcss = null;
 
 			lock (_lock)
 			{
@@ -126,6 +126,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 						TaskCompletionSource<bool> tcs;
 						if (_waiters.TryDequeue(out tcs))
 						{
+							if (tcss == null) tcss = new List<TaskCompletionSource<bool>>();
 							AtomicChange(0, SignalledStatePos, SignalledStateMask);
 							tcss.Add(tcs);
 						}
@@ -137,9 +138,10 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			// schedules the continuation to run
 			// since it was created with TaskCreationOptions.RunContinuationsAsynchronously
 			// it's guaranteed to run outside this _lock, but just in case...
-			foreach (var tcs in tcss)
+			if (tcss != null)
 			{
-				tcs.SetResult(true);
+				foreach (var tcs in tcss)
+					tcs.SetResult(true);
 			}
 		}
 
@@ -209,7 +211,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private bool SpinAndTryToObtainLock()
 		{
-			const int spinCount = 10;
+			const int spinCount = 40;
 
 			for (int i = 0; i < spinCount; i++)
 			{

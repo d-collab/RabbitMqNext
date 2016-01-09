@@ -85,6 +85,7 @@
     </Compile>
     <Compile Include="Internals\Protocol\FrameReader_ConnectionLevel.cs" />
     <Compile Include="Internals\ReusableTempWriter.cs" />
+    <Compile Include="Internals\RingBuffer\Locks\AutoResetSuperSlimLock.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetCASEvent.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetEvent.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncManualResetEvent.cs" />
@@ -93,8 +94,6 @@
     <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Internals\RingBuffer\SingleConsumer.cs" />
-    <Compile Include="Internals\RingBuffer\SingleProducer.cs" />
     <Compile Include="Internals\RingBuffer\SocketConsumer.cs" />
     <Compile Include="Internals\RingBuffer\SocketProducer.cs" />
     <Compile Include="Internals\RingBuffer\Utils.cs" />

@@ -1,6 +1,7 @@
 namespace RabbitMqNext.Internals
 {
 	using System;
+	using System.Diagnostics;
 	using System.Threading.Tasks;
 	using RingBuffer;
 
@@ -143,7 +144,7 @@ namespace RabbitMqNext.Internals
 //			await FillBuffer(_fourByteArray, 4);
 //			return BitConverter.ToUInt32(_fourByteArray, 0);
 //		}
-		
+
 		public uint ReadUInt32()
 		{
 			FillBufferWithLock(_fourByteArray, 4);
@@ -156,14 +157,9 @@ namespace RabbitMqNext.Internals
 			return BitConverter.ToUInt64(_eightByteArray, 0);
 		}
 
-		public async Task SkipBy(int byteCount)
+		public Task SkipBy(int offset)
 		{
-			var count = 0;
-			while (count < byteCount)
-			{
-				await FillBuffer(_oneByteArray, 1, false);
-				count++;
-			}
+			return _ringBufferStream._ringBuffer.Skip(offset);
 		}
 	}
 }

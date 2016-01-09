@@ -149,11 +149,11 @@ namespace RabbitMqNext.Internals
 			var frameHeaderStart = await _amqpReader.ReadOctet();
 			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
 
-			await _reader.SkipBy(4 + 2 + 2 + 2);
-			// ushort channel = _reader.ReadUInt16();
-			// int payloadLength = await _reader.ReadInt32();
-			// var classId = _reader.ReadUInt16();
-			// var weight = _reader.ReadUInt16();
+			// await _reader.SkipBy(4 + 2 + 2 + 2);
+			ushort channel = _reader.ReadUInt16();
+			int payloadLength = await _reader.ReadInt32();
+			ushort classId = _reader.ReadUInt16();
+			ushort weight = _reader.ReadUInt16();
 			var bodySize = (long)await _reader.ReadUInt64();
 
 			var properties = await ReadRestOfContentHeader();

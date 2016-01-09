@@ -1,5 +1,6 @@
 namespace RabbitMqNext.Tests
 {
+	using System;
 	using System.Text;
 	using System.Threading;
 	using FluentAssertions;

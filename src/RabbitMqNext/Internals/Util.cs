@@ -38,7 +38,5 @@
 				tcs.SetException(new Exception("Unexpected reply from the server: " + classMethodId));
 			}
 		}
-
-		
 	}
 }

@@ -53,15 +53,11 @@
 		{
 			if (origin != SeekOrigin.Current) throw new NotSupportedException("Only from current is supported");
 
-			checked
+			// checked
 			{
 				var offsetAsInt = (int)offset;
-				var skipped = 0;
-				while (skipped < offset)
-				{
-					skipped += _ringBuffer.Skip(offsetAsInt - skipped);
-				}
-				return skipped;
+				_ringBuffer.Skip(offsetAsInt);
+				return offset;
 			}
 		}
 

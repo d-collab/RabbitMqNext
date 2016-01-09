@@ -72,7 +72,7 @@ namespace RabbitMqNext.Tests
 
 				for (int x = 0; x < output.Length; x++)
 				{
-					output[x].Should().Be((byte)(x % 256));
+					output[x].Should().Be((byte)(x % 256), "Iteration " + i + " pos " + x);
 				}
 
 				if (i % 10000 == 0)

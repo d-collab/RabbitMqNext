@@ -40,7 +40,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 			{
 				while (!_cancellationToken.IsCancellationRequested)
 				{
-					_ringBuffer.ReadBufferIntoSocketSend(_socket, _asyncSend);
+					await _ringBuffer.ReadBufferIntoSocketSend(_socket, _asyncSend);
 //					var available = _ringBuffer.ClaimReadRegion(waitIfNothingAvailable: true);
 //
 //					if (available == 0) throw new Exception("wtf2");

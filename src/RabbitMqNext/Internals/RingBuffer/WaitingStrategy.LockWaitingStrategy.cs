@@ -1,6 +1,8 @@
 namespace RabbitMqNext.Internals.RingBuffer
 {
 	using System.Threading;
+	using System.Threading.Tasks;
+	using Locks;
 
 	/// <summary>
 	/// needs a better impl
@@ -9,6 +11,8 @@ namespace RabbitMqNext.Internals.RingBuffer
 	{
 		private readonly AutoResetEvent _read = new AutoResetEvent(false);
 		private readonly AutoResetEvent _write = new AutoResetEvent(false);
+//		private readonly AutoResetSuperSlimLock _read = new AutoResetSuperSlimLock();
+//		private readonly AutoResetSuperSlimLock _write = new AutoResetSuperSlimLock();
 
 		public LockWaitingStrategy(CancellationToken token) : base(token)
 		{
@@ -33,6 +37,16 @@ namespace RabbitMqNext.Internals.RingBuffer
 		{
 			_write.Set();
 		}
+
+//		public override Task WaitForReadAsync()
+//		{
+//			return _read.WaitAsync();
+//		}
+//
+//		public override Task WaitForWriteAsync()
+//		{
+//			return _write.WaitAsync();
+//		}
 
 		public override void Dispose()
 		{

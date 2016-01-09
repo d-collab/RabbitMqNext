@@ -19,7 +19,7 @@
 		const bool WithAcks = false;
 
 		const int TotalPublish = 250000;
-//		const int TotalPublish = 100;
+//		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
 
 		const string TargetHost = "localhost";
@@ -30,7 +30,7 @@
 			"complete an asynchronous socket operation. An event handler should " +
 			"be attached to the event within a SocketAsyncEventArgs instance when " +
 			"an asynchronous socket operation is initiated, otherwise the application " +
-			"will not be able to determine when the operation completes.";
+			"will not be able to determine when the operation.";
 
 		private static byte[] MessageContent = Encoding.UTF8.GetBytes(Message);
 
@@ -77,8 +77,8 @@
 				var prop = new BasicProperties()
 				{
 					// DeliveryMode = 2,
-//					Type = "type1",
-//					Headers = new Dictionary<string, object> {{"serialization", 0}}
+					Type = "type1",
+					Headers = new Dictionary<string, object> {{"serialization", 0}}
 				};
 
 				newChannel.MessageUndeliveredHandler = (undelivered) =>
@@ -96,9 +96,9 @@
 				var watch = Stopwatch.StartNew();
 				for (int i = 0; i < TotalPublish; i++)
 				{
-				//	prop.Headers["serialization"] = i;
-					var buffer = Encoding.ASCII.GetBytes("The " + i + " " + Message);
-					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(buffer));
+					prop.Headers["serialization"] = i;
+					// var buffer = Encoding.ASCII.GetBytes("The " + i + " " + Message);
+					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
 
 					// await Task.Delay(TimeSpan.FromMilliseconds(100));
 				}
@@ -115,20 +115,20 @@
 				watch = Stopwatch.StartNew();
 				int totalReceived = 0;
 
+				Console.WriteLine("[subscribing to queue] ");
 				var sub = await newChannel2.BasicConsume(async (delivery) =>
 				{
-					var len = await delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
+					// var len = await delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
+					// var str = Encoding.UTF8.GetString(temp, 0, len);
+					// Console.WriteLine("Received : " + str.Length);
 
 					if (WithAcks)
 					{
 						if (totalReceived % 2 == 0)
-							newChannel2.BasicAck(delivery.deliveryTag, false);
+							await newChannel2.BasicAck(delivery.deliveryTag, false);
 						else
-							newChannel2.BasicNAck(delivery.deliveryTag, false, false);
+							await newChannel2.BasicNAck(delivery.deliveryTag, false, false);
 					}
-					
-					var str = Encoding.UTF8.GetString(temp, 0, len);
-					Console.WriteLine("Received : " + str.Length);
 
 					// newChannel2.BasicAck()
 
@@ -145,7 +145,7 @@
 
 				Console.WriteLine("[subscribed to queue] " + sub);
 
-				await Task.Delay(TimeSpan.FromMinutes(5));
+				await Task.Delay(TimeSpan.FromMinutes(1));
 
 				await newChannel.Close();
 				await newChannel2.Close();
