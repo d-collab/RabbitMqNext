@@ -18,8 +18,8 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		internal const int SignalledStatePos = 15;
 		internal const int NumWaitersStateMask = (0xFF);     // 0000 0000 1111 1111
 		internal const int NumWaitersStatePos = 0;
-		internal const int RelWaitersStateMask = (0x7F00);   // 0111 1111 0000 0000
-		internal const int RelWaitersStatePos = 8;
+//		internal const int RelWaitersStateMask = (0x7F00);   // 0111 1111 0000 0000
+//		internal const int RelWaitersStatePos = 8;
 
 		private readonly ConcurrentQueue<TaskCompletionSource<bool>> _waiters = new ConcurrentQueue<TaskCompletionSource<bool>>();
 		private volatile int _state;
@@ -30,8 +30,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		private const int HowManySpinBeforeYield = 10;
 		private const int HowManyYieldEverySleep0 = 5;
 		private const int HowManyYieldEverySleep1 = 20;
+		private const int SpinCount = 50;
 
-		public AutoResetSuperSlimLock(bool initialState = false, bool releaseAllOnSet = false)
+		public AutoResetSuperSlimLock(bool initialState = false)
 		{
 			if (initialState) _state = SignalledStateMask;
 		}
@@ -211,9 +212,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private bool SpinAndTryToObtainLock()
 		{
-			const int spinCount = 40;
-
-			for (int i = 0; i < spinCount; i++)
+			for (int i = 0; i < SpinCount; i++)
 			{
 				if (CheckForIsSetAndResetIfTrue())
 				{
@@ -258,18 +257,18 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			}
 		}
 
-		internal int ToRelease
-		{
-			get
-			{
-				var val = ExtractStatePortionAndShiftRight(_state, RelWaitersStateMask, RelWaitersStatePos);
-				return val;
-			}
-			set
-			{
-				AtomicChange(value, RelWaitersStatePos, RelWaitersStateMask);
-			}
-		}
+//		internal int ToRelease
+//		{
+//			get
+//			{
+//				var val = ExtractStatePortionAndShiftRight(_state, RelWaitersStateMask, RelWaitersStatePos);
+//				return val;
+//			}
+//			set
+//			{
+//				AtomicChange(value, RelWaitersStatePos, RelWaitersStateMask);
+//			}
+//		}
 
 		private static int ExtractStatePortionAndShiftRight(int state, int mask, int rightBitShiftCount)
 		{

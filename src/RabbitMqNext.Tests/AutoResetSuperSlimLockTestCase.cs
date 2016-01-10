@@ -18,20 +18,15 @@ namespace RabbitMqNext.Tests
 
 			autoResSlim1.IsSet.Should().BeFalse();
 			autoResSlim1.Waiters.Should().Be(0);
-			autoResSlim1.ToRelease.Should().Be(0);
 
 			autoResSlim1.Waiters = 34;
 			autoResSlim1.Waiters.Should().Be(34);
-			autoResSlim1.ToRelease.Should().Be(0);
 
-			autoResSlim1.ToRelease = 17;
-			autoResSlim1.ToRelease.Should().Be(17);
 			autoResSlim1.Waiters.Should().Be(34);
 
 			autoResSlim1.TryAtomicXor(1, AutoResetSuperSlimLock.SignalledStatePos, AutoResetSuperSlimLock.SignalledStateMask);
 
 			autoResSlim1.IsSet.Should().BeTrue();
-			autoResSlim1.ToRelease.Should().Be(17);
 			autoResSlim1.Waiters.Should().Be(34);
 
 			autoResSlim1.TryAtomicXor(0, AutoResetSuperSlimLock.SignalledStatePos, AutoResetSuperSlimLock.SignalledStateMask);
@@ -42,7 +37,6 @@ namespace RabbitMqNext.Tests
 
 			autoResSlim1.AtomicChange(0, AutoResetSuperSlimLock.SignalledStatePos, AutoResetSuperSlimLock.SignalledStateMask);
 			autoResSlim1.IsSet.Should().BeFalse();
-			autoResSlim1.ToRelease.Should().Be(17);
 			autoResSlim1.Waiters.Should().Be(34);
 		}
 
@@ -138,40 +132,6 @@ namespace RabbitMqNext.Tests
 			Task.WaitAll(tasks.ToArray());
 
 			countOfObtained.Should().Be(1);
-			autoResSlim.IsSet.Should().BeFalse();
-		}
-
-		[Test]
-		public void ConcurrentWaits__withReleaseAll_1()
-		{
-			var autoResSlim = new AutoResetSuperSlimLock(false, releaseAllOnSet: true);
-
-			var barrier = new ManualResetEvent(false);
-
-			int countOfObtained = 0;
-			var tasks = new List<Task>();
-
-			for (int i = 0; i < 12; i++)
-			{
-				var t = Task.Factory.StartNew(() =>
-				{
-					barrier.WaitOne();
-
-					if (autoResSlim.Wait(100000)) Interlocked.Increment(ref countOfObtained);
-				});
-				tasks.Add(t);
-			}
-
-			barrier.Set();
-
-			Thread.Sleep(2000);
-
-			autoResSlim.Set();
-
-			Task.WaitAll(tasks.ToArray());
-
-			countOfObtained.Should().Be(12);
-
 			autoResSlim.IsSet.Should().BeFalse();
 		}
 
