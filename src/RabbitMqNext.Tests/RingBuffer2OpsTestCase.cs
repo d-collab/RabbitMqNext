@@ -11,7 +11,7 @@ namespace RabbitMqNext.Tests
 	public class RingBuffer2OpsTestCase
 	{
 		private CancellationTokenSource _cancellationTokenSrc;
-		private RingBuffer2 _buffer;
+		private BufferRingBuffer _buffer;
 		private static byte[] SomeBuffer = Encoding.ASCII.GetBytes("The tragedy of the commons is a term, probably coined by the Victorian economist William Forster Lloyd[1] and later used by the ecologist Garrett Hardin, to denote a situation where individuals acting independently and rationally according to each other's self-interest behave contrary to the best interests of the whole by depleting some common resource. The concept was based upon an essay written in 1833 by Lloyd, who used a hypothetical example of the effects of unregulated grazing on common land in the British Isles. This became widely-known over a century later due to an article written by Garrett Hardin in 1968.");
 		private byte[] _temp;
 
@@ -19,7 +19,7 @@ namespace RabbitMqNext.Tests
 		public void Init()
 		{
 			_cancellationTokenSrc = new CancellationTokenSource();
-			_buffer = new RingBuffer2(_cancellationTokenSrc.Token, 32, new LockWaitingStrategy(_cancellationTokenSrc.Token));
+			_buffer = new BufferRingBuffer(_cancellationTokenSrc.Token, 32, new LockWaitingStrategy(_cancellationTokenSrc.Token));
 
 			_temp = new byte[300];
 		}

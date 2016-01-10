@@ -13,7 +13,7 @@ namespace RabbitMqNext.Internals
 		public readonly InternalBigEndianWriter Writer;
 		public readonly InternalBigEndianReader Reader;
 
-		private readonly RingBuffer2 _inputBuffer, _outputBuffer;
+		private readonly BufferRingBuffer _inputBuffer, _outputBuffer;
 		private readonly SocketConsumer _socketConsumer;
 		private readonly SocketProducer _socketProducer;
 
@@ -25,8 +25,8 @@ namespace RabbitMqNext.Internals
 		{
 			_notifyWhenClosed = notifyWhenClosed;
 
-			_inputBuffer = new RingBuffer2(cancellationToken);
-			_outputBuffer = new RingBuffer2(cancellationToken);
+			_inputBuffer = new BufferRingBuffer(cancellationToken);
+			_outputBuffer = new BufferRingBuffer(cancellationToken);
 
 			_inputRingBufferStream = new RingBufferStreamAdapter(_inputBuffer);
 			_outputRingBufferStream = new RingBufferStreamAdapter(_outputBuffer);

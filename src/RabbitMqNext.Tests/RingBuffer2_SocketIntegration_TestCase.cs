@@ -43,17 +43,17 @@ namespace RabbitMqNext.Tests
 			var cancellationTokenSrc = new CancellationTokenSource();
 			var cancellationToken = cancellationTokenSrc.Token;
 
-			var inputBuffer = new RingBuffer2(cancellationToken);
-			var outputBuffer = new RingBuffer2(cancellationToken);
+			var inputBuffer = new BufferRingBuffer(cancellationToken);
+			var outputBuffer = new BufferRingBuffer(cancellationToken);
 
 			var inputRingBufferStream = new RingBufferStreamAdapter(inputBuffer);
 			var outputRingBufferStream = new RingBufferStreamAdapter(outputBuffer);
 
 			// WriteLoop
-			var socketConsumer = new SocketConsumer(socketOut, outputBuffer, cancellationToken, true);
+			var socketConsumer = new SocketConsumer(socketOut, outputBuffer, cancellationToken);
 
 			// ReadLoop
-			var socketProducer = new SocketProducer(acceptedSocket, inputBuffer, cancellationToken, true);
+			var socketProducer = new SocketProducer(acceptedSocket, inputBuffer, cancellationToken);
 
 
 			var input = new byte[1025];

@@ -42,7 +42,6 @@
 
 		private readonly ObjectPool<CommandToSend> _cmdToSendObjPool;
 
-
 		public ConnectionStateMachine(InternalBigEndianReader reader, 
 			AmqpPrimitivesReader amqpReader, 
 			AmqpPrimitivesWriter amqpWriter, 
@@ -162,6 +161,7 @@
 			ThrowIfErrorPending();
 
 			var cmd = _cmdToSendObjPool.GetObject();
+			// var cmd = new CommandToSend(null);
 			cmd.Channel = channel;
 			cmd.ClassId = classId; 
 			cmd.MethodId = methodId;
