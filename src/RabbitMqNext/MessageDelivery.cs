@@ -1,5 +1,6 @@
 namespace RabbitMqNext
 {
+	using System;
 	using System.IO;
 
 	public struct MessageDelivery
@@ -12,6 +13,7 @@ namespace RabbitMqNext
 		public long bodySize;
 		public BasicProperties properties;
 		public Stream stream;
+		public byte[] Body;
 	}
 
 	public struct UndeliveredMessage

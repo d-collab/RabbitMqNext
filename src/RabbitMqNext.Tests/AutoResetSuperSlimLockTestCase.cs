@@ -136,7 +136,7 @@ namespace RabbitMqNext.Tests
 		}
 
 		[Test]
-		public async void ConcurrentSetsAndWaits__3()
+		public void ConcurrentSetsAndWaits__3()
 		{
 			var autoResSlim = new AutoResetSuperSlimLock(false);
 
@@ -150,7 +150,7 @@ namespace RabbitMqNext.Tests
 
 			for (int i = 0; i < 4; i++)
 			{
-				var t = Task.Factory.StartNew(async (p) =>
+				var t = Task.Factory.StartNew((p) =>
 				{
 					barrier.WaitOne();
 
@@ -173,7 +173,7 @@ namespace RabbitMqNext.Tests
 				tasks.Add(t);
 			}
 
-			var t1 = Task.Factory.StartNew(async () =>
+			var t1 = Task.Factory.StartNew(() =>
 			{
 				barrier.Set();
 				for (int i = 0; i < 4000; i++)

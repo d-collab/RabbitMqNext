@@ -4,14 +4,21 @@
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.IO;
+	using System.Threading;
 	using System.Threading.Tasks;
 	using Internals;
+	using Internals.RingBuffer;
+
+	public enum ConsumeMode
+	{
+		SingleThreaded, Parallel
+	}
 
 	public class AmqpChannel // : IAmqpChannel
 	{
 		private readonly ushort _channelNum;
 		private readonly ConnectionStateMachine _connection;
-		private readonly ConcurrentDictionary<string, Func<MessageDelivery, Task>> _consumerSubscriptions;
+		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
 		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 
 		private volatile int _closed = 0;
@@ -24,7 +31,7 @@
 			_channelNum = channelNum;
 			_connection = connection;
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
-			_consumerSubscriptions = new ConcurrentDictionary<string, Func<MessageDelivery, Task>>(StringComparer.Ordinal);
+			_consumerSubscriptions = new ConcurrentDictionary<string, BasicConsumerSubscriptionInfo>(StringComparer.Ordinal);
 
 			_taskLightPool = new ObjectPool<TaskLight>(() =>
 				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
@@ -237,39 +244,24 @@
 			return tcs;
 		}
 
-		public Task<string> BasicConsume(Func<MessageDelivery, Task> consumer,
+		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 250)
+		{
+			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
+			await helper.Setup();
+			return helper;
+		}
+
+		public Task<string> BasicConsume(ConsumeMode mode, Func<MessageDelivery, Task> consumer,
 			string queue, string consumerTag, bool withoutAcks, bool exclusive, 
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
-			_consumerSubscriptions[consumerTag] = consumer;
+			_consumerSubscriptions[consumerTag] = new BasicConsumerSubscriptionInfo()
+			{
+				Mode = mode,
+				Callback = consumer
+			};
 
-			var tcs = new TaskCompletionSource<string>();
-
-			var writer = AmqpChannelLevelFrameWriter.BasicConsume(queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
-
-			_connection.SendCommand(_channelNum, 60, 20, writer, 
-				reply: async (channel, classMethodId, error) =>
-				{
-					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
-					{
-						await _connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
-						{
-							tcs.SetResult(consumerTag2);
-
-							return Task.CompletedTask;
-						});
-					}
-					else if (!waitConfirmation)
-					{
-						tcs.SetResult(consumerTag);
-					}
-					else
-					{
-						Util.SetException(tcs, error, classMethodId);
-					}
-				}, expectsReply: waitConfirmation);
-
-			return tcs.Task;
+			return InternalBasicConsume(queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
 		}
 
 		public Task BasicCancel(string consumerTag, bool waitConfirmation)
@@ -368,6 +360,40 @@
 			return tcs.Task;
 		}
 
+		private Task<string> InternalBasicConsume(string queue, string consumerTag, 
+												  bool withoutAcks, bool exclusive, 
+												  IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			var tcs = new TaskCompletionSource<string>();
+
+			var writer = AmqpChannelLevelFrameWriter.BasicConsume(
+				queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
+
+			_connection.SendCommand(_channelNum, 60, 20, writer,
+				reply: async (channel, classMethodId, error) =>
+				{
+					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
+					{
+						await _connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
+						{
+							tcs.SetResult(consumerTag2);
+
+							return Task.CompletedTask;
+						});
+					}
+					else if (!waitConfirmation)
+					{
+						tcs.SetResult(consumerTag);
+					}
+					else
+					{
+						Util.SetException(tcs, error, classMethodId);
+					}
+				}, expectsReply: waitConfirmation);
+
+			return tcs.Task;
+		}
+
 		internal async Task DispatchMethod(ushort channel, int classMethodId)
 		{
 			switch (classMethodId)
@@ -386,11 +412,12 @@
 			}
 		}
 
-		private async Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, 
+		private  Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, 
 			bool redelivered, string exchange, string routingKey,
 			long bodySize, BasicProperties properties, Stream stream)
 		{
-			Func<MessageDelivery, Task> consumer;
+			BasicConsumerSubscriptionInfo consumer;
+
 			if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
 			{
 				var delivery = new MessageDelivery()
@@ -398,17 +425,50 @@
 					bodySize = bodySize,
 					properties = properties,
 					routingKey = routingKey,
-					stream = stream,
 					deliveryTag = deliveryTag,
 					redelivered = redelivered
 				};
 
-				await consumer(delivery);
+				var mode = consumer.Mode;
+				var cb = consumer.Callback;
+
+				if (mode == ConsumeMode.SingleThreaded)
+				{
+					// run with scissors
+					delivery.stream = stream; 
+
+					// single threaded mode
+					return cb(delivery);
+				}
+				// else if (mode == ConsumeMode.Parallel)
+				{
+					// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
+
+					// since we dont have any control on how the user 
+					// will deal with the buffer we cant even re-use/use a pool, etc :-(
+					delivery.Body = BufferUtil.Copy(stream as RingBufferStreamAdapter, (int) bodySize);
+
+					// Fingers crossed the threadpool is large enough
+
+//					Task.Factory.StartNew(() =>
+//					{
+//						cb(delivery);
+//					}, TaskCreationOptions.PreferFairness);
+
+					ThreadPool.UnsafeQueueUserWorkItem((param) =>
+					{
+						cb(delivery);
+					}, null);
+
+					return Task.CompletedTask;
+				}
 			}
 			else
 			{
-				// received msg but nobody was subscribed to get it (?)
+				// received msg but nobody was subscribed to get it (?) TODO: log it at least
 			}
+
+			return Task.CompletedTask;
 		}
 
 		private async Task DispatchBasicReturn(ushort replyCode, 
@@ -439,6 +499,12 @@
 		private void GenericRecycler<T>(T item, ObjectPool<T> pool) where T : class
 		{
 			pool.PutObject(item);
+		}
+
+		class BasicConsumerSubscriptionInfo
+		{
+			public ConsumeMode Mode;
+			public Func<MessageDelivery, Task> Callback;
 		}
 	}
 }

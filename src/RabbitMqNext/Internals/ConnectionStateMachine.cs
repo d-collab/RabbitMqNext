@@ -92,10 +92,11 @@
 			}
 		}
 
-		public override async Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
+		public override Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)
 		{
 			var error = new AmqpError() {ClassId = classId, MethodId = methodId, ReplyCode = replyCode, ReplyText = replyText};
 			DrainMethodsWithErrorAndClose(error, classId, methodId);
+			return Task.CompletedTask;
 		}
 
 		public override async Task DispatchChannelCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId)

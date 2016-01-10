@@ -118,7 +118,7 @@
 				int totalReceived = 0;
 
 				Console.WriteLine("[subscribing to queue] ");
-				var sub = await newChannel2.BasicConsume(async (delivery) =>
+				var sub = await newChannel2.BasicConsume(ConsumeMode.Parallel, async (delivery) =>
 				{
 					// var len = await delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
 					// var str = Encoding.UTF8.GetString(temp, 0, len);
@@ -134,7 +134,9 @@
 
 					// newChannel2.BasicAck()
 
-					if (++totalReceived == TotalPublish)
+					var val = Interlocked.Increment(ref totalReceived);
+
+					if (val == TotalPublish)
 					{
 						watch.Stop();
 						Console.WriteLine("Consume stress. Took " + 
@@ -149,7 +151,7 @@
 
 				Console.WriteLine("[subscribed to queue] " + sub);
 
-				await Task.Delay(TimeSpan.FromMinutes(1));
+				await Task.Delay(TimeSpan.FromMinutes(5));
 
 				await newChannel.Close();
 				await newChannel2.Close();

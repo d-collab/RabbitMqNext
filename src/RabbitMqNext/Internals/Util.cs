@@ -16,12 +16,16 @@
 				if (/*sent.Channel == channel &&*/ sent.ClassId == classId && sent.MethodId == methodId)
 				{
 					// if we find the "offending" command, then it gets a better error message
+#pragma warning disable 4014
 					sent.ReplyAction3(0, -1, amqpError);
+#pragma warning restore 4014
 				}
 				else
 				{
 					// any other task dies with a generic error.
+#pragma warning disable 4014
 					sent.ReplyAction3(0, -1, null);
+#pragma warning restore 4014
 				}
 			}
 		}
