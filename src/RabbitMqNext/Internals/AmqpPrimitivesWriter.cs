@@ -55,53 +55,6 @@ namespace RabbitMqNext.Internals
 			_writer.Write((uint)v);
 		}
 
-		public void WriteBufferWithPayloadFirst(Action<AmqpPrimitivesWriter> writeFn)
-		{
-			var memStream = _memStreamPool.GetObject();
-
-			try
-			{
-				memStream.EnsureMaxFrameSizeSet(this.FrameMaxSize);
-
-				writeFn(memStream._writer2);
-
-				var payloadSize = (uint)memStream._memoryStream.Position;
-
-				this.WriteLong(payloadSize);
-				// Console.WriteLine("conclusion: payload size  " + payloadSize);
-
-				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize);
-			}
-			finally
-			{
-				_memStreamPool.PutObject(memStream);
-			}
-		}
-
-		public void WriteFrameWithPayloadFirst(int frameType, ushort channel, Action<AmqpPrimitivesWriter> writeFn)
-		{
-			var memStream = _memStreamPool.GetObject();
-
-			try
-			{
-				memStream.EnsureMaxFrameSizeSet(this.FrameMaxSize);
-
-				writeFn(memStream._writer2);
-
-				var payloadSize = (uint) memStream._memoryStream.Position;
-
-				this.WriteFrameStart(frameType, channel, payloadSize);
-
-				memStream._writer2.WriteOctet(AmqpConstants.FrameEnd);
-
-				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize + 1);
-			}
-			finally
-			{
-				_memStreamPool.PutObject(memStream);
-			}
-		}
-
 		public void WriteTable(IDictionary<string, object> table)
 		{
 			if (table == null || table.Count == 0)
@@ -110,14 +63,35 @@ namespace RabbitMqNext.Internals
 				return;
 			}
 
-			WriteBufferWithPayloadFirst(w =>
+//			WriteBufferWithPayloadFirst(w =>
+//			{
+//				foreach (var entry in table)
+//				{
+//					w.WriteShortstr(entry.Key);
+//					w.WriteFieldValue(entry.Value);
+//				}
+//			});
+
+			var memStream = _memStreamPool.GetObject();
+			try
 			{
+				memStream.EnsureMaxFrameSizeSet(this.FrameMaxSize);
+
 				foreach (var entry in table)
 				{
-					w.WriteShortstr(entry.Key);
-					w.WriteFieldValue(entry.Value);
+					memStream._writer2.WriteShortstr(entry.Key);
+					memStream._writer2.WriteFieldValue(entry.Value);
 				}
-			});
+
+				var payloadSize = (uint)memStream._memoryStream.Position;
+				this.WriteLong(payloadSize);
+
+				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize);
+			}
+			finally
+			{
+				_memStreamPool.PutObject(memStream);
+			}
 		}
 
 		public void WriteArray(IList array)
@@ -293,8 +267,54 @@ namespace RabbitMqNext.Internals
 			_writer.Write((ulong)ts.UnixTime);
 		}
 
-		private readonly byte[] _frameBuff = new byte[7];
+		public void WriteBufferWithPayloadFirst(Action<AmqpPrimitivesWriter> writeFn)
+		{
+			var memStream = _memStreamPool.GetObject();
 
+			try
+			{
+				memStream.EnsureMaxFrameSizeSet(this.FrameMaxSize);
+
+				writeFn(memStream._writer2);
+
+				var payloadSize = (uint)memStream._memoryStream.Position;
+
+				this.WriteLong(payloadSize);
+				// Console.WriteLine("conclusion: payload size  " + payloadSize);
+
+				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize);
+			}
+			finally
+			{
+				_memStreamPool.PutObject(memStream);
+			}
+		}
+
+		public void WriteFrameWithPayloadFirst(int frameType, ushort channel, Action<AmqpPrimitivesWriter> writeFn)
+		{
+			var memStream = _memStreamPool.GetObject();
+
+			try
+			{
+				memStream.EnsureMaxFrameSizeSet(this.FrameMaxSize);
+
+				writeFn(memStream._writer2);
+
+				var payloadSize = (uint)memStream._memoryStream.Position;
+
+				this.WriteFrameStart(frameType, channel, payloadSize);
+
+				memStream._writer2.WriteOctet(AmqpConstants.FrameEnd);
+
+				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize + 1);
+			}
+			finally
+			{
+				_memStreamPool.PutObject(memStream);
+			}
+		}
+
+		private readonly byte[] _frameBuff = new byte[7];
 		public void WriteFrameStart(int frameType, ushort channel, uint payloadSize)
 		{
 			_frameBuff[0] = (byte) frameType;
@@ -308,6 +328,54 @@ namespace RabbitMqNext.Internals
 			_frameBuff[6] = (byte)(payloadSize & 0x000000FF);
 
 			_writer.Write(_frameBuff, 0, 7);
+		}
+
+		public void WriteFrameHeader(ushort channel, ulong bodySize, BasicProperties properties)
+		{
+			var memStream = _memStreamPool.GetObject();
+
+			try
+			{
+				memStream.EnsureMaxFrameSizeSet(this.FrameMaxSize);
+
+				var w = memStream._writer2;
+				{
+					w.WriteUShort((ushort)60);
+					w.WriteUShort((ushort)0); // weight. not used
+					w.WriteULong(bodySize);
+
+					// no support for continuation. must be less than 15 bits used
+					w.WriteUShort(properties._presenceSWord);
+
+					if (properties.IsContentTypePresent) { w.WriteShortstr(properties.ContentType); }
+					if (properties.IsContentEncodingPresent) { w.WriteShortstr(properties.ContentEncoding); }
+					if (properties.IsHeadersPresent) { w.WriteTable(properties.Headers); }
+					if (properties.IsDeliveryModePresent) { w.WriteOctet(properties.DeliveryMode); }
+					if (properties.IsPriorityPresent) { w.WriteOctet(properties.Priority); }
+					if (properties.IsCorrelationIdPresent) { w.WriteShortstr(properties.CorrelationId); }
+					if (properties.IsReplyToPresent) { w.WriteShortstr(properties.ReplyTo); }
+					if (properties.IsExpirationPresent) { w.WriteShortstr(properties.Expiration); }
+					if (properties.IsMessageIdPresent) { w.WriteShortstr(properties.MessageId); }
+					if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp); }
+					if (properties.IsTypePresent) { w.WriteShortstr(properties.Type); }
+					if (properties.IsUserIdPresent) { w.WriteShortstr(properties.UserId); }
+					if (properties.IsAppIdPresent) { w.WriteShortstr(properties.AppId); }
+					if (properties.IsClusterIdPresent) { w.WriteShortstr(properties.ClusterId); }
+				};
+
+				var payloadSize = (uint)memStream._memoryStream.Position;
+
+				this.WriteFrameStart(AmqpConstants.FrameHeader, channel, payloadSize);
+
+				memStream._writer2.WriteOctet(AmqpConstants.FrameEnd);
+
+				// write/copy the inner stream content (basicproperties + frameend)
+				_writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)payloadSize + 1);
+			}
+			finally
+			{
+				_memStreamPool.PutObject(memStream);
+			}
 		}
 	}
 }

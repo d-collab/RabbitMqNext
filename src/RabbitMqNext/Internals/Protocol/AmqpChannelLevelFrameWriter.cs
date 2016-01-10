@@ -174,30 +174,7 @@ namespace RabbitMqNext.Internals
 			}
 			else
 			{
-				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameHeader, channel, w =>
-				{
-					w.WriteUShort((ushort)60);
-					w.WriteUShort((ushort)0); // weight. not used
-					w.WriteULong(bodySize);
-
-					// no support for continuation. must be less than 15 bits used
-					w.WriteUShort(properties._presenceSWord);
-
-					if (properties.IsContentTypePresent) { w.WriteShortstr(properties.ContentType); }
-					if (properties.IsContentEncodingPresent) { w.WriteShortstr(properties.ContentEncoding); }
-					if (properties.IsHeadersPresent) { w.WriteTable(properties.Headers); }
-					if (properties.IsDeliveryModePresent) { w.WriteOctet(properties.DeliveryMode); }
-					if (properties.IsPriorityPresent) { w.WriteOctet(properties.Priority); }
-					if (properties.IsCorrelationIdPresent) { w.WriteShortstr(properties.CorrelationId); }
-					if (properties.IsReplyToPresent) { w.WriteShortstr(properties.ReplyTo); }
-					if (properties.IsExpirationPresent) { w.WriteShortstr(properties.Expiration); }
-					if (properties.IsMessageIdPresent) { w.WriteShortstr(properties.MessageId); }
-					if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp); }
-					if (properties.IsTypePresent) { w.WriteShortstr(properties.Type); }
-					if (properties.IsUserIdPresent) { w.WriteShortstr(properties.UserId); }
-					if (properties.IsAppIdPresent) { w.WriteShortstr(properties.AppId); }
-					if (properties.IsClusterIdPresent) { w.WriteShortstr(properties.ClusterId); }
-				});
+				writer.WriteFrameHeader(channel, bodySize, properties);
 			}
 		}
 
