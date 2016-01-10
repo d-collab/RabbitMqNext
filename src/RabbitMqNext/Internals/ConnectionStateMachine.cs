@@ -1,12 +1,12 @@
 ﻿namespace RabbitMqNext.Internals
 {
 	using System;
-	using System.Buffers;
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.Text;
 	using System.Threading;
 	using System.Threading.Tasks;
+	using RingBuffer;
 
 
 	// State machine is:
@@ -21,9 +21,8 @@
 		private readonly AmqpPrimitivesWriter _amqpWriter;
 		private readonly CancellationToken _cancellationToken;
 
-		private readonly ManualResetEventSlim _commandsToSendEvent;
-		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
 		private readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
+		private readonly ElementRingBuffer<CommandToSend> _commandOutbox2;
 
 		internal readonly FrameReader _frameReader;
 
@@ -53,9 +52,7 @@
 			_cmdToSendObjPool = new ObjectPool<CommandToSend>(
 				() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 100, true);
 
-			// _commandsToSendEvent = new AutoResetEvent(false);
-			_commandsToSendEvent = new ManualResetEventSlim(false);
-			_commandOutbox = new ConcurrentQueue<CommandToSend>();
+			_commandOutbox2 = new ElementRingBuffer<CommandToSend>(cancellationToken, 64, new LockWaitingStrategy(cancellationToken));
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
 
 			_frameReader = new FrameReader(reader, amqpReader, this);
@@ -150,7 +147,7 @@
 
 		public void Dispose()
 		{
-			_commandsToSendEvent.Dispose();
+			_commandOutbox2.Dispose();
 		}
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
@@ -172,9 +169,9 @@
 			cmd.TcsLight = tcsL;
 			cmd.OptionalArg = optArg;
 
-			_commandOutbox.Enqueue(cmd);
-
-			_commandsToSendEvent.Set();
+			// _commandOutbox.Enqueue(cmd);
+			_commandOutbox2.WriteToNextAvailable(cmd);
+			// _commandsToSendEvent.Set();
 		}
 
 		private async void WriteCommandsToSocket()
@@ -183,40 +180,34 @@
 			{
 				while (!_cancellationToken.IsCancellationRequested)
 				{
-					_commandsToSendEvent.Wait(_cancellationToken);
-					_commandsToSendEvent.Reset();
+					// Console.WriteLine(" writing command ");
+					var cmdToSend = _commandOutbox2.GetNextAvailable();
 
-					CommandToSend cmdToSend;
-					while (_commandOutbox.TryDequeue(out cmdToSend))
+					if (cmdToSend.ExpectsReply)
 					{
-						// Console.WriteLine(" writing command ");
-
-						if (cmdToSend.ExpectsReply)
-						{
-							if (cmdToSend.Channel == 0)
-								_awaitingReplyQueue.Enqueue(cmdToSend);
-							else
-								_channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
-						}
-
-						// writes to socket
-						var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
-						if (frameWriter != null)
-						{
-							frameWriter.Write(_amqpWriter, cmdToSend.Channel,
-											  cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-						}
+						if (cmdToSend.Channel == 0)
+							_awaitingReplyQueue.Enqueue(cmdToSend);
 						else
-						{
-							cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
-													   cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-						}
+							_channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
+					}
 
-						// if writing to socket is enough, set as complete
-						if (!cmdToSend.ExpectsReply)
-						{
-							await cmdToSend.ReplyAction3(0, 0, null);
-						}
+					// writes to socket
+					var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
+					if (frameWriter != null)
+					{
+						frameWriter.Write(_amqpWriter, cmdToSend.Channel,
+											cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+					}
+					else
+					{
+						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
+													cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+					}
+
+					// if writing to socket is enough, set as complete
+					if (!cmdToSend.ExpectsReply)
+					{
+						await cmdToSend.ReplyAction3(0, 0, null);
 					}
 				}
 			}

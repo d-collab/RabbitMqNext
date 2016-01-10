@@ -4,7 +4,7 @@
 	using System.Collections.Generic;
 	using System.Threading;
 
-	internal class RingBuffer<T> : BaseRingBuffer, IDisposable 
+	internal class ElementRingBuffer<T> : BaseRingBuffer, IDisposable 
 		where T : class
 	{
 		private const int MinBufferSize = 8;
@@ -12,12 +12,12 @@
 
 		private readonly T[] _elements;
 
-		public RingBuffer(CancellationToken cancellationToken) : 
+		public ElementRingBuffer(CancellationToken cancellationToken) : 
 			this(cancellationToken, DefaultBufferSize, new LockWaitingStrategy(cancellationToken))
 		{
 		}
 
-		public RingBuffer(CancellationToken cancellationToken, int bufferSize, WaitingStrategy waitingStrategy)
+		public ElementRingBuffer(CancellationToken cancellationToken, int bufferSize, WaitingStrategy waitingStrategy)
 			: base(cancellationToken, bufferSize, waitingStrategy)
 		{
 			if (bufferSize < MinBufferSize) throw new ArgumentException("buffer must be at least " + MinBufferSize, "bufferSize");
@@ -45,7 +45,7 @@
 			_waitingStrategy.SignalWriteDone(); // signal - if someone is waiting
 		}
 
-		public IEnumerable<T> GetNextAvailable()
+		public T GetNextAvailable()
 		{
 			AvailableAndPos availPos;
 			while (true)
@@ -58,14 +58,21 @@
 
 			int readPos = (int)availPos.position;
 
-			for (int i = 0; i < availPos.available; i++)
-			{
-				var elem = _elements[i + readPos];
-				yield return elem;
+//			for (int i = 0; i < availPos.available; i++)
+//			{
+//				var elem = _elements[i + readPos];
+//				yield return elem;
+//
+//				_readPosition += (uint)1;          // volative write
+//				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
+//			}
 
-				_readPosition += (uint)1;          // volative write
-				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
-			}
+			var elem = _elements[readPos];
+
+			_readPosition += (uint)1;          // volative write
+			_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
+
+			return elem;
 		}
 
 		public void Dispose()

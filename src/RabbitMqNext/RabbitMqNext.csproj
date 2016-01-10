@@ -90,7 +90,7 @@
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetCASEvent.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetEvent.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncManualResetEvent.cs" />
-    <Compile Include="Internals\RingBuffer\RingBuffer.cs" />
+    <Compile Include="Internals\RingBuffer\ElementRingBuffer.cs" />
     <Compile Include="Internals\RingBuffer\BufferRingBuffer.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferPositionMarker.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs">
