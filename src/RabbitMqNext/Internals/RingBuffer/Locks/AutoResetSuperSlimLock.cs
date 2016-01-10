@@ -53,6 +53,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 				var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 				_waiters.Enqueue(tcs);
+				return tcs.Task;
 			}
 
 			return Task.CompletedTask;
@@ -112,7 +113,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		{
 			AtomicChange(1, SignalledStatePos, SignalledStateMask);
 
-			List<TaskCompletionSource<bool>> tcss = null;
+			TaskCompletionSource<bool> tcs = null;
 
 			lock (_lock)
 			{
@@ -122,27 +123,18 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 				}
 				else
 				{
-					do
+					if (_waiters.TryDequeue(out tcs))
 					{
-						TaskCompletionSource<bool> tcs;
-						if (_waiters.TryDequeue(out tcs))
-						{
-							if (tcss == null) tcss = new List<TaskCompletionSource<bool>>();
-							AtomicChange(0, SignalledStatePos, SignalledStateMask);
-							tcss.Add(tcs);
-						}
-						else break;
-
-					} while (!_waiters.IsEmpty);
+						AtomicChange(0, SignalledStatePos, SignalledStateMask);
+					}
 				}
 			}
 			// schedules the continuation to run
 			// since it was created with TaskCreationOptions.RunContinuationsAsynchronously
 			// it's guaranteed to run outside this _lock, but just in case...
-			if (tcss != null)
+			if (tcs != null)
 			{
-				foreach (var tcs in tcss)
-					tcs.SetResult(true);
+				tcs.SetResult(true);
 			}
 		}
 
