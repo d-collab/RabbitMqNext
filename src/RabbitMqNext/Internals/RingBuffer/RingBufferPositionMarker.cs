@@ -6,10 +6,10 @@ namespace RabbitMqNext.Internals.RingBuffer
 	/// </summary>
 	internal struct RingBufferPositionMarker
 	{
-		private readonly RingBuffer2 _ringBuffer;
+		private readonly BufferRingBuffer _ringBuffer;
 		private uint _start;
 
-		public RingBufferPositionMarker(RingBuffer2 ringBuffer)
+		public RingBufferPositionMarker(BufferRingBuffer ringBuffer)
 		{
 			_ringBuffer = ringBuffer;
 			_start = _ringBuffer.GlobalReadPos;
