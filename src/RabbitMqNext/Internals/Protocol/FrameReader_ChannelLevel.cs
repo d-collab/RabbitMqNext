@@ -11,7 +11,7 @@ namespace RabbitMqNext.Internals
 		{
 			Console.WriteLine("< QueueDeclareOk");
 
-			string queue = await _amqpReader.ReadShortStr();
+			string queue = _amqpReader.ReadShortStr();
 			uint messageCount = _amqpReader.ReadLong();
 			uint consumerCount = _amqpReader.ReadLong();
 
@@ -20,10 +20,10 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_Channel_Close2(Func<ushort, string, ushort, ushort, Task> continuation)
 		{
-			var replyCode = _amqpReader.ReadShort();
-			var replyText = await _amqpReader.ReadShortStr();
-			var classId = _amqpReader.ReadShort();
-			var methodId = _amqpReader.ReadShort();
+			ushort replyCode = _amqpReader.ReadShort();
+			string replyText = _amqpReader.ReadShortStr();
+			ushort classId = _amqpReader.ReadShort();
+			ushort methodId = _amqpReader.ReadShort();
 
 			Console.WriteLine("< channel close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
@@ -32,34 +32,34 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, long, BasicProperties, Stream, Task> continuation)
 		{
-			var consumerTag = await _amqpReader.ReadShortStr();
-			var deliveryTag = await _amqpReader.ReadULong();
-			var redelivered = await _amqpReader.ReadBits() != 0;
-			var exchange = await _amqpReader.ReadShortStr();
-			var routingKey = await _amqpReader.ReadShortStr();
+			string consumerTag = _amqpReader.ReadShortStr();
+			ulong deliveryTag = _amqpReader.ReadULong();
+			bool redelivered = _amqpReader.ReadBits() != 0;
+			string exchange =  _amqpReader.ReadShortStr();
+			string routingKey =  _amqpReader.ReadShortStr();
 
-			var frameEndMarker = await _amqpReader.ReadOctet();
+			byte frameEndMarker = _amqpReader.ReadOctet();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
 
 			// Frame Header / Content header
 
-			var frameHeaderStart = await _amqpReader.ReadOctet();
+			byte frameHeaderStart = _amqpReader.ReadOctet();
 			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
 
 			// await _reader.SkipBy(4 + 2 + 2 + 2);
 			ushort channel = _reader.ReadUInt16();
-			int payloadLength = await _reader.ReadInt32();
-			var classId = _reader.ReadUInt16();
-			var weight = _reader.ReadUInt16();
-			var bodySize = (long) await _reader.ReadUInt64();
+			int payloadLength = _reader.ReadInt32();
+			ushort classId = _reader.ReadUInt16();
+			ushort weight = _reader.ReadUInt16();
+			long bodySize = (long) _reader.ReadUInt64();
 
-			var properties = await ReadRestOfContentHeader();
+			BasicProperties properties = ReadRestOfContentHeader();
 
 			// Frame Body(s)
 
 			// Support just single body at this moment.
 
-			frameHeaderStart = await _reader.ReadByte();
+			frameHeaderStart = _reader.ReadByte();
 			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
 			// await _reader.SkipBy(2);
@@ -90,7 +90,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		private async Task<BasicProperties> ReadRestOfContentHeader()
+		private BasicProperties ReadRestOfContentHeader()
 		{
 			var presence = _reader.ReadUInt16();
 
@@ -103,23 +103,23 @@ namespace RabbitMqNext.Internals
 			else
 			{
 				properties = new BasicProperties {_presenceSWord = presence};
-				if (properties.IsContentTypePresent) { properties.ContentType = await _amqpReader.ReadShortStr(); }
-				if (properties.IsContentEncodingPresent) { properties.ContentEncoding = await _amqpReader.ReadShortStr(); }
-				if (properties.IsHeadersPresent) { properties.Headers = await _amqpReader.ReadTable(); }
-				if (properties.IsDeliveryModePresent) { properties.DeliveryMode = await _amqpReader.ReadOctet(); }
-				if (properties.IsPriorityPresent) { properties.Priority = await _amqpReader.ReadOctet(); }
-				if (properties.IsCorrelationIdPresent) { properties.CorrelationId = await _amqpReader.ReadShortStr(); }
-				if (properties.IsReplyToPresent) { properties.ReplyTo = await _amqpReader.ReadShortStr(); }
-				if (properties.IsExpirationPresent) { properties.Expiration = await _amqpReader.ReadShortStr(); }
-				if (properties.IsMessageIdPresent) { properties.MessageId = await _amqpReader.ReadShortStr(); }
-				if (properties.IsTimestampPresent) { properties.Timestamp = await _amqpReader.ReadTimestamp(); }
-				if (properties.IsTypePresent) { properties.Type = await _amqpReader.ReadShortStr(); }
-				if (properties.IsUserIdPresent) { properties.UserId = await _amqpReader.ReadShortStr(); }
-				if (properties.IsAppIdPresent) { properties.AppId = await _amqpReader.ReadShortStr(); }
-				if (properties.IsClusterIdPresent) { properties.ClusterId = await _amqpReader.ReadShortStr(); }
+				if (properties.IsContentTypePresent) { properties.ContentType =  _amqpReader.ReadShortStr(); }
+				if (properties.IsContentEncodingPresent) { properties.ContentEncoding =  _amqpReader.ReadShortStr(); }
+				if (properties.IsHeadersPresent) { properties.Headers =  _amqpReader.ReadTable(); }
+				if (properties.IsDeliveryModePresent) { properties.DeliveryMode = _amqpReader.ReadOctet(); }
+				if (properties.IsPriorityPresent) { properties.Priority = _amqpReader.ReadOctet(); }
+				if (properties.IsCorrelationIdPresent) { properties.CorrelationId =  _amqpReader.ReadShortStr(); }
+				if (properties.IsReplyToPresent) { properties.ReplyTo =  _amqpReader.ReadShortStr(); }
+				if (properties.IsExpirationPresent) { properties.Expiration =  _amqpReader.ReadShortStr(); }
+				if (properties.IsMessageIdPresent) { properties.MessageId =  _amqpReader.ReadShortStr(); }
+				if (properties.IsTimestampPresent) { properties.Timestamp =  _amqpReader.ReadTimestamp(); }
+				if (properties.IsTypePresent) { properties.Type =  _amqpReader.ReadShortStr(); }
+				if (properties.IsUserIdPresent) { properties.UserId =  _amqpReader.ReadShortStr(); }
+				if (properties.IsAppIdPresent) { properties.AppId =  _amqpReader.ReadShortStr(); }
+				if (properties.IsClusterIdPresent) { properties.ClusterId = _amqpReader.ReadShortStr(); }
 			}
 
-			int frameEndMarker = await _reader.ReadByte();
+			byte frameEndMarker = _reader.ReadByte();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
 
 			return properties;
@@ -127,7 +127,7 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_BasicConsumeOk(Func<string, Task> continuation)
 		{
-			var consumerTag = await _amqpReader.ReadShortStr();
+			var consumerTag = _amqpReader.ReadShortStr();
 
 			Console.WriteLine("< BasicConsumeOk ");
 
@@ -136,31 +136,31 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_BasicReturn(Func<ushort, string, string, string, uint, BasicProperties, Stream, Task> continuation)
 		{
-			var replyCode = _amqpReader.ReadShort();
-			var replyText = await _amqpReader.ReadShortStr();
-			var exchange = await _amqpReader.ReadShortStr();
-			var routingKey = await _amqpReader.ReadShortStr();
+			ushort replyCode = _amqpReader.ReadShort();
+			string replyText = _amqpReader.ReadShortStr();
+			string exchange = _amqpReader.ReadShortStr();
+			string routingKey = _amqpReader.ReadShortStr();
 
-			var frameEndMarker = await _amqpReader.ReadOctet();
+			byte frameEndMarker = _amqpReader.ReadOctet();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
 
 			// Frame Header / Content header
 
-			var frameHeaderStart = await _amqpReader.ReadOctet();
+			byte frameHeaderStart = _amqpReader.ReadOctet();
 			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
 
 			// await _reader.SkipBy(4 + 2 + 2 + 2);
 			ushort channel = _reader.ReadUInt16();
-			int payloadLength = await _reader.ReadInt32();
+			int payloadLength = _reader.ReadInt32();
 			ushort classId = _reader.ReadUInt16();
 			ushort weight = _reader.ReadUInt16();
-			var bodySize = (long)await _reader.ReadUInt64();
+			var bodySize = (long) _reader.ReadUInt64();
 
-			var properties = await ReadRestOfContentHeader();
+			BasicProperties properties = ReadRestOfContentHeader();
 
 			// Frame Body(s)
 
-			frameHeaderStart = await _reader.ReadByte();
+			frameHeaderStart = _reader.ReadByte();
 			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
 			await _reader.SkipBy(2); // channel = _reader.ReadUInt16();

@@ -303,11 +303,11 @@
 			var writer = AmqpChannelLevelFrameWriter.ChannelOpen();
 
 			_connection.SendCommand(_channelNum, 20, 10, writer,
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelOpenOk)
 					{
-						await _connection._frameReader.Read_ChannelOpenOk((reserved) =>
+						_connection._frameReader.Read_ChannelOpenOk((reserved) =>
 						{
 							tcs.SetResult(true);
 						});
@@ -316,6 +316,7 @@
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
+					return Task.CompletedTask;
 				}, expectsReply: true);
 
 			return tcs.Task;

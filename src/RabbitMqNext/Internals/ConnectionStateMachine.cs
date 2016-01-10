@@ -275,11 +275,11 @@
 
 			SendCommand(0, 0, 0, 
 				AmqpConnectionFrameWriter.Greeting(),
-				reply: async (channel, classMethodId, _) =>
+				reply: (channel, classMethodId, _) =>
 				{
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionStart)
 					{
-						await _frameReader.Read_ConnectionStart((versionMajor, versionMinor, serverProperties, mechanisms, locales) =>
+						_frameReader.Read_ConnectionStart((versionMajor, versionMinor, serverProperties, mechanisms, locales) =>
 						{
 //							_serverProperties = serverProperties;
 //							_mechanisms = mechanisms;
@@ -292,6 +292,7 @@
 						// Unexpected
 						tcs.SetException(new Exception("Unexpected result. Got " + classMethodId));
 					}
+					return Task.CompletedTask;
 
 				}, expectsReply: true);
 
@@ -315,11 +316,11 @@
 			var writer = AmqpConnectionFrameWriter.ConnectionOpen(vhost, string.Empty, false);
 
 			SendCommand(0, 10, 40, writer,
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionOpenOk)
 					{
-						await _frameReader.Read_ConnectionOpenOk((knowHosts) =>
+						_frameReader.Read_ConnectionOpenOk((knowHosts) =>
 						{
 							tcs.SetResult(knowHosts);
 						});
@@ -328,7 +329,7 @@
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
-
+					return Task.CompletedTask;
 				}, expectsReply: true);
 
 			return tcs.Task;
@@ -344,11 +345,11 @@
 			var writer = AmqpConnectionFrameWriter.ConnectionStartOk(Protocol.ClientProperties, "PLAIN", auth, "en_US");
 
 			SendCommand(0, 10, 30, writer, 
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionTune)
 					{
-						await _frameReader.Read_ConnectionTune((channelMax, frameMax, heartbeat) =>
+						_frameReader.Read_ConnectionTune((channelMax, frameMax, heartbeat) =>
 						{
 							_channelMax = channelMax;
 							_frameMax = frameMax;
@@ -361,7 +362,7 @@
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
-					
+					return Task.CompletedTask;
 				}, expectsReply: true);
 
 			return tcs.Task;
