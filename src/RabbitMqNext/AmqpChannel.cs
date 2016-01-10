@@ -215,11 +215,11 @@
 				properties = BasicProperties.Empty;
 			}
 
-			// var tcs = new TaskLight(null);
+//			var tcs = new TaskLight(null);
 			var tcs = _taskLightPool.GetObject();
 
 			var args = _basicPubArgsPool.GetObject();
-			// var args = new FrameParameters.BasicPublishArgs(null);
+//			var args = new FrameParameters.BasicPublishArgs(null);
 			args.exchange = exchange; 
 			args.immediate = immediate; 
 			args.routingKey = routingKey; 
@@ -395,11 +395,19 @@
 			{
 				var delivery = new MessageDelivery()
 				{
-					bodySize = bodySize, properties = properties, routingKey = routingKey, 
-					stream = stream, deliveryTag = deliveryTag, redelivered = redelivered
+					bodySize = bodySize,
+					properties = properties,
+					routingKey = routingKey,
+					stream = stream,
+					deliveryTag = deliveryTag,
+					redelivered = redelivered
 				};
 
 				await consumer(delivery);
+			}
+			else
+			{
+				// received msg but nobody was subscribed to get it (?)
 			}
 		}
 

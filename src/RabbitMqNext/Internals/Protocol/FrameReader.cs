@@ -35,7 +35,6 @@ namespace RabbitMqNext.Internals
 				ushort channel = _reader.ReadUInt16();
 				int payloadLength = _reader.ReadInt32();
 
-//				var initialPosition = _reader._ringBufferStream.Position;
 //				Console.WriteLine("> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
 
 				// needs special case for heartbeat, flow, etc.. 

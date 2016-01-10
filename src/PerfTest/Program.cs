@@ -105,7 +105,8 @@
 				}
 				watch.Stop();
 
-				Console.WriteLine("BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
+				Console.WriteLine("BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + 
+								  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
 
 				var newChannel2 = await conn.CreateChannel();
 				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
@@ -136,7 +137,9 @@
 					if (++totalReceived == TotalPublish)
 					{
 						watch.Stop();
-						Console.WriteLine("Consume stress. Took " + watch.Elapsed.TotalMilliseconds + "ms");
+						Console.WriteLine("Consume stress. Took " + 
+										  watch.Elapsed.TotalMilliseconds + 
+										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
 						totalReceived = 0;
 					}
 
