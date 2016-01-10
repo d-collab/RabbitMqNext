@@ -15,16 +15,16 @@ namespace RabbitMqNext.Internals
 		private readonly byte[] _fourByteArray = new byte[4];
 		private readonly byte[] _eightByteArray = new byte[8];
 
-		private readonly Task<byte>[] _cachedByteTaskResult = new Task<byte>[256];
+//		private readonly Task<byte>[] _cachedByteTaskResult = new Task<byte>[256];
 
 		internal InternalBigEndianReader(RingBufferStreamAdapter ringBufferStream)
 		{
 			_ringBufferStream = ringBufferStream;
 
-			for (int i = 0; i < 256; i++)
-			{
-				_cachedByteTaskResult[i] = Task.FromResult((byte) i);
-			}
+//			for (int i = 0; i < 256; i++)
+//			{
+//				_cachedByteTaskResult[i] = Task.FromResult((byte) i);
+//			}
 		}
 
 		// public long Position { get { return _ringBufferStream.Position; } }
