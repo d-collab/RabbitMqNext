@@ -29,20 +29,12 @@ namespace RabbitMqNext.Internals
 
 		// public long Position { get { return _ringBufferStream.Position; } }
 
-		private void FillBufferWithLock(byte[] buffer, int count, bool reverse = true)
+		public void FillBufferWithLock(byte[] buffer, int count, bool reverse = true)
 		{
 			int totalRead = 0;
 			while (totalRead < count)
 			{
 				totalRead += _ringBufferStream.Read(buffer, totalRead, count - totalRead);
-//				var t = _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
-//				if (t.IsCompleted)
-//					totalRead += t.Result;
-//				else
-//				{
-//					t.Wait();
-//					totalRead += t.Result;
-//				}
 			}
 			if (reverse && BitConverter.IsLittleEndian && count > 1)
 			{
@@ -50,29 +42,40 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task FillBuffer(byte[] buffer, int count, bool reverse = true)
-		{
-			int totalRead = 0;
-			while (totalRead < count)
-			{
-				// var read = await _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
-				var read = await _ringBufferStream.ReadAsync(buffer, totalRead, count - totalRead, _ringBufferStream.CancellationToken);
-				totalRead += read;
-			}
-			if (reverse && BitConverter.IsLittleEndian && count > 1)
-			{
-				Array.Reverse(buffer);
-			}
-		}
+//		public async Task FillBuffer(byte[] buffer, int count, bool reverse = true)
+//		{
+//			int totalRead = 0;
+//			while (totalRead < count)
+//			{
+//				// var read = await _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
+//				var read = await _ringBufferStream.ReadAsync(buffer, totalRead, count - totalRead, _ringBufferStream.CancellationToken);
+//				totalRead += read;
+//			}
+//			if (reverse && BitConverter.IsLittleEndian && count > 1)
+//			{
+//				Array.Reverse(buffer);
+//			}
+//		}
 
-		public Task<byte> ReadByte()
+		public byte ReadByte()
 		{
 			// await FillBuffer(_oneByteArray, 1);
 			FillBufferWithLock(_oneByteArray, 1, false);
-			var b = _oneByteArray[0];
-			return _cachedByteTaskResult[b];
-//			return b;
+			return _oneByteArray[0];
+			// return b;
+			// return _cachedByteTaskResult[b];
+			//			return b;
 		}
+
+//		public Task<byte> ReadByte()
+//		{
+//			// await FillBuffer(_oneByteArray, 1);
+//			FillBufferWithLock(_oneByteArray, 1, false);
+//			var b = _oneByteArray[0];
+//			// return b;
+//			return _cachedByteTaskResult[b];
+////			return b;
+//		}
 
 //		public Task<byte> ReadByte()
 //		{
@@ -92,38 +95,39 @@ namespace RabbitMqNext.Internals
 //			}, null, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
 //		}
 
-		public async Task<sbyte> ReadSByte()
+		public sbyte ReadSByte()
 		{
-			return (sbyte) await ReadByte();
+			// return (sbyte) await ReadByte();
+			return (sbyte) ReadByte();
 		}
 
-		public async Task<float> ReadSingle()
+		public float ReadSingle()
 		{
-			await FillBuffer(_fourByteArray, 4);
+			FillBufferWithLock(_fourByteArray, 4);
 			return BitConverter.ToSingle(_fourByteArray, 0);
 		}
 
-		public async Task<double> ReadDouble()
+		public double ReadDouble()
 		{
-			await FillBuffer(_eightByteArray, 8);
+			FillBufferWithLock(_eightByteArray, 8);
 			return BitConverter.ToDouble(_eightByteArray, 0);
 		}
 
-		public async Task<short> ReadInt16()
+		public short ReadInt16()
 		{
-			await FillBuffer(_twoByteArray, 2);
+			FillBufferWithLock(_twoByteArray, 2);
 			return BitConverter.ToInt16(_twoByteArray, 0);
 		}
 
-		public async Task<int> ReadInt32()
+		public int ReadInt32()
 		{
-			await FillBuffer(_fourByteArray, 4);
+			FillBufferWithLock(_fourByteArray, 4);
 			return BitConverter.ToInt32(_fourByteArray, 0);
 		}
 
-		public async Task<long> ReadInt64()
+		public long ReadInt64()
 		{
-			await FillBuffer(_eightByteArray, 8);
+			FillBufferWithLock(_eightByteArray, 8);
 			return BitConverter.ToInt64(_eightByteArray, 0);
 		}
 
@@ -151,9 +155,9 @@ namespace RabbitMqNext.Internals
 			return BitConverter.ToUInt32(_fourByteArray, 0);
 		}
 
-		public async Task<ulong> ReadUInt64()
+		public ulong ReadUInt64()
 		{
-			await FillBuffer(_eightByteArray, 8);
+			FillBufferWithLock(_eightByteArray, 8);
 			return BitConverter.ToUInt64(_eightByteArray, 0);
 		}
 
