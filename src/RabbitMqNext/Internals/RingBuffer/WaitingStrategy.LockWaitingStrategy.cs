@@ -38,15 +38,15 @@ namespace RabbitMqNext.Internals.RingBuffer
 			_write.Set();
 		}
 
-//		public override Task WaitForReadAsync()
-//		{
-//			return _read.WaitAsync();
-//		}
-//
-//		public override Task WaitForWriteAsync()
-//		{
-//			return _write.WaitAsync();
-//		}
+		public override Task WaitForReadAsync()
+		{
+			return _read.WaitAsync();
+		}
+
+		public override Task WaitForWriteAsync()
+		{
+			return _write.WaitAsync();
+		}
 
 		public override void Dispose()
 		{

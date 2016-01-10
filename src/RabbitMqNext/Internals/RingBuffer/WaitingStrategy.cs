@@ -24,16 +24,8 @@
 
 		public abstract void Dispose();
 
-		public virtual Task WaitForReadAsync()
-		{
-			WaitForRead();
-			return Task.CompletedTask;
-		}
+		public abstract Task WaitForReadAsync();
 
-		public virtual Task WaitForWriteAsync()
-		{
-			WaitForWrite();
-			return Task.CompletedTask;
-		}
+		public abstract Task WaitForWriteAsync();
 	}
 }
