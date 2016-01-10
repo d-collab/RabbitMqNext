@@ -17,10 +17,10 @@ namespace RabbitMqNext.Internals
 			{
 				Console.WriteLine("ChannelOpen");
 
-				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
 
-				writer.WriteUShort(classId);
-				writer.WriteUShort(methodId);
+//				writer.WriteUShort(classId);
+//				writer.WriteUShort(methodId);
 				writer.WriteShortstr("");
 
 				writer.WriteOctet(AmqpConstants.FrameEnd);
@@ -119,10 +119,10 @@ namespace RabbitMqNext.Internals
 			{
 				Console.WriteLine("ChannelOpen");
 
-				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
 
-				writer.WriteUShort(classId);
-				writer.WriteUShort(methodId);
+//				writer.WriteUShort(classId);
+//				writer.WriteUShort(methodId);
 
 				writer.WriteLong(prefetchSize);
 				writer.WriteUShort(prefetchCount);
@@ -161,10 +161,9 @@ namespace RabbitMqNext.Internals
 			if (properties.IsEmpty)
 			{
 				uint payloadSize = 4 + 8 + 2;
-				writer.WriteFrameStart(AmqpConstants.FrameHeader, channel, payloadSize);
-
-				writer.WriteUShort((ushort)60);
-				writer.WriteUShort((ushort)0); // weight. not used
+				writer.WriteFrameStart(AmqpConstants.FrameHeader, channel, payloadSize, 60, 0);
+//				writer.WriteUShort((ushort)60);
+//				writer.WriteUShort((ushort)0); // weight. not used
 				writer.WriteULong(bodySize);
 
 				// no support for continuation. must be less than 15 bits used
@@ -186,10 +185,10 @@ namespace RabbitMqNext.Internals
 			{
 				uint payloadSize = (uint)(8 + 5);
 
-				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
 
-				writer.WriteUShort(classId);
-				writer.WriteUShort(methodId);
+//				writer.WriteUShort(classId);
+//				writer.WriteUShort(methodId);
 
 				writer.WriteULong(b_args.deliveryTag);
 				writer.WriteBit(b_args.multiple);
@@ -204,11 +203,9 @@ namespace RabbitMqNext.Internals
 
 			uint payloadSize = (uint)(8 + 5);
 
-			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize);
-
-			writer.WriteUShort(classId);
-			writer.WriteUShort(methodId);
-
+			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
+//			writer.WriteUShort(classId);
+//			writer.WriteUShort(methodId);
 			writer.WriteULong(b_args.deliveryTag);
 			writer.WriteBits(b_args.multiple, b_args.requeue);
 
@@ -223,23 +220,26 @@ namespace RabbitMqNext.Internals
 			{
 				var buffer = basicPub.buffer;
 				var properties = basicPub.properties;
-			
-				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
-				{
-					w.WriteUShort(classId);
-					w.WriteUShort(methodId);
 
+				// First frame: Method
+				uint payloadSize = (uint) (9 + basicPub.exchange.Length + basicPub.routingKey.Length);
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
+//				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				var w = writer;
+				{
+//					w.WriteUShort(classId);
+//					w.WriteUShort(methodId);
 					w.WriteUShort(0); // reserved1
 					w.WriteShortstr(basicPub.exchange);
 					w.WriteShortstr(basicPub.routingKey);
 					w.WriteBits(basicPub.mandatory, basicPub.immediate);
-				});
+				} //);
+				writer.WriteOctet(AmqpConstants.FrameEnd);
 
 				WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
 
 				// what's the max frame size we can write?
-				if (!writer.FrameMaxSize.HasValue)
-					throw new Exception("wtf? no frame max set!");
+				if (!writer.FrameMaxSize.HasValue) throw new Exception("wtf? no frame max set!");
 				
 				var maxSubFrameSize =
 					writer.FrameMaxSize == 0 ? (int)buffer.Count :

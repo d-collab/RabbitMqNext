@@ -302,7 +302,7 @@ namespace RabbitMqNext.Internals
 
 				var payloadSize = (uint)memStream._memoryStream.Position;
 
-				this.WriteFrameStart(frameType, channel, payloadSize);
+				this.WriteFrameStart(frameType, channel, payloadSize, null, null);
 
 				memStream._writer2.WriteOctet(AmqpConstants.FrameEnd);
 
@@ -314,8 +314,8 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		private readonly byte[] _frameBuff = new byte[7];
-		public void WriteFrameStart(int frameType, ushort channel, uint payloadSize)
+		private readonly byte[] _frameBuff = new byte[11];
+		public void WriteFrameStart(int frameType, ushort channel, uint payloadSize, ushort? classId, ushort? methodId)
 		{
 			_frameBuff[0] = (byte) frameType;
 
@@ -327,7 +327,21 @@ namespace RabbitMqNext.Internals
 			_frameBuff[5] = (byte)((payloadSize & 0x0000FF00) >> 8);
 			_frameBuff[6] = (byte)(payloadSize & 0x000000FF);
 
-			_writer.Write(_frameBuff, 0, 7);
+			if (classId.HasValue)
+			{
+				var cl = classId.Value;
+				var me = methodId.Value;
+				_frameBuff[7] = (byte)((cl & 0xFF00) >> 8);
+				_frameBuff[8] = (byte)(cl & 0x00FF);
+				_frameBuff[9] = (byte)((me & 0xFF00) >> 8);
+				_frameBuff[10] = (byte)(me & 0x00FF);
+
+				_writer.Write(_frameBuff, 0, 11);
+			}
+			else
+			{
+				_writer.Write(_frameBuff, 0, 7);
+			}
 		}
 
 		public void WriteFrameHeader(ushort channel, ulong bodySize, BasicProperties properties)
@@ -340,8 +354,8 @@ namespace RabbitMqNext.Internals
 
 				var w = memStream._writer2;
 				{
-					w.WriteUShort((ushort)60);
-					w.WriteUShort((ushort)0); // weight. not used
+//					w.WriteUShort((ushort)60);
+//					w.WriteUShort((ushort)0); // weight. not used
 					w.WriteULong(bodySize);
 
 					// no support for continuation. must be less than 15 bits used
@@ -364,8 +378,9 @@ namespace RabbitMqNext.Internals
 				};
 
 				var payloadSize = (uint)memStream._memoryStream.Position;
+				// payloadSize += 4; // class + weight sizes
 
-				this.WriteFrameStart(AmqpConstants.FrameHeader, channel, payloadSize);
+				this.WriteFrameStart(AmqpConstants.FrameHeader, channel, payloadSize + 4, 60 /*class*/ , 0 /* weight*/);
 
 				memStream._writer2.WriteOctet(AmqpConstants.FrameEnd);
 

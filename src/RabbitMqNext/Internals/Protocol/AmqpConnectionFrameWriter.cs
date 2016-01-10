@@ -36,10 +36,10 @@
 			{
 				Console.WriteLine("ConnectionTuneOk");
 
-				writer.WriteFrameStart(AmqpConstants.FrameMethod, 0, payloadSize);
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, 0, payloadSize, 10, 31);
 
-				writer.WriteUShort((ushort)10);
-				writer.WriteUShort((ushort)31);
+//				writer.WriteUShort((ushort)10);
+//				writer.WriteUShort((ushort)31);
 				writer.WriteUShort(channelMax);
 				writer.WriteLong(frameMax);
 				writer.WriteUShort(heartbeat);
@@ -111,7 +111,7 @@
 
 		public static void WriteEmptyMethodFrame(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId)
 		{
-			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, 0);
+			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, 0, null, null);
 			writer.WriteOctet(AmqpConstants.FrameEnd);
 		}
 	}
