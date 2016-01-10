@@ -400,8 +400,6 @@
 		{
 			if (sendClose)
 				await __SendConnectionClose(AmqpConstants.ReplySuccess, "bye");
-			 
-				
 		}
 
 		internal void ChannelClosed(AmqpChannel amqpChannel)

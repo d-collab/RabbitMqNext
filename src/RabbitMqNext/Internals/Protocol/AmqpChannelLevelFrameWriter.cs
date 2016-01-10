@@ -212,6 +212,23 @@ namespace RabbitMqNext.Internals
 			writer.WriteOctet(AmqpConstants.FrameEnd);
 		}
 
+		internal static void InternalBufferedBasicPublish(AmqpPrimitivesWriter writerX, ushort channel, ushort classId, ushort methodId,
+			object args)
+		{
+			var memStream = writerX._memStreamPool.GetObject();
+
+			try
+			{
+				InternalBasicPublish(memStream._writer2, channel, classId, methodId, args);
+
+				writerX._writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)memStream._memoryStream.Position);
+			}
+			finally
+			{
+				writerX._memStreamPool.PutObject(memStream);
+			}
+		}
+
 		internal static void InternalBasicPublish(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
 		{
 			var basicPub = args as FrameParameters.BasicPublishArgs;

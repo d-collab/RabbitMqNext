@@ -10,9 +10,9 @@ namespace RabbitMqNext.Internals
 	{
 		internal const int BufferSize = 1024 * 128;
 
-		private readonly InternalBigEndianWriter _writer;
+		internal readonly InternalBigEndianWriter _writer;
 		private readonly ArrayPool<byte> _bufferPool;
-		private readonly ObjectPool<ReusableTempWriter> _memStreamPool;
+		internal readonly ObjectPool<ReusableTempWriter> _memStreamPool;
 
 		private readonly byte[] _smallBuffer = new byte[300];
 
@@ -30,7 +30,7 @@ namespace RabbitMqNext.Internals
 				{
 					Console.WriteLine("Creating new writer...");
 					return new ReusableTempWriter(new DefaultArrayPool<byte>(BufferSize, 5), _memStreamPool);
-				});
+				}, 6);
 			}
 			_memStreamPool = memStreamPool;
 		}
