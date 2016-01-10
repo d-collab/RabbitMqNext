@@ -117,13 +117,6 @@
 					break;
 				}
 
-//				uint writeCursor = _writePosition; // 1 volative read
-//				int writePos = 0;
-//				checked
-//				{
-//					writePos = (int) (writeCursor & (_bufferSize - 1));
-//				}
-
 				int writePos = (int) availPos.position;
 
 				Buffer.BlockCopy(buffer, offset + totalwritten, _buffer, writePos, available);
@@ -161,13 +154,6 @@
 				else
 					break;
 			}
-
-//			uint writeCursor = _writePosition; // 1 volative read
-//			int writePos = 0;
-//			checked
-//			{
-//				writePos = (int) (writeCursor & (_bufferSize - 1));
-//			}
 
 			int writePos = availPos.position;
 
@@ -210,12 +196,6 @@
 					break;
 				}
 
-//				uint readCursor = _readPosition; // volative read
-//				int readPos = 0;
-//				checked
-//				{
-//					readPos = (int)(readCursor & (_bufferSize - 1)); // (int)(readCursor % _bufferSize);
-//				}
 				int readPos = (int) availPos.position;
 
 				Buffer.BlockCopy(_buffer, readPos, buffer, offset + totalRead, available);
@@ -231,10 +211,43 @@
 			return totalRead;
 		}
 
-		public Task<int> ReadAsync(byte[] buffer, int offset, int count, bool fillBuffer, CancellationToken cancellationToken)
+		public async Task<int> ReadAsync(byte[] buffer, int offset, int count, bool fillBuffer, CancellationToken cancellationToken)
 		{
-			var read = Read(buffer, offset, count, fillBuffer);
-			return Task.FromResult(read);
+#if DEBUG
+			if (offset < 0) throw new ArgumentOutOfRangeException("offset", "must be greater or equal to 0");
+			if (count <= 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
+#endif
+
+			int totalRead = 0;
+
+			while (totalRead < count)
+			{
+				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead);
+				// var available = (int) this.InternalGetReadyToReadEntries(count - totalRead);
+				var available = (int)availPos.available;
+				if (available == 0)
+				{
+					if (fillBuffer)
+					{
+						await _waitingStrategy.WaitForWriteAsync();
+						continue;
+					}
+					break;
+				}
+
+				int readPos = (int)availPos.position;
+
+				Buffer.BlockCopy(_buffer, readPos, buffer, offset + totalRead, available);
+
+				totalRead += available;
+
+				// if (!fillBuffer) break;
+				_readPosition += (uint)available; // volative write
+
+				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
+			}
+
+			return totalRead;
 		}
 
 		public async Task ReadBufferIntoSocketSend(Socket socket, bool asyncSend)
@@ -251,13 +264,6 @@
 					_waitingStrategy.WaitForWrite();
 					continue;
 				}
-
-//				uint readCursor = _readPosition; // volative read
-//				int readPos = 0;
-//				checked
-//				{
-//					readPos = (int)(readCursor & (_bufferSize - 1)); // (int)(readCursor % _bufferSize);
-//				}
 
 				int readPos = availPos.position;
 
