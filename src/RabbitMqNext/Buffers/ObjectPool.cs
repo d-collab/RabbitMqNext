@@ -70,21 +70,5 @@
 		{
 			_semaphore.Dispose();
 		}
-
-//		public T GetObject()
-//		{
-//			T item;
-//			if (_objects.TryTake(out item)) return item;
-//			return _objectGenerator();
-//		}
-//
-//		public void PutObject(T item)
-//		{
-//			var disposable = item as IDisposable;
-//			if (disposable != null)
-//				disposable.Dispose();
-//
-//			_objects.Add(item);
-//		}
 	}
 }
