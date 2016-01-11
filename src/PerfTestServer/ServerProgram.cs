@@ -32,15 +32,17 @@
 			Console.WriteLine("I'm the server!");
 
 
-			var t = StartConcurrentRpc(); // StartOriginalClientRpc(); //StartRpc(); // StartOriginalClient(); // Start();
-			t.Wait();
+			var t1 = StartRpcServer();
+			// var t2 = StartRpcServer();
+
+			Task.WaitAll(t1);
 
 			Console.WriteLine("All done");
 
 			Thread.CurrentThread.Join();
 		}
 
-		private static async Task StartConcurrentRpc()
+		private static async Task<bool> StartRpcServer()
 		{
 			Connection conn1 = null;
 
@@ -64,14 +66,14 @@
 
 
 				Console.WriteLine("Starting Rpc channel Parallel consumer...");
-				await newChannel.BasicConsume(ConsumeMode.Parallel, delivery =>
+				await newChannel.BasicConsume(ConsumeMode.SingleThreaded, delivery =>
 				{
-					var temp = new byte[1000];
+					var temp = new byte[100];
 
 					if (delivery.stream != null)
 						delivery.stream.Read(temp, 0, (int)delivery.bodySize);
-					else
-						temp = delivery.Body;
+//					else
+//						temp = delivery.Body;
 
 					var x = BitConverter.ToInt32(temp, 0);
 //					Console.WriteLine("Got request " + x);
@@ -90,7 +92,9 @@
 
 				}, "rpc1", "", true, false, null, waitConfirmation: true);
 
-				await Task.Delay(TimeSpan.FromMinutes(10));
+				await Task.Delay(TimeSpan.FromMinutes(12));
+
+				Console.WriteLine("Closing...");
 
 				await newChannel.Close();
 			}
@@ -105,6 +109,8 @@
 
 			if (conn1 != null)
 				await conn1.Close();
+
+			return true;
 		}
 	}
 }

@@ -5,9 +5,6 @@ namespace RabbitMqNext
 	using System.Threading.Tasks;
 	using Internals;
 
-
-	
-
 	public class RpcHelper : IDisposable
 	{
 		private readonly AmqpChannel _channel;
@@ -17,20 +14,22 @@ namespace RabbitMqNext
 		private volatile bool _disposed;
 		private AmqpQueueInfo _replyQueueName;
 		private string _subscription;
+		// private readonly int _timeoutInMs;
 
 		private readonly ObjectPool<TaskLight<MessageDelivery>> _taskResultPool;
 		private readonly TaskLight<MessageDelivery>[] _pendingCalls;
 
-		public RpcHelper(AmqpChannel channel, int maxConcurrentCalls, ConsumeMode mode)
+		public RpcHelper(AmqpChannel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 3000)
 		{
 			if (maxConcurrentCalls <= 0 || maxConcurrentCalls > 50) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
 
 			_channel = channel;
 			_maxConcurrentCalls = maxConcurrentCalls;
 			_mode = mode;
+//			_timeoutInMs = timeoutInMs;
 			_pendingCalls = new TaskLight<MessageDelivery>[maxConcurrentCalls];
 			_taskResultPool = new ObjectPool<TaskLight<MessageDelivery>>(() =>
-				new TaskLight<MessageDelivery>((inst) => _taskResultPool.PutObject(inst)), maxConcurrentCalls, false);
+				new TaskLight<MessageDelivery>((inst) => _taskResultPool.PutObject(inst)), maxConcurrentCalls, true);
 		}
 
 		internal async Task Setup()
@@ -40,8 +39,8 @@ namespace RabbitMqNext
 				waitConfirmation: true, arguments: null);
 
 			_subscription = await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name, 
-				consumerTag: "", withoutAcks: true, exclusive: true, arguments: null,
-				waitConfirmation: true);
+				consumerTag: "abc" + new Random().Next(100000), 
+				withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true);
 		}
 
 		private Task OnReplyReceived(MessageDelivery delivery)
@@ -58,20 +57,20 @@ namespace RabbitMqNext
 				throw new Exception("Something is seriously wrong");
 			}
 
-			task.SetCompleted(delivery); // needs to be synchrounous
+			task.SetResult(delivery); // needs to be synchrounous
 
 			return Task.CompletedTask;
 		}
 
-		public TaskLight<MessageDelivery> Call(string exchange, string routing, 
-			BasicProperties properties, ArraySegment<byte> buffer)
+		public TaskLight<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			var task = _taskResultPool.GetObject();
+			// var task = new TaskCompletionSource<MessageDelivery>(null);
 
 			uint correlationId;
 			if (!SecureSpotAndUniqueCorrelationId(task, out correlationId))
 			{
-				task.SetError(new Exception("reached max calls"));
+				task.SetException(new Exception("reached max calls"));
 				return task;
 			}
 
@@ -81,11 +80,11 @@ namespace RabbitMqNext
 				prop.CorrelationId = correlationId.ToString();
 				prop.ReplyTo = _replyQueueName.Name;
 
-				_channel.BasicPublish(exchange, routing, true, false, properties, buffer);
+				_channel.BasicPublishN(exchange, routing, true, false, properties, buffer);
 			}
 			catch (Exception ex)
 			{
-				task.SetError(ex);
+				task.SetException(ex);
 			}
 
 			return task;

@@ -45,9 +45,25 @@ namespace RabbitMqNext
 			throw _exception;
 		}
 
-		public void SetCompleted(T result)
+		public void SetResult(T result)
 		{
 			_result = result;
+
+			_isCompleted = true;
+			var cont = this._continuation;
+			if (cont != null)
+			{
+				cont();
+			}
+			if (_recycler != null)
+			{
+				_recycler(this);
+			}
+		}
+
+		public void SetException(Exception exception)
+		{
+			_exception = exception;
 
 			_isCompleted = true;
 			var cont = this._continuation;
@@ -65,22 +81,6 @@ namespace RabbitMqNext
 		{
 			_isCompleted = false;
 			_continuation = null;
-		}
-
-		public void SetError(Exception exception)
-		{
-			_exception = exception;
-
-			_isCompleted = true;
-			var cont = this._continuation;
-			if (cont != null)
-			{
-				cont();
-			}
-			if (_recycler != null)
-			{
-				_recycler(this);
-			}
 		}
 	}
 

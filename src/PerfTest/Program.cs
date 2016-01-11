@@ -76,7 +76,7 @@
 
 				var totalReceived = 0;
 
-				const int ConcurrentCalls = 25;
+				const int ConcurrentCalls = 35;
 				var tasks = new Task[ConcurrentCalls];
 
 				for (int i = 0; i < TotalPublish; i += ConcurrentCalls)
@@ -91,11 +91,11 @@
 
 					for (int j = 0; j < ConcurrentCalls; j++)
 					{
-						// Interlocked.Increment(ref totalReceived);
-						totalReceived++;
+						Interlocked.Increment(ref totalReceived);
+						// totalReceived++;
 					}
 
-					if (totalReceived == TotalPublish)
+					if (totalReceived >= TotalPublish)
 					{
 						watch.Stop();
 						Console.WriteLine("Rpc stress. Took " +
@@ -139,11 +139,11 @@
 				var x = BitConverter.ToInt32(reply, 0);
 				if (x != y) throw new Exception("Invalid result for call");
 			}
-			else if (rpcCallResult.Body != null)
-			{
-				var x = BitConverter.ToInt32(rpcCallResult.Body, 0);
-				if (x != y) throw new Exception("Invalid result for call");
-			}
+//			else if (rpcCallResult.Body != null)
+//			{
+//				var x = BitConverter.ToInt32(rpcCallResult.Body, 0);
+//				if (x != y) throw new Exception("Invalid result for call");
+//			}
 
 //			Console.WriteLine("Call " + y + " completed");
 
@@ -180,8 +180,8 @@
 				{
 					if (delivery.stream != null)
 						delivery.stream.Read(temp, 0, (int) delivery.bodySize);
-					else 
-						temp = delivery.Body;
+//					else 
+//						temp = delivery.Body;
 
 					var replyProp = new BasicProperties()
 					{
@@ -225,11 +225,11 @@
 						var x = BitConverter.ToInt32(reply, 0);
 						if (x != i) throw new Exception("Invalid result for call");
 					}
-					else if (rpcCallResult.Body != null)
-					{
-						var x = BitConverter.ToInt32(rpcCallResult.Body, 0);
-						if (x != i) throw new Exception("Invalid result for call");
-					}
+//					else if (rpcCallResult.Body != null)
+//					{
+//						var x = BitConverter.ToInt32(rpcCallResult.Body, 0);
+//						if (x != i) throw new Exception("Invalid result for call");
+//					}
 
 					// var rpcCallResult2 = await rpcHelper.Call("test_ex", "rpc1", prop2, new ArraySegment<byte>(req, 0, 4));
 

@@ -13,7 +13,7 @@ namespace RabbitMqNext
 		public int bodySize;
 		public BasicProperties properties;
 		public Stream stream;
-		public byte[] Body;
+//		public byte[] Body;
 	}
 
 	public struct UndeliveredMessage

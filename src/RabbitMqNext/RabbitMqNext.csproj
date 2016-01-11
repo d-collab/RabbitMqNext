@@ -97,6 +97,7 @@
     <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Internals\RingBuffer\RingBufferStreamReadBarrier.cs" />
     <Compile Include="Internals\RingBuffer\SocketConsumer.cs" />
     <Compile Include="Internals\RingBuffer\SocketProducer.cs" />
     <Compile Include="Internals\RingBuffer\Utils.cs" />

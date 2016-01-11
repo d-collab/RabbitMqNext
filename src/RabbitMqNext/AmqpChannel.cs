@@ -297,7 +297,7 @@
 				queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
 
 			_connection.SendCommand(_channelNum, 60, 20, writer,
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
 					{
@@ -323,6 +323,9 @@
 					{
 						Util.SetException(tcs, error, classMethodId);
 					}
+
+					return Task.CompletedTask;
+
 				}, expectsReply: waitConfirmation);
 
 			return tcs.Task;
@@ -470,7 +473,7 @@
 					// single threaded mode
 					return cb(delivery);
 				}
-				else if (mode == ConsumeMode.Parallel)
+				// else if (mode == ConsumeMode.Parallel)
 				{
 					// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
 
@@ -480,7 +483,9 @@
 					// Idea: split Ringbuffer consumers, create reader barrier. once they are all done, 
 					// move the read pos forward. Shouldnt be too hard to implement and 
 					// avoids the new buffer + GC and keeps the api Stream based consistently
-					delivery.Body = BufferUtil.Copy(stream as RingBufferStreamAdapter, (int) bodySize);
+//					delivery.Body = BufferUtil.Copy(stream as RingBufferStreamAdapter, (int) bodySize);
+					var readBarrier = new RingBufferStreamReadBarrier(stream as RingBufferStreamAdapter, delivery.bodySize);
+					delivery.stream = readBarrier;
 
 //					Task.Factory.StartNew(() => {
 //						cb(delivery);
@@ -489,7 +494,15 @@
 					// Fingers crossed the threadpool is large enough
 					ThreadPool.UnsafeQueueUserWorkItem((param) =>
 					{
-						cb(delivery);
+						try
+						{
+							cb(delivery);
+						}
+						finally
+						{
+							readBarrier.Release();
+						}
+
 					}, null);
 
 					return Task.CompletedTask;
