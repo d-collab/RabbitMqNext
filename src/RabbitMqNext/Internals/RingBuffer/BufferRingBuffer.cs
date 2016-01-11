@@ -53,9 +53,9 @@
 	/// </remarks>
 	internal class BufferRingBuffer : BaseRingBuffer, IDisposable // Stream2
 	{
-		private const int MinBufferSize = 32;
-		// private const int DefaultBufferSize = 0x100000;     //  1.048.576 1mb
-		private const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
+		public const int MinBufferSize = 32;
+		public const int DefaultBufferSize = 0x100000;     //  1.048.576 1mb
+		// private const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
 		// private const int DefaultBufferSize = 0x20000;   //    131.072
 		// private const int DefaultBufferSize = 0x10000;   //     65.536
 
@@ -195,46 +195,6 @@
 
 				// if (!fillBuffer) break;
 				_readPosition += (uint)available; // volative write
-
-				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
-			}
-
-			return totalRead;
-		}
-
-		public async Task<int> ReadAsync(byte[] buffer, int offset, int count, bool fillBuffer, CancellationToken cancellationToken)
-		{
-#if DEBUG
-			if (offset < 0) throw new ArgumentOutOfRangeException("offset", "must be greater or equal to 0");
-			if (count <= 0) throw new ArgumentOutOfRangeException("count", "must be greater than 0");
-#endif
-
-			int totalRead = 0;
-
-			while (totalRead < count)
-			{
-				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead);
-				// var available = (int) this.InternalGetReadyToReadEntries(count - totalRead);
-				var available = (int)availPos.available;
-				if (available == 0)
-				{
-					if (fillBuffer)
-					{
-						await _waitingStrategy.WaitForWriteAsync();
-						continue;
-					}
-					break;
-				}
-
-				int readPos = (int)availPos.position;
-
-				Buffer.BlockCopy(_buffer, readPos, buffer, offset + totalRead, available);
-
-				totalRead += available;
-
-				// if (!fillBuffer) break;
-				_readPosition += (uint)available; // volative write
-
 				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 			}
 
@@ -257,43 +217,13 @@
 
 				int readPos = availPos.position;
 
-//				var canContinue = new AutoResetSuperSlimLock();
-
 				var totalSent = 0;
 				while (totalSent < available)
 				{
 					var sent = 0;
-//					if (!asyncSend)
 					{
 						sent = socket.Send(_buffer, readPos + totalSent, available - totalSent, SocketFlags.None);
 					}
-					{
-//						var ev = new SocketAsyncEventArgs();
-//						ev.Completed += (sender, args) =>
-//						{
-//							sent = args.BufferList[0].Count;
-//							canContinue.Set();
-//							args.Dispose();
-//						};
-//						ev.BufferList = new []
-//						{
-//							new ArraySegment<byte>(_buffer, readPos + totalSent, available - totalSent), 
-//						};
-//						if (!socket.SendAsync(ev))
-//						{
-//							sent = available - totalSent;
-//							canContinue.Set();
-//							ev.Dispose();
-//						}
-					}
-//					else
-					{
-//						var t = socket.SendTaskAsync(_buffer, readPos + totalSent, available - totalSent);
-//						t.Wait();
-//						sent = t.Result;
-					}
-
-//					canContinue.Wait();
 
 					totalSent += sent;
 
