@@ -178,8 +178,9 @@
 				}
 
 				int readPos = (int) availPos.position;
+				int dstOffset = offset + totalRead;
 
-				Buffer.BlockCopy(_buffer, readPos, buffer, offset + totalRead, available);
+				Buffer.BlockCopy(_buffer, readPos, buffer, dstOffset, available);
 
 				totalRead += available;
 

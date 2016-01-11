@@ -66,7 +66,7 @@
 
 
 				Console.WriteLine("Starting Rpc channel Parallel consumer...");
-				await newChannel.BasicConsume(ConsumeMode.SingleThreaded, delivery =>
+				await newChannel.BasicConsume(ConsumeMode.ParallelWithBufferCopy, delivery =>
 				{
 					var temp = new byte[100];
 

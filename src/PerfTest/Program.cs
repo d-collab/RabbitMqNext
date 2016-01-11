@@ -21,9 +21,9 @@
 //		const int TotalPublish = 250000;
 //		const int TotalPublish = 100;
 //		const int TotalPublish = 100000;
-		const int TotalPublish = 500000;
+		const int TotalPublish = 900000;
 
-		const string TargetHost = "localhost";
+		const string TargetHost = "media";
 		const string VHost = "clear_test";
 
 		private static string Message =
@@ -69,14 +69,14 @@
 				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
 				await newChannel2.BasicQos(0, Prefetch, false);
 
-				var rpcHelper = await newChannel2.CreateRpcHelper(ConsumeMode.Parallel);
+				var rpcHelper = await newChannel2.CreateRpcHelper(ConsumeMode.ParallelWithBufferCopy);
 
 				var watch = new Stopwatch();
 				watch.Start();
 
 				var totalReceived = 0;
 
-				const int ConcurrentCalls = 30;
+				const int ConcurrentCalls = 50;
 				var tasks = new Task[ConcurrentCalls];
 
 				for (int i = 0; i < TotalPublish; i += ConcurrentCalls)
@@ -332,7 +332,7 @@
 				int totalReceived = 0;
 
 				Console.WriteLine("[subscribing to queue] ");
-				var sub = await newChannel2.BasicConsume(ConsumeMode.Parallel, async (delivery) =>
+				var sub = await newChannel2.BasicConsume(ConsumeMode.SingleThreaded, async (delivery) =>
 				{
 					// var len = await delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
 					// var str = Encoding.UTF8.GetString(temp, 0, len);

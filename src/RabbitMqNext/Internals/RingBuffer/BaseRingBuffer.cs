@@ -10,6 +10,11 @@
 		public volatile bool inEffect = true;
 		public volatile uint gpos, length;
 		public int index;
+
+		public override string ToString()
+		{
+			return "[ineffect " + inEffect + " gpos "+ gpos+" len " + length + " idx " + index + "]";
+		}
 	}
 
 	internal abstract class BaseRingBuffer
@@ -93,9 +98,11 @@
 			{
 				// Console.WriteLine("Reading from gate. Real readpos " + readPos + " replaced by " + fromGate.pos);
 				readPos = fromGate.gpos & (_bufferSize - 1);
-				entriesFree = fromGate.length;
+				// entriesFree = fromGate.length;
+				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
 			}
-			else
+
+			// else
 			{
 				var writeHasWrapped = writePos < readPos;
 
@@ -118,7 +125,16 @@
 			}
 #endif
 
-			var available = Math.Min(entriesFree, (uint)desiredCount);
+			uint available;
+//			if (fromGate != null)
+//			{
+//				available = Math.Min(entriesFree, (uint) desiredCount);
+//			}
+//			else
+			{
+				available = Math.Min(entriesFree, (uint)desiredCount);
+			}
+
 			// return available;
 			return new AvailableAndPos() { available = (int)available, position = (int)readPos };
 		}
