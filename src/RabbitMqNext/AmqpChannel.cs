@@ -215,6 +215,30 @@
 			return tcs.Task;
 		}
 
+		public void BasicPublishN(string exchange, string routingKey, bool mandatory, bool immediate,
+			BasicProperties properties, ArraySegment<byte> buffer)
+		{
+			if (properties == null || properties.IsEmpty)
+			{
+				properties = BasicProperties.Empty;
+			}
+
+			var args = _basicPubArgsPool.GetObject();
+			args.exchange = exchange;
+			args.immediate = immediate;
+			args.routingKey = routingKey;
+			args.mandatory = mandatory;
+			args.properties = properties;
+			args.buffer = buffer;
+
+			_connection.SendCommand(_channelNum, 60, 40,
+				null, // AmqpChannelLevelFrameWriter.InternalBasicPublish, 
+				reply: null, expectsReply: false,
+				// tcs: tcs,
+				tcsL: null,
+				optArg: args);
+		}
+
 		public TaskLight BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate, BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (properties == null || properties.IsEmpty)
@@ -244,7 +268,7 @@
 			return tcs;
 		}
 
-		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 250)
+		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 50)
 		{
 			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
 			await helper.Setup();
@@ -255,13 +279,53 @@
 			string queue, string consumerTag, bool withoutAcks, bool exclusive, 
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
-			_consumerSubscriptions[consumerTag] = new BasicConsumerSubscriptionInfo()
-			{
-				Mode = mode,
-				Callback = consumer
-			};
+			if (!waitConfirmation && string.IsNullOrEmpty(consumerTag)) throw new ArgumentException("Bad programmer");
 
-			return InternalBasicConsume(queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
+			if (!string.IsNullOrEmpty(consumerTag))
+			{
+				_consumerSubscriptions[consumerTag] = new BasicConsumerSubscriptionInfo()
+				{
+					Mode = mode,
+					Callback = consumer
+				};
+			}
+
+			var tcs = new TaskCompletionSource<string>(
+				mode == ConsumeMode.Parallel ? TaskCreationOptions.RunContinuationsAsynchronously : TaskCreationOptions.None);
+
+			var writer = AmqpChannelLevelFrameWriter.BasicConsume(
+				queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
+
+			_connection.SendCommand(_channelNum, 60, 20, writer,
+				reply: async (channel, classMethodId, error) =>
+				{
+					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
+					{
+						_connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
+						{
+							if (string.IsNullOrEmpty(consumerTag))
+							{
+								_consumerSubscriptions[consumerTag2] = new BasicConsumerSubscriptionInfo()
+								{
+									Mode = mode,
+									Callback = consumer
+								};
+							}
+
+							tcs.SetResult(consumerTag2);
+						});
+					}
+					else if (!waitConfirmation)
+					{
+						tcs.SetResult(consumerTag);
+					}
+					else
+					{
+						Util.SetException(tcs, error, classMethodId);
+					}
+				}, expectsReply: waitConfirmation);
+
+			return tcs.Task;
 		}
 
 		public Task BasicCancel(string consumerTag, bool waitConfirmation)
@@ -360,40 +424,6 @@
 			return tcs.Task;
 		}
 
-		private Task<string> InternalBasicConsume(string queue, string consumerTag, 
-												  bool withoutAcks, bool exclusive, 
-												  IDictionary<string, object> arguments, bool waitConfirmation)
-		{
-			var tcs = new TaskCompletionSource<string>();
-
-			var writer = AmqpChannelLevelFrameWriter.BasicConsume(
-				queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
-
-			_connection.SendCommand(_channelNum, 60, 20, writer,
-				reply: async (channel, classMethodId, error) =>
-				{
-					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
-					{
-						await _connection._frameReader.Read_BasicConsumeOk((consumerTag2) =>
-						{
-							tcs.SetResult(consumerTag2);
-
-							return Task.CompletedTask;
-						});
-					}
-					else if (!waitConfirmation)
-					{
-						tcs.SetResult(consumerTag);
-					}
-					else
-					{
-						Util.SetException(tcs, error, classMethodId);
-					}
-				}, expectsReply: waitConfirmation);
-
-			return tcs.Task;
-		}
-
 		internal async Task DispatchMethod(ushort channel, int classMethodId)
 		{
 			switch (classMethodId)
@@ -414,7 +444,7 @@
 
 		private  Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, 
 			bool redelivered, string exchange, string routingKey,
-			long bodySize, BasicProperties properties, Stream stream)
+			int bodySize, BasicProperties properties, Stream stream)
 		{
 			BasicConsumerSubscriptionInfo consumer;
 
@@ -440,21 +470,23 @@
 					// single threaded mode
 					return cb(delivery);
 				}
-				// else if (mode == ConsumeMode.Parallel)
+				else if (mode == ConsumeMode.Parallel)
 				{
 					// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
 
 					// since we dont have any control on how the user 
 					// will deal with the buffer we cant even re-use/use a pool, etc :-(
+
+					// Idea: split Ringbuffer consumers, create reader barrier. once they are all done, 
+					// move the read pos forward. Shouldnt be too hard to implement and 
+					// avoids the new buffer + GC and keeps the api Stream based consistently
 					delivery.Body = BufferUtil.Copy(stream as RingBufferStreamAdapter, (int) bodySize);
 
-					// Fingers crossed the threadpool is large enough
-
-//					Task.Factory.StartNew(() =>
-//					{
+//					Task.Factory.StartNew(() => {
 //						cb(delivery);
 //					}, TaskCreationOptions.PreferFairness);
 
+					// Fingers crossed the threadpool is large enough
 					ThreadPool.UnsafeQueueUserWorkItem((param) =>
 					{
 						cb(delivery);
@@ -473,7 +505,7 @@
 
 		private async Task DispatchBasicReturn(ushort replyCode, 
 									string replyText, string exchange, string routingKey, 
-									uint bodySize, BasicProperties properties, Stream stream)
+									int bodySize, BasicProperties properties, Stream stream)
 		{
 			var ev = this.MessageUndeliveredHandler;
 
