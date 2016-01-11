@@ -24,8 +24,8 @@
 
 		public abstract void Dispose();
 
-		public abstract Task WaitForReadAsync();
-
-		public abstract Task WaitForWriteAsync();
+//		public abstract Task WaitForReadAsync();
+//
+//		public abstract Task WaitForWriteAsync();
 	}
 }
