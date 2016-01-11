@@ -250,19 +250,6 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			}
 		}
 
-//		internal int ToRelease
-//		{
-//			get
-//			{
-//				var val = ExtractStatePortionAndShiftRight(_state, RelWaitersStateMask, RelWaitersStatePos);
-//				return val;
-//			}
-//			set
-//			{
-//				AtomicChange(value, RelWaitersStatePos, RelWaitersStateMask);
-//			}
-//		}
-
 		private static int ExtractStatePortionAndShiftRight(int state, int mask, int rightBitShiftCount)
 		{
 			//convert to uint before shifting so that right-shift does not replicate the sign-bit,
