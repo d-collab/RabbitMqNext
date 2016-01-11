@@ -10,7 +10,7 @@ namespace RabbitMqNext
 		public ulong deliveryTag;
 		public bool redelivered;
 		public string routingKey;
-		public long bodySize;
+		public int bodySize;
 		public BasicProperties properties;
 		public Stream stream;
 		public byte[] Body;
@@ -25,7 +25,7 @@ namespace RabbitMqNext
 //		public ulong deliveryTag;
 //		public bool redelivered;
 		public string routingKey;
-		public long bodySize;
+		public int bodySize;
 		public BasicProperties properties;
 		public Stream stream;
 	}
