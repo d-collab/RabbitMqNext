@@ -8,6 +8,7 @@ namespace RabbitMqNext
 		private readonly Action<TaskLight<T>> _recycler;
 		private Action _continuation;
 		private volatile bool _isCompleted = false;
+		private Exception _exception;
 		private T _result;
 
 		public TaskLight(Action<TaskLight<T>> recycler)
@@ -24,6 +25,7 @@ namespace RabbitMqNext
 		{
 			_result = default(T);
 			_continuation = null;
+			_exception = null;
 			_isCompleted = false;
 		}
 
@@ -34,7 +36,14 @@ namespace RabbitMqNext
 
 		public bool IsCompleted { get { return _isCompleted; } }
 
-		public T GetResult() { return _result; }
+		public T GetResult()
+		{
+			if (_exception == null)
+			{
+				return _result;
+			}
+			throw _exception;
+		}
 
 		public void SetCompleted(T result)
 		{
@@ -60,6 +69,18 @@ namespace RabbitMqNext
 
 		public void SetError(Exception exception)
 		{
+			_exception = exception;
+
+			_isCompleted = true;
+			var cont = this._continuation;
+			if (cont != null)
+			{
+				cont();
+			}
+			if (_recycler != null)
+			{
+				_recycler(this);
+			}
 		}
 	}
 
