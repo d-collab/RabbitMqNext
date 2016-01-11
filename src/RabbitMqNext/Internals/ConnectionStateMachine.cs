@@ -22,7 +22,9 @@
 		private readonly CancellationToken _cancellationToken;
 
 		private readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
-		private readonly ElementRingBuffer<CommandToSend> _commandOutbox2;
+		private readonly AutoResetEvent _commandOutboxEvent;
+		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
+//		private readonly ElementRingBuffer<CommandToSend> _commandOutbox2;
 
 		internal readonly FrameReader _frameReader;
 
@@ -52,7 +54,10 @@
 			_cmdToSendObjPool = new ObjectPool<CommandToSend>(
 				() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 100, true);
 
-			_commandOutbox2 = new ElementRingBuffer<CommandToSend>(cancellationToken, 64, new LockWaitingStrategy(cancellationToken));
+//			_commandOutbox2 = new ElementRingBuffer<CommandToSend>(cancellationToken, 64, new LockWaitingStrategy(cancellationToken));
+			_commandOutboxEvent = new AutoResetEvent(false);
+			_commandOutbox = new ConcurrentQueue<CommandToSend>();
+
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
 
 			_frameReader = new FrameReader(reader, amqpReader, this);
@@ -148,7 +153,8 @@
 
 		public void Dispose()
 		{
-			_commandOutbox2.Dispose();
+			// _commandOutbox2.Dispose();
+			_commandOutboxEvent.Dispose();
 		}
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
@@ -170,9 +176,9 @@
 			cmd.TcsLight = tcsL;
 			cmd.OptionalArg = optArg;
 
-			// _commandOutbox.Enqueue(cmd);
-			_commandOutbox2.WriteToNextAvailable(cmd);
-			// _commandsToSendEvent.Set();
+			_commandOutbox.Enqueue(cmd);
+			// _commandOutbox2.WriteToNextAvailable(cmd);
+			_commandOutboxEvent.Set();
 		}
 
 		private async void WriteCommandsToSocket()
@@ -181,34 +187,40 @@
 			{
 				while (!_cancellationToken.IsCancellationRequested)
 				{
-					// Console.WriteLine(" writing command ");
-					var cmdToSend = _commandOutbox2.GetNextAvailable();
+					_commandOutboxEvent.WaitOne();
 
-					if (cmdToSend.ExpectsReply)
+					CommandToSend cmdToSend;
+					while (_commandOutbox.TryDequeue(out cmdToSend))
 					{
-						if (cmdToSend.Channel == 0)
-							_awaitingReplyQueue.Enqueue(cmdToSend);
+						// Console.WriteLine(" writing command ");
+						// var cmdToSend = _commandOutbox2.GetNextAvailable();
+
+						if (cmdToSend.ExpectsReply)
+						{
+							if (cmdToSend.Channel == 0)
+								_awaitingReplyQueue.Enqueue(cmdToSend);
+							else
+								_channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
+						}
+
+						// writes to socket
+						var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
+						if (frameWriter != null)
+						{
+							frameWriter.Write(_amqpWriter, cmdToSend.Channel,
+												cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+						}
 						else
-							_channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
-					}
+						{
+							cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
+														cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+						}
 
-					// writes to socket
-					var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
-					if (frameWriter != null)
-					{
-						frameWriter.Write(_amqpWriter, cmdToSend.Channel,
-											cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-					}
-					else
-					{
-						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
-													cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-					}
-
-					// if writing to socket is enough, set as complete
-					if (!cmdToSend.ExpectsReply)
-					{
-						await cmdToSend.ReplyAction3(0, 0, null);
+						// if writing to socket is enough, set as complete
+						if (!cmdToSend.ExpectsReply)
+						{
+							await cmdToSend.ReplyAction3(0, 0, null);
+						}
 					}
 				}
 			}
@@ -220,13 +232,13 @@
 			}
 		}
 
-		private async void ReadFramesLoop()
+		private void ReadFramesLoop()
 		{
 			try
 			{
 				while (!_cancellationToken.IsCancellationRequested)
 				{
-					await ReadFrame();
+					_frameReader.ReadAndDispatch();
 					// t.Wait(_cancellationToken);
 				}
 			}
@@ -238,11 +250,6 @@
 			{
 				Console.WriteLine("ReadFramesLoop error " + ex.Message);
 			}
-		}
-
-		private async Task ReadFrame()
-		{
-			await _frameReader.ReadAndDispatch();
 		}
 
 		private void ThrowIfErrorPending()
