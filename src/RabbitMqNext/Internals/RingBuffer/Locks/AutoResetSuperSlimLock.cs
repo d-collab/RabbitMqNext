@@ -30,7 +30,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		private const int HowManySpinBeforeYield = 10;
 		private const int HowManyYieldEverySleep0 = 5;
 		private const int HowManyYieldEverySleep1 = 20;
-		private const int SpinCount = 50;
+		private const int SpinCount = 10;
 
 		public AutoResetSuperSlimLock(bool initialState = false)
 		{
@@ -210,29 +210,30 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 				{
 					return true;
 				}
-				if (i < HowManySpinBeforeYield)
-				{
-					if (i == HowManySpinBeforeYield / 2)
-					{
-						Thread.Yield();
-					}
-					else
-					{
-						Thread.SpinWait(ProcCounter * (4 << i));
-					}
-				}
-				else if (i % HowManyYieldEverySleep1 == 0)
-				{
-					Thread.Sleep(1);
-				}
-				else if (i % HowManyYieldEverySleep0 == 0)
-				{
-					Thread.Sleep(0);
-				}
-				else
-				{
-					Thread.Yield();
-				}
+				Thread.SpinWait(1 << i);
+//				if (i < HowManySpinBeforeYield)
+//				{
+//					if (i == HowManySpinBeforeYield / 2)
+//					{
+//						Thread.Yield();
+//					}
+//					else
+//					{
+//						Thread.SpinWait(ProcCounter * (4 << i));
+//					}
+//				}
+//				else if (i % HowManyYieldEverySleep1 == 0)
+//				{
+//					Thread.Sleep(1);
+//				}
+//				else if (i % HowManyYieldEverySleep0 == 0)
+//				{
+//					Thread.Sleep(0);
+//				}
+//				else
+//				{
+//					Thread.Yield();
+//				}
 			}
 			return CheckForIsSetAndResetIfTrue();
 		}
