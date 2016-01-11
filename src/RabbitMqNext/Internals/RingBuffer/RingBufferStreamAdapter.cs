@@ -32,8 +32,9 @@
 		
 		public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
-			// return _consumer.ReadAsync(buffer, offset, count, cancellationToken);
-			return _ringBuffer.ReadAsync(buffer, offset, count, fillBuffer: true, cancellationToken: cancellationToken);
+//			 return _consumer.ReadAsync(buffer, offset, count, cancellationToken);
+//			return _ringBuffer.ReadAsync(buffer, offset, count, fillBuffer: true, cancellationToken: cancellationToken);
+			throw new NotImplementedException();
 		}
 
 		public override void Write(byte[] buffer, int offset, int count)
