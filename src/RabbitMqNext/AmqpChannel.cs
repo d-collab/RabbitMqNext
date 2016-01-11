@@ -498,6 +498,10 @@
 						{
 							cb(delivery);
 						}
+						catch (Exception e)
+						{
+							Console.WriteLine("From threadpool " + e);
+						}
 						finally
 						{
 							readBarrier.Release();

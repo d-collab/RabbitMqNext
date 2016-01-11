@@ -41,11 +41,11 @@ namespace RabbitMqNext.Tests
 		{
 			for (int i = 0; i < 32; i++)
 			{
-				_buffer.AddReadingGate();
+				_buffer.AddReadingGate(1);
 			}
 			try
 			{
-				_buffer.AddReadingGate();
+				_buffer.AddReadingGate(1);
 				Assert.Fail("should have max'ed out");
 			}
 			catch
@@ -60,9 +60,9 @@ namespace RabbitMqNext.Tests
 			for (int i = 31; i >= 0; i--)
 			{
 				_buffer._readPosition = (uint) i;
-				_buffer.AddReadingGate();
+				_buffer.AddReadingGate(1);
 			}
-			var min = (int)  _buffer.GetMinReadingGate();
+			var min = (int?)  _buffer.GetMinReadingGate();
 			min.Should().Be(0);
 		}
 
@@ -73,7 +73,7 @@ namespace RabbitMqNext.Tests
 			for (int i = 31; i >= 0; i--)
 			{
 				_buffer._readPosition = (uint)i;
-				last = _buffer.AddReadingGate();
+				last = _buffer.AddReadingGate(1);
 			}
 			var min = (int)_buffer.GetMinReadingGate();
 			min.Should().Be(0);
@@ -94,8 +94,8 @@ namespace RabbitMqNext.Tests
 			read.Should().Be(2);
 			_temp.ShouldBeTo(new byte[] { 0, 1 });
 
-			var gate = _buffer.AddReadingGate();
-			gate.pos.Should().Be(2);
+			var gate = _buffer.AddReadingGate(10);
+			gate.gpos.Should().Be(2);
 
 			read = _buffer.Read(_temp, 0, 10); // readpos = 12 but gate is at 2
 			read.Should().Be(10);
@@ -106,12 +106,12 @@ namespace RabbitMqNext.Tests
 
 			read = _buffer.Read(_temp, 0, 5, false, gate); // reading from gate, at pos 2
 			read.Should().Be(5);
-			gate.pos.Should().Be(7);
+			gate.gpos.Should().Be(7);
 			_temp.ShouldBeTo(new byte[] { 2, 3, 4, 5, 6,  });
 
 			read = _buffer.Read(_temp, 0, 5, false, gate); // reading from gate, at pos 7
 			read.Should().Be(5);
-			gate.pos.Should().Be(12);
+			gate.gpos.Should().Be(12);
 			_temp.ShouldBeTo(new byte[] { 7, 8, 9, 10, 11, });
 
 			_buffer.RemoveReadingGate(gate);

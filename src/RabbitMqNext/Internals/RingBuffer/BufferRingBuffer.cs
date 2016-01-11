@@ -130,7 +130,7 @@
 		{
 			AvailableAndPos availPos;
 			int available = 0;
-			
+
 			while (true)
 			{
 				availPos = this.InternalGetReadyToWriteEntries(BufferSize);
@@ -185,7 +185,8 @@
 
 				if (fromGate != null)
 				{
-					fromGate.pos += (uint) available;
+					fromGate.gpos += (uint) available;
+					fromGate.length -= (uint)available;
 				}
 				else
 				{

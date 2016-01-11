@@ -8,7 +8,7 @@
 	internal class ReadingGate
 	{
 		public volatile bool inEffect = true;
-		public uint pos;
+		public volatile uint gpos, length;
 		public int index;
 	}
 
@@ -28,11 +28,11 @@
 		private volatile int _gateState = 0; // 11111111 11111111 11111111 11111111
 
 		// adds to the current position
-		internal ReadingGate AddReadingGate()
+		internal ReadingGate AddReadingGate(uint length)
 		{
 			if (_gateState == -1) throw new Exception("Max gates reached");
 
-			var gate = new ReadingGate() { pos = _readPosition };
+			var gate = new ReadingGate() { gpos = _readPosition, length = length };
 
 			AtomicSecureIndexPosAndStore(gate);
 
@@ -41,11 +41,10 @@
 
 		internal void RemoveReadingGate(ReadingGate gate)
 		{
+			if (gate.inEffect == false) return;
 			gate.inEffect = false;
-
 			AtomicRemoveAtIndex(gate.index);
-
-			// if waiting for write coz of gate, given then another chance
+			// if waiting for write coz of gate, given them another chance
 			_waitingStrategy.SignalReadDone();
 		}
 
@@ -53,9 +52,10 @@
 		{
 			uint minGatePos = uint.MaxValue;
 
-			var oldGateState = _gateState;
+			int oldGateState = 0;
 			do
 			{
+				oldGateState = _gateState;
 				if (oldGateState == 0) return null;
 
 				for (int i = 0; i < MaxGates; i++)
@@ -67,8 +67,8 @@
 							continue;
 						if (el.inEffect) // otherwise ignored
 						{
-							if (minGatePos > el.pos)
-								minGatePos = el.pos;
+							if (minGatePos > el.gpos)
+								minGatePos = el.gpos;
 						}
 					}
 				}
@@ -87,23 +87,26 @@
 			uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize);
 			uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize);
 
-			if (fromGate != null)
-			{
-				Console.WriteLine("Reading from gate. Real readpos " +  readPos + " replaced by " + fromGate.pos);
-				readPos = fromGate.pos;
-			}
-
 			uint entriesFree;
 
-			var writeHasWrapped = writePos < readPos;
-
-			if (writeHasWrapped) // so everything ahead of readpos is available
+			if (fromGate != null)
 			{
-				entriesFree = _bufferSize - readPos;
+				// Console.WriteLine("Reading from gate. Real readpos " + readPos + " replaced by " + fromGate.pos);
+				readPos = fromGate.gpos & (_bufferSize - 1);
+				entriesFree = fromGate.length;
 			}
 			else
 			{
-				entriesFree = writePos - readPos;
+				var writeHasWrapped = writePos < readPos;
+
+				if (writeHasWrapped) // so everything ahead of readpos is available
+				{
+					entriesFree = _bufferSize - readPos;
+				}
+				else
+				{
+					entriesFree = writePos - readPos;
+				}
 			}
 
 #if DEBUG
@@ -128,6 +131,7 @@
 
 			uint writePos = writeCursor & (_bufferSize - 1);
 			uint readPos = readCursor & (_bufferSize - 1);
+			var originalreadPos = readPos;
 
 			uint entriesFree = 0;
 
@@ -138,9 +142,9 @@
 				// get min gate index, which becomes essentially the barrier to continue to write
 				// what we do is to hide from this operation the REAL readpos
 
-				Console.WriteLine("Got gate in place. real readPos " + readPos + " becomes " + minGate.Value);
+				// Console.WriteLine("Got gate in place. real readPos " + readPos + " becomes " + minGate.Value);
 
-				readPos = minGate.Value; // now the write cannot move forward
+				readPos = minGate.Value & (_bufferSize - 1); // now the write cannot move forward
 			} 
 
 			var writeWrapped = readPos > writePos;
@@ -163,7 +167,9 @@
 			{
 				if (!(entriesFree <= _bufferSize - 1))
 				{
-					var msg = "Assert write1 failed: " + entriesFree + " must be less or equal to " + (BufferSize - 1);
+					var msg = "Assert write1 failed: " + entriesFree + " must be less or equal to " + (BufferSize - 1) +
+						" originalreadPos " + originalreadPos + " readpos " + readPos + " write " + writePos + 
+						" G w " + _writePosition + " G r " + _readPosition;
 					System.Diagnostics.Debug.WriteLine(msg);
 					throw new Exception(msg);
 				}

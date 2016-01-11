@@ -76,7 +76,7 @@
 
 				var totalReceived = 0;
 
-				const int ConcurrentCalls = 35;
+				const int ConcurrentCalls = 30;
 				var tasks = new Task[ConcurrentCalls];
 
 				for (int i = 0; i < TotalPublish; i += ConcurrentCalls)
@@ -89,18 +89,16 @@
 
 					Task.WaitAll(tasks);
 
-					for (int j = 0; j < ConcurrentCalls; j++)
-					{
-						Interlocked.Increment(ref totalReceived);
-						// totalReceived++;
-					}
+					totalReceived += ConcurrentCalls;
+
+//					Console.WriteLine("calls " + totalReceived);
 
 					if (totalReceived >= TotalPublish)
 					{
 						watch.Stop();
-						Console.WriteLine("Rpc stress. Took " +
+						Console.WriteLine("Rpc stress done. Took " +
 										  watch.Elapsed.TotalMilliseconds +
-										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
+										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " messages per second");
 						totalReceived = 0;
 					}
 				}
@@ -111,7 +109,7 @@
 			}
 			catch (AggregateException ex)
 			{
-				Console.WriteLine("[Captured error] " + ex.Flatten().Message);
+				Console.WriteLine("[Captured error] " + ex.Message);
 			}
 			catch (Exception ex)
 			{

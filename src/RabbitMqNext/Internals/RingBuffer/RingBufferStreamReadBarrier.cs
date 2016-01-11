@@ -7,28 +7,37 @@ namespace RabbitMqNext.Internals.RingBuffer
 
 	public class RingBufferStreamReadBarrier : Stream
 	{
-		private readonly RingBufferStreamAdapter _innerStream;
+//		private readonly RingBufferStreamAdapter _innerStream;
 		private readonly ReadingGate _gate;
-		private int _length;
+		private readonly BufferRingBuffer _ringBuffer;
+		private volatile bool _released = false;
 
 		public RingBufferStreamReadBarrier(RingBufferStreamAdapter innerStream, int length)
 		{
-			_innerStream = innerStream;
-			_length = length;
-			_gate = _innerStream._ringBuffer.AddReadingGate();
+			_ringBuffer = innerStream._ringBuffer;
+			// _length = length;
+			_gate = _ringBuffer.AddReadingGate((uint)length);
 		}
 
 		public void Release()
 		{
-			_innerStream._ringBuffer.RemoveReadingGate(_gate);
+			if (_released) return;
+			_released = true;
+
+			_ringBuffer.RemoveReadingGate(_gate);
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			this.Release();
+			base.Dispose(disposing);
 		}
 
 		public override int Read(byte[] buffer, int offset, int count)
 		{
-			var lenToRead = Math.Min(count, _length);
-			if (lenToRead == 0) return 0; //user cannot read ahead of its window into the real buffer
-			var read = _innerStream._ringBuffer.Read(buffer, offset, lenToRead, fillBuffer: true, fromGate: _gate);
-			_length -= read;
+			var lenToRead = Math.Min(count, (int)_gate.length);
+			if (lenToRead == 0) return 0; // user cannot read ahead of its window into the real buffer
+			var read = _ringBuffer.Read(buffer, offset, lenToRead, fillBuffer: true, fromGate: _gate);
 			return read;
 		}
 
