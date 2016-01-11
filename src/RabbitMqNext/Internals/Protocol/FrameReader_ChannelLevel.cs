@@ -30,7 +30,7 @@ namespace RabbitMqNext.Internals
 			await continuation(replyCode, replyText, classId, methodId);
 		}
 
-		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, long, BasicProperties, Stream, Task> continuation)
+		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, int, BasicProperties, Stream, Task> continuation)
 		{
 			string consumerTag = _amqpReader.ReadShortStr();
 			ulong deliveryTag = _amqpReader.ReadULong();
@@ -73,7 +73,7 @@ namespace RabbitMqNext.Internals
 				var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
 
 				await continuation(consumerTag, deliveryTag, redelivered, exchange,
-					routingKey, length, properties, (Stream) _reader._ringBufferStream);
+					routingKey, (int)length, properties, (Stream) _reader._ringBufferStream);
 
 				if (marker.LengthRead < length)
 				{
@@ -125,16 +125,16 @@ namespace RabbitMqNext.Internals
 			return properties;
 		}
 
-		public async Task Read_BasicConsumeOk(Func<string, Task> continuation)
+		public void Read_BasicConsumeOk(Action<string> continuation)
 		{
 			var consumerTag = _amqpReader.ReadShortStr();
 
 			Console.WriteLine("< BasicConsumeOk ");
 
-			await continuation(consumerTag);
+			continuation(consumerTag);
 		}
 
-		public async Task Read_BasicReturn(Func<ushort, string, string, string, uint, BasicProperties, Stream, Task> continuation)
+		public async Task Read_BasicReturn(Func<ushort, string, string, string, int, BasicProperties, Stream, Task> continuation)
 		{
 			ushort replyCode = _amqpReader.ReadShort();
 			string replyText = _amqpReader.ReadShortStr();
@@ -176,7 +176,7 @@ namespace RabbitMqNext.Internals
 
 				await
 					continuation(replyCode, replyText, exchange, 
-						routingKey, length, properties, (Stream) _reader._ringBufferStream);
+						routingKey, (int)length, properties, (Stream) _reader._ringBufferStream);
 
 				if (marker.LengthRead < length)
 				{
