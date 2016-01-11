@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Diagnostics;
 	using System.Threading;
 
 	internal class ElementRingBuffer<T> : BaseRingBuffer, IDisposable 
@@ -27,6 +28,8 @@
 
 		public void WriteToNextAvailable(T element)
 		{
+			if (element == null) Debugger.Break();
+
 			AvailableAndPos availPos;
 			while (true)
 			{
@@ -68,6 +71,7 @@
 //			}
 
 			var elem = _elements[readPos];
+			if (elem == null) Debugger.Break();
 
 			_readPosition += (uint)1;          // volative write
 			_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
