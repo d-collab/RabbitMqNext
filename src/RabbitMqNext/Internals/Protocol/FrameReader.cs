@@ -19,7 +19,7 @@ namespace RabbitMqNext.Internals
 			_frameProcessor = frameProcessor;
 		}
 
-		public async Task ReadAndDispatch()
+		public void ReadAndDispatch()
 		{
 			try
 			{
@@ -54,48 +54,29 @@ namespace RabbitMqNext.Internals
 
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionClose)
 					{
-						await Read_ConnectionClose2(async (replyCode, replyText, oClassId, oMethodId) =>
+						Read_ConnectionClose2(async (replyCode, replyText, oClassId, oMethodId) =>
 						{
 							await _frameProcessor.DispatchCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
 						});
 					}
 					else if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelClose)
 					{
-						await Read_Channel_Close2(async (replyCode, replyText, oClassId, oMethodId) =>
+						Read_Channel_Close2(async (replyCode, replyText, oClassId, oMethodId) =>
 						{
 							await _frameProcessor.DispatchChannelCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
 						});
 					}
 					else
 					{
-						await _frameProcessor.DispatchMethod(channel, classMethodId);
+						_frameProcessor.DispatchMethod(channel, classMethodId);
 					}
 				}
-//				else if (frameType == AmqpConstants.FrameHeader)
-//				{
-//					Console.WriteLine("received FrameHeader");
-//				}
-//				else if (frameType == AmqpConstants.FrameBody)
-//				{
-//					Console.WriteLine("received FrameBody");
-//				}
 				else if (frameType == AmqpConstants.FrameHeartbeat)
 				{
 					Console.WriteLine("received FrameHeartbeat");
 				}
 
-//				var curPos = _reader._ringBufferStream.Position;
-//				var expectedPos = initialPosition + payloadLength;
-//
-//				if (expectedPos != curPos)
-//				{
-//					Console.WriteLine("Expecting stream pos to be at " + expectedPos + " but is at " + curPos + 
-//						" for frame type " + frameType + " and class " + classId + " and method " + methodId);
-//				}
-
-//				Console.WriteLine("will read FrameEnd");
 				byte frameEndMarker = _reader.ReadByte();
-//				Console.WriteLine("done read FrameEnd " + frameEndMarker);
 				if (frameEndMarker != AmqpConstants.FrameEnd)
 				{
 					throw new Exception("Expecting frame end, but found " + frameEndMarker);
