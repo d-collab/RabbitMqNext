@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoTestServer", "src\EchoT
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoClient", "src\EchoClient\EchoClient.csproj", "{7640E204-7DD9-40E0-A3AB-D9F38A5CB391}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfTestServer", "src\PerfTestServer\PerfTestServer.csproj", "{16A0A238-0E72-48E3-85E2-834A0537F696}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,6 +63,10 @@ Global
 		{7640E204-7DD9-40E0-A3AB-D9F38A5CB391}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7640E204-7DD9-40E0-A3AB-D9F38A5CB391}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7640E204-7DD9-40E0-A3AB-D9F38A5CB391}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16A0A238-0E72-48E3-85E2-834A0537F696}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16A0A238-0E72-48E3-85E2-834A0537F696}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16A0A238-0E72-48E3-85E2-834A0537F696}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16A0A238-0E72-48E3-85E2-834A0537F696}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -71,5 +77,6 @@ Global
 		{62188C57-E392-43E4-AD76-61F2367F7ED8} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
 		{4D213E22-6C45-4865-BF21-67400DD5EFCF} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
 		{7640E204-7DD9-40E0-A3AB-D9F38A5CB391} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
+		{16A0A238-0E72-48E3-85E2-834A0537F696} = {7228278D-07F5-4C95-8612-0EF23CB85E75}
 	EndGlobalSection
 EndGlobal
