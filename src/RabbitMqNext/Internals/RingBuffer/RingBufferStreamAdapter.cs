@@ -5,6 +5,7 @@
 	using System.Threading;
 	using System.Threading.Tasks;
 
+
 	public class RingBufferStreamAdapter : Stream
 	{
 //		private readonly SingleConsumer _consumer;

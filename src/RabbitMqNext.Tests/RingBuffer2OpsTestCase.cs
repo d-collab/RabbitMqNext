@@ -12,7 +12,7 @@ namespace RabbitMqNext.Tests
 	{
 		private CancellationTokenSource _cancellationTokenSrc;
 		private BufferRingBuffer _buffer;
-		private static byte[] SomeBuffer = Encoding.ASCII.GetBytes("The tragedy of the commons is a term, probably coined by the Victorian economist William Forster Lloyd[1] and later used by the ecologist Garrett Hardin, to denote a situation where individuals acting independently and rationally according to each other's self-interest behave contrary to the best interests of the whole by depleting some common resource. The concept was based upon an essay written in 1833 by Lloyd, who used a hypothetical example of the effects of unregulated grazing on common land in the British Isles. This became widely-known over a century later due to an article written by Garrett Hardin in 1968.");
+		private byte[] SomeBuffer;
 		private byte[] _temp;
 
 		[SetUp]
@@ -22,12 +22,102 @@ namespace RabbitMqNext.Tests
 			_buffer = new BufferRingBuffer(_cancellationTokenSrc.Token, 32, new LockWaitingStrategy(_cancellationTokenSrc.Token));
 
 			_temp = new byte[300];
+
+			SomeBuffer = new byte[200];
+			for (int i = 0; i < SomeBuffer.Length; i++)
+			{
+				SomeBuffer[i] = (byte) (i % 256);
+			}
 		}
 
 		[TearDown]
 		public void TearDown()
 		{
 			_cancellationTokenSrc.Dispose();	
+		}
+
+		[Test]
+		public void AddReadingGateMax()
+		{
+			for (int i = 0; i < 32; i++)
+			{
+				_buffer.AddReadingGate();
+			}
+			try
+			{
+				_buffer.AddReadingGate();
+				Assert.Fail("should have max'ed out");
+			}
+			catch
+			{
+				// expected
+			}
+		}
+
+		[Test]
+		public void GetMinGate()
+		{
+			for (int i = 31; i >= 0; i--)
+			{
+				_buffer._readPosition = (uint) i;
+				_buffer.AddReadingGate();
+			}
+			var min = (int)  _buffer.GetMinReadingGate();
+			min.Should().Be(0);
+		}
+
+		[Test]
+		public void GetMinGateAfterRemovingMin()
+		{
+			ReadingGate last = null;
+			for (int i = 31; i >= 0; i--)
+			{
+				_buffer._readPosition = (uint)i;
+				last = _buffer.AddReadingGate();
+			}
+			var min = (int)_buffer.GetMinReadingGate();
+			min.Should().Be(0);
+
+			_buffer.RemoveReadingGate(last);
+
+			min = (int)_buffer.GetMinReadingGate();
+			min.Should().Be(1);
+		}
+
+		[Test]
+		public void DoesntOverwriteGatePos()
+		{
+			var written = _buffer.Write(SomeBuffer, 0, 15, writeAll: false);
+			written.Should().Be(15);
+
+			var read = _buffer.Read(_temp, 0, 2); // readpos = 2
+			read.Should().Be(2);
+			_temp.ShouldBeTo(new byte[] { 0, 1 });
+
+			var gate = _buffer.AddReadingGate();
+			gate.pos.Should().Be(2);
+
+			read = _buffer.Read(_temp, 0, 10); // readpos = 12 but gate is at 2
+			read.Should().Be(10);
+			_temp.ShouldBeTo(new byte[] { 2, 3,4,5,6,7,8,9,10, 11 });
+
+			written = _buffer.Write(SomeBuffer, 15, 17, writeAll: false);
+			written.Should().Be(17);
+
+			read = _buffer.Read(_temp, 0, 5, false, gate); // reading from gate, at pos 2
+			read.Should().Be(5);
+			gate.pos.Should().Be(7);
+			_temp.ShouldBeTo(new byte[] { 2, 3, 4, 5, 6,  });
+
+			read = _buffer.Read(_temp, 0, 5, false, gate); // reading from gate, at pos 7
+			read.Should().Be(5);
+			gate.pos.Should().Be(12);
+			_temp.ShouldBeTo(new byte[] { 7, 8, 9, 10, 11, });
+
+			_buffer.RemoveReadingGate(gate);
+
+			written = _buffer.Write(SomeBuffer, 0, 11, writeAll: false);
+			written.Should().Be(11);
 		}
 
 		[Test]
@@ -104,6 +194,18 @@ namespace RabbitMqNext.Tests
 
 			read = _buffer.Read(_temp, 0, _temp.Length);
 			read.Should().Be(31);
+		}
+	}
+
+	static class AssertionExts
+	{
+		public static void ShouldBeTo(this byte[] source, byte[] expected)
+		{
+			for (int i = 0; i < expected.Length; i++)
+			{
+				if (source[i] != expected[i])
+					throw new AssertionException("Differ at index " + i + ". Expecting " + expected[i] + " but got " + source[i]);
+			}
 		}
 	}
 }

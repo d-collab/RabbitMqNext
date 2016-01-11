@@ -61,7 +61,6 @@
 
 		private readonly byte[] _buffer;
 
-
 		/// <summary>
 		/// Creates with default buffer size and 
 		/// default locking strategy
@@ -135,7 +134,6 @@
 			while (true)
 			{
 				availPos = this.InternalGetReadyToWriteEntries(BufferSize);
-				// available = (int) this.InternalGetReadyToWriteEntries(BufferSize);
 				available = availPos.available;
 
 				if (available == 0)
@@ -147,15 +145,8 @@
 			int writePos = availPos.position;
 
 			int received = 0;
-//			if (!asyncRecv)
 			{
 				received = socket.Receive(_buffer, writePos, available, SocketFlags.None);
-			}
-//			else
-			{
-//				var t = socket.ReceiveTaskAsync(_buffer, writePos, available);
-//				t.Wait();
-//				received = t.Result;
 			}
 
 			_writePosition += (uint)received; // volative write
@@ -163,7 +154,7 @@
 			_waitingStrategy.SignalWriteDone(); // signal - if someone is waiting
 		}
 
-		public int Read(byte[] buffer, int offset, int count, bool fillBuffer = false)
+		public int Read(byte[] buffer, int offset, int count, bool fillBuffer = false, ReadingGate fromGate = null)
 		{
 #if DEBUG
 			if (offset < 0) throw new ArgumentOutOfRangeException("offset", "must be greater or equal to 0");
@@ -174,8 +165,7 @@
 
 			while (totalRead < count)
 			{
-				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead);
-				// var available = (int) this.InternalGetReadyToReadEntries(count - totalRead);
+				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead, fromGate);
 				var available = (int) availPos.available;
 				if (available == 0)
 				{
@@ -193,8 +183,16 @@
 
 				totalRead += available;
 
-				// if (!fillBuffer) break;
-				_readPosition += (uint)available; // volative write
+				if (fromGate != null)
+				{
+					fromGate.pos += (uint) available;
+				}
+				else
+				{
+					// if (!fillBuffer) break;
+					_readPosition += (uint)available; // volative write
+				}
+
 				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 			}
 
