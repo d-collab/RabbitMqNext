@@ -39,7 +39,7 @@
 				new TaskLight(i => GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
 			
 			_basicPubArgsPool = new ObjectPool<FrameParameters.BasicPublishArgs>(
-				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 10, preInitialize: true); 
+				() => new FrameParameters.BasicPublishArgs(i => GenericRecycler(i, _basicPubArgsPool)), 1000, preInitialize: true); 
 		}
 
 		public Func<UndeliveredMessage, Task> MessageUndeliveredHandler;
@@ -270,7 +270,7 @@
 			return tcs;
 		}
 
-		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 50)
+		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
 		{
 			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
 			await helper.Setup();
@@ -448,7 +448,7 @@
 			}
 		}
 
-		private  Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, 
+		private Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, 
 			bool redelivered, string exchange, string routingKey,
 			int bodySize, BasicProperties properties, Stream stream)
 		{
@@ -499,13 +499,7 @@
 						delivery.stream = readBarrier;
 					}
 
-//					Task.Factory.StartNew(() => {
-//						cb(delivery);
-//					}, TaskCreationOptions.PreferFairness);
-
-					// Fingers crossed the threadpool is large enough
-					ThreadPool.UnsafeQueueUserWorkItem((param) =>
-					{
+					Task.Factory.StartNew(() => {
 						try
 						{
 							using (delivery.stream)
@@ -517,7 +511,23 @@
 						{
 							Console.WriteLine("From threadpool " + e);
 						}
-					}, null);
+					}, TaskCreationOptions.PreferFairness);
+
+					// Fingers crossed the threadpool is large enough
+//					ThreadPool.UnsafeQueueUserWorkItem((param) =>
+//					{
+//						try
+//						{
+//							using (delivery.stream)
+//							{
+//								cb(delivery);
+//							}
+//						}
+//						catch (Exception e)
+//						{
+//							Console.WriteLine("From threadpool " + e);
+//						}
+//					}, null);
 
 					return Task.CompletedTask;
 				}
