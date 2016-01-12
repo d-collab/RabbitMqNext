@@ -52,7 +52,7 @@
 			_cancellationToken = cancellationToken;
 
 			_cmdToSendObjPool = new ObjectPool<CommandToSend>(
-				() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 100, true);
+				() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 120, true);
 
 //			_commandOutbox2 = new ElementRingBuffer<CommandToSend>(cancellationToken, 64, new LockWaitingStrategy(cancellationToken));
 			_commandOutboxEvent = new AutoResetEvent(false);
