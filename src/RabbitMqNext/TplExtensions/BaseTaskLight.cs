@@ -4,14 +4,14 @@ namespace RabbitMqNext.TplExtensions
 	using System.Runtime.CompilerServices;
 	using System.Threading.Tasks;
 
-	public class BaseTaskLight<TDerived> : INotifyCompletion, IDisposable
+	public class BaseTaskLight<TDerived> : IDisposable
 	{
 		private readonly Action<TDerived> _recycler;
-		private Action _continuation;
+		protected Action _continuation;
 		protected volatile bool _isCompleted;
 		protected Exception _exception;
 
-		public TDerived GetAwaiter()
+		public TDerived GetDerived()
 		{
 			return (TDerived) (object)this;
 		}
@@ -26,11 +26,6 @@ namespace RabbitMqNext.TplExtensions
 			_continuation = null;
 			_isCompleted = false;
 			_exception = null;
-		}
-
-		public void OnCompleted(Action continuation)
-		{
-			_continuation = continuation;
 		}
 
 		public bool IsCompleted { get { return _isCompleted; } }
@@ -79,7 +74,7 @@ namespace RabbitMqNext.TplExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void DoRecycle()
 		{
-			if (_recycler != null) _recycler(GetAwaiter());
+			if (_recycler != null) _recycler(GetDerived());
 		}
 	}
 }

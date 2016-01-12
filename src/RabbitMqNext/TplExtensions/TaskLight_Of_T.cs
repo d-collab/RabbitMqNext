@@ -1,9 +1,10 @@
 namespace RabbitMqNext
 {
 	using System;
+	using System.Runtime.CompilerServices;
 	using TplExtensions;
 
-	public class TaskLight<T> : BaseTaskLight<TaskLight<T>>
+	public class TaskLight<T> : BaseTaskLight<TaskLight<T>>, INotifyCompletion
 	{
 		private T _result;
 
@@ -11,10 +12,14 @@ namespace RabbitMqNext
 		{
 		}
 
-		public override void Recycle()
+		public void OnCompleted(Action continuation)
 		{
-			base.Recycle();
-			_result = default(T);
+			_continuation = continuation;
+		}
+
+		public TaskLight<T> GetAwaiter()
+		{
+			return this;
 		}
 
 		public T GetResult()
@@ -28,6 +33,12 @@ namespace RabbitMqNext
 			_result = result;
 
 			SetCompleted(runContinuationAsync);
+		}
+
+		public override void Recycle()
+		{
+			base.Recycle();
+			_result = default(T);
 		}
 	}
 }
