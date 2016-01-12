@@ -15,19 +15,22 @@ namespace RabbitMqNext.Internals.RingBuffer
 	internal class SocketConsumer
 	{
 		private readonly Socket _socket;
-		private readonly BufferRingBuffer _ringBuffer;
+		private readonly ByteRingBuffer _ringBuffer;
 		private readonly CancellationToken _cancellationToken;
-//		private readonly bool _asyncSend;
+		private readonly Action _flushWrite;
 
-		public SocketConsumer(Socket socket, BufferRingBuffer ringBuffer, 
-							  CancellationToken cancellationToken)
+		public SocketConsumer(Socket socket, ByteRingBuffer ringBuffer,
+							  CancellationToken cancellationToken, 
+							  Action flushWrite)
 		{
 			_socket = socket;
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
-//			_asyncSend = asyncSend;
-			// Task.Factory.StartNew(WriteSocketFromRingBuffer, cancellationToken, TaskCreationOptions.LongRunning);
+			_flushWrite = flushWrite;
+		}
 
+		public void Start()
+		{
 			ThreadFactory.CreateBackgroundThread(WriteSocketFromRingBuffer, "SocketConsumer");
 		}
 
@@ -40,12 +43,8 @@ namespace RabbitMqNext.Internals.RingBuffer
 				while (!_cancellationToken.IsCancellationRequested)
 				{
 					_ringBuffer.ReadBufferIntoSocketSend(_socket);
-					// _ringBuffer.ReadBufferIntoSocketSend(_socket, _asyncSend);
-//					var available = _ringBuffer.ClaimReadRegion(waitIfNothingAvailable: true);
-//
-//					if (available == 0) throw new Exception("wtf2");
-//
-//					await _ringBuffer.ReadClaimedRegionInto(_socket, available, _asyncSend);
+
+					_flushWrite();
 				}
 			}
 			catch (SocketException ex)

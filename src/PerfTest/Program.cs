@@ -19,11 +19,11 @@
 
 		const bool WithAcks = false;
 
-//		const int TotalPublish = 250000;
-//		const int TotalPublish = 100;
+		const int TotalPublish = 250000;
+//		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
 //		const int TotalPublish = 500000;
-		const int TotalPublish = 2000000;
+//		const int TotalPublish = 2000000;
 
 		const int ConcurrentCalls = 100;
 
@@ -61,7 +61,7 @@
 
 //		    SubscribeForGCNotifications();
 
-			var t = StartConcurrentRpc(); // StartOriginalClientRpc(); //StartRpc(); // StartOriginalClient(); // Start();
+			var t = Start(); // StartConcurrentRpc(); // StartOriginalClientRpc(); //StartRpc(); // StartOriginalClient(); // Start();
 		    t.Wait();
 
 			Console.WriteLine("All done");
@@ -335,7 +335,7 @@
 				}
 				watch.Stop();
 
-				Console.WriteLine("BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + 
+				Console.WriteLine(DateTime.Now.TimeOfDay.TotalSeconds + " BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + 
 								  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
 
 				var newChannel2 = await conn.CreateChannel();

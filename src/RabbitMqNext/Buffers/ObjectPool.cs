@@ -9,6 +9,12 @@
 	/// </summary>
 	public sealed class ObjectPool<T> : IDisposable where T : class 
 	{
+		public class ObjectPoolItem<T>
+		{
+			public T Item;
+			public int index;
+		}
+
 		private const int DefaultCapacity = 5;
 
 		private readonly Func<T> _objectGenerator;

@@ -11,7 +11,7 @@ namespace RabbitMqNext.Tests
 	public class RingBuffer2OpsTestCase
 	{
 		private CancellationTokenSource _cancellationTokenSrc;
-		private BufferRingBuffer _buffer;
+		private ByteRingBuffer _buffer;
 		private byte[] SomeBuffer;
 		private byte[] _temp;
 
@@ -19,7 +19,7 @@ namespace RabbitMqNext.Tests
 		public void Init()
 		{
 			_cancellationTokenSrc = new CancellationTokenSource();
-			_buffer = new BufferRingBuffer(_cancellationTokenSrc.Token, 32, new LockWaitingStrategy(_cancellationTokenSrc.Token));
+			_buffer = new ByteRingBuffer(_cancellationTokenSrc.Token, 32, new LockWaitingStrategy(_cancellationTokenSrc.Token));
 
 			_temp = new byte[300];
 

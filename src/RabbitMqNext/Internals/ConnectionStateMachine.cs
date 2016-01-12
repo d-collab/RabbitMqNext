@@ -2,11 +2,9 @@
 {
 	using System;
 	using System.Collections.Concurrent;
-	using System.Collections.Generic;
 	using System.Text;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using RingBuffer;
 
 
 	// State machine is:
@@ -24,7 +22,6 @@
 		private readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 		private readonly AutoResetEvent _commandOutboxEvent;
 		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
-//		private readonly ElementRingBuffer<CommandToSend> _commandOutbox2;
 
 		internal readonly FrameReader _frameReader;
 
@@ -54,7 +51,6 @@
 			_cmdToSendObjPool = new ObjectPool<CommandToSend>(
 				() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 120, true);
 
-//			_commandOutbox2 = new ElementRingBuffer<CommandToSend>(cancellationToken, 64, new LockWaitingStrategy(cancellationToken));
 			_commandOutboxEvent = new AutoResetEvent(false);
 			_commandOutbox = new ConcurrentQueue<CommandToSend>();
 
@@ -65,9 +61,6 @@
 
 		public async Task Start(string username, string password, string vhost)
 		{
-			var t1 = new Thread(WriteCommandsToSocket) { IsBackground = true, Name = "WriteCommandsToSocket" };
-			t1.Start();
-
 			var t2 = new Thread(ReadFramesLoop) { IsBackground = true, Name = "ReadFramesLoop" };
 			t2.Start();
 
@@ -181,16 +174,18 @@
 			_commandOutboxEvent.Set();
 		}
 
-		private async void WriteCommandsToSocket()
+		internal void WriteCommandsToSocket()
 		{
 			try
 			{
-				while (!_cancellationToken.IsCancellationRequested)
+				// while (!_cancellationToken.IsCancellationRequested)
 				{
 					_commandOutboxEvent.WaitOne();
 
 					CommandToSend cmdToSend;
-					while (_commandOutbox.TryDequeue(out cmdToSend))
+					const int maxDrainBeforeFlush = 2;
+					int iterations = 0;
+					while (iterations++ < maxDrainBeforeFlush && _commandOutbox.TryDequeue(out cmdToSend))
 					{
 						// Console.WriteLine(" writing command ");
 						// var cmdToSend = _commandOutbox2.GetNextAvailable();
@@ -219,14 +214,14 @@
 						// if writing to socket is enough, set as complete
 						if (!cmdToSend.ExpectsReply)
 						{
-							await cmdToSend.ReplyAction3(0, 0, null);
+							cmdToSend.ReplyAction3(0, 0, null);
 						}
 					}
 				}
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("WriteCommandsToSocket error " + ex.Message);
+				Console.WriteLine("WriteCommandsToSocket error " + ex);
 				// Debugger.Log(1, "error", "WriteCommandsToSocket error " + ex.Message);
 				// throw;
 			}

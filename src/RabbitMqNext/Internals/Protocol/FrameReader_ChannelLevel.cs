@@ -129,7 +129,7 @@ namespace RabbitMqNext.Internals
 		{
 			var consumerTag = _amqpReader.ReadShortStr();
 
-			Console.WriteLine("< BasicConsumeOk ");
+			Console.WriteLine("< BasicConsumeOk " + DateTime.Now.TimeOfDay.TotalSeconds);
 
 			continuation(consumerTag);
 		}

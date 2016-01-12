@@ -10,9 +10,9 @@
 	{
 //		private readonly SingleConsumer _consumer;
 //		private readonly SingleProducer _producer;
-		internal readonly BufferRingBuffer _ringBuffer;
+		internal readonly ByteRingBuffer _ringBuffer;
 
-		internal RingBufferStreamAdapter(BufferRingBuffer ringBuffer)
+		internal RingBufferStreamAdapter(ByteRingBuffer ringBuffer)
 		{
 			_ringBuffer = ringBuffer;
 //			_consumer = new SingleConsumer(ringBuffer, ringBuffer.CancellationToken);

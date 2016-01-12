@@ -47,10 +47,10 @@
 			_password = ConfigurationManager.AppSettings["password"];
 
 			var t1 = StartRpcServer();
-			var t2 = StartRpcServer();
-			var t3 = StartRpcServer();
+//			var t2 = StartRpcServer();
+//			var t3 = StartRpcServer();
 
-			Task.WaitAll(t1, t2, t3);
+			Task.WaitAll(t1); //, t2, t3);
 
 			Console.WriteLine("All done");
 

@@ -6,8 +6,6 @@
 
 	public class ConnectionFactory
 	{
-//		public ILogger Logger { get; set; }
-
 		public async Task<Connection> Connect(string hostname, 
 			string vhost = "/", string username = "guest", 
 			string password = "guest", int port = 5672)

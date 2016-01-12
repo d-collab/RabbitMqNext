@@ -1,8 +1,22 @@
 # RabbitMqNext
 
-Experimenting using TPL and async (completion ports/overlapped io) socket reads and buffer pools to see if a better rabbitmq client comes out of it. 
+Experimenting using [TPL](https://msdn.microsoft.com/en-us/library/dd460717%28v=vs.110%29.aspx) 
+--and sync (completion ports/overlapped io) socket reads-- and buffer pools to see if a better 
+rabbitmq client comes out of it. 
 
-Not ready for production use.
+The goal is to drastically reduce contention and GC pauses. 
+
+The way this is accomplished is two fold:
+
+* Api invocations return future objects (in .net the idiomatic/de-facto way is to return a Task 
+  which combined with async/await makes for a decent experience)
+
+* writes and reads related to the socket are consumer/producer of ringbuffer thus one upfront 
+  big allocation and that's it. The read/write loop happen in two dedicated thread.
+
+
+
+**Not ready for production use.**
 
 
 Current stage: 
@@ -25,3 +39,10 @@ Current stage:
 
 - Connection/channels recovery / Programming model friendly
 
+
+```C#
+var conn = await ConnectionFactory.Connect(...);
+var channel = await conn.CreateChannel();
+await channel.BasicQos(0, 250, false);
+
+```

@@ -84,15 +84,21 @@
 		{
 			await InternalDoConnectSocket(hostname, port);
 
-			_socketToRingBuffer = new SocketRingBuffers(_socket, _cancellationTokenSrc.Token, OnSocketClosed);
+			_socketToRingBuffer = new SocketRingBuffers(_socket, _cancellationTokenSrc.Token, OnSocketClosed, FlushWrites);
 			_amqpReader = new AmqpPrimitivesReader(_socketToRingBuffer.Reader);
 			_amqpWriter = new AmqpPrimitivesWriter(_socketToRingBuffer.Writer, bufferPool: null, memStreamPool: null);
 
 			_connectionState = new ConnectionStateMachine(_socketToRingBuffer.Reader, _amqpReader, _amqpWriter, _cancellationTokenSrc.Token);
 
+			_socketToRingBuffer.Start();
 			await _connectionState.Start(username, password, vhost);
 			_amqpWriter.FrameMaxSize = _connectionState._frameMax;
 			_amqpReader.FrameMaxSize = _connectionState._frameMax;
+		}
+
+		private void FlushWrites()
+		{
+			_connectionState.WriteCommandsToSocket();
 		}
 
 		private async Task InternalDoConnectSocket(string hostname, int port)

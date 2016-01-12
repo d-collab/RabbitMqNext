@@ -9,7 +9,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 	{
 //		private readonly RingBufferStreamAdapter _innerStream;
 		private readonly ReadingGate _gate;
-		private readonly BufferRingBuffer _ringBuffer;
+		private readonly ByteRingBuffer _ringBuffer;
 		private volatile bool _released = false;
 
 		public RingBufferStreamReadBarrier(RingBufferStreamAdapter innerStream, int length)
