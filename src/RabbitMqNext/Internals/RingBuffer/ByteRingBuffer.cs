@@ -51,7 +51,7 @@
 	/// ^ when restricted by wrap
 	/// ]]>
 	/// </remarks>
-	internal class BufferRingBuffer : BaseRingBuffer, IDisposable // Stream2
+	internal class ByteRingBuffer : BaseRingBuffer, IDisposable // Stream2
 	{
 		public const int MinBufferSize = 32;
 		public const int DefaultBufferSize = 0x100000;     //  1.048.576 1mb
@@ -66,14 +66,14 @@
 		/// default locking strategy
 		/// </summary>
 		/// <param name="cancellationToken"></param>
-		public BufferRingBuffer(CancellationToken cancellationToken) : this(cancellationToken, DefaultBufferSize, new LockWaitingStrategy(cancellationToken))
+		public ByteRingBuffer(CancellationToken cancellationToken) : this(cancellationToken, DefaultBufferSize, new LockWaitingStrategy(cancellationToken))
 		{
 		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		public BufferRingBuffer(CancellationToken cancellationToken, int bufferSize, WaitingStrategy waitingStrategy)
+		public ByteRingBuffer(CancellationToken cancellationToken, int bufferSize, WaitingStrategy waitingStrategy)
 			: base(cancellationToken, bufferSize, waitingStrategy)
 		{
 			if (bufferSize < MinBufferSize) throw new ArgumentException("buffer must be at least " + MinBufferSize, "bufferSize");
@@ -209,10 +209,12 @@
 			{
 				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(BufferSize);
 				int available = availPos.available;
-				if (available == 0)
+
+				// buffer is empty.. return and expect to be called again when something gets written
+				if (available == 0) 
 				{
-					_waitingStrategy.WaitForWrite();
-					continue;
+					// _waitingStrategy.WaitForWrite();
+					return;
 				}
 
 				int readPos = availPos.position;
