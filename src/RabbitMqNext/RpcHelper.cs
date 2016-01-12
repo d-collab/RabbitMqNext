@@ -21,7 +21,7 @@ namespace RabbitMqNext
 
 		public RpcHelper(AmqpChannel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 3000)
 		{
-			if (maxConcurrentCalls <= 0 || maxConcurrentCalls > 50) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
+			if (maxConcurrentCalls <= 0) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
 
 			_channel = channel;
 			_maxConcurrentCalls = maxConcurrentCalls;
@@ -70,6 +70,7 @@ namespace RabbitMqNext
 			uint correlationId;
 			if (!SecureSpotAndUniqueCorrelationId(task, out correlationId))
 			{
+				Console.WriteLine("max calls reached!");
 				task.SetException(new Exception("reached max calls"));
 				return task;
 			}
