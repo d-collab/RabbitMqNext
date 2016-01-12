@@ -455,7 +455,6 @@
 			if (needsHardConfirmation) // we're in pub confirmation mode
 			{
 				_confirmationKeeper.WaitForSemaphore(); // make sure we're not over the limit
-				tcs = null; // now we wont confirm this upon sending the frame anymore
 			}
 
 			var args = _basicPubArgsPool.GetObject();
@@ -472,7 +471,7 @@
 				reply: null, 
 				expectsReply: false,
 				// tcs: tcs,
-				tcsL: tcs,
+				tcsL: needsHardConfirmation ? null : tcs,
 				optArg: args,
 				prepare: () => { _confirmationKeeper.Add(tcs); });
 
