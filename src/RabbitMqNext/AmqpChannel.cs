@@ -9,13 +9,6 @@
 	using Internals;
 	using Internals.RingBuffer;
 
-	public enum ConsumeMode
-	{
-		SingleThreaded, 
-		ParallelWithReadBarrier,
-		ParallelWithBufferCopy
-	}
-
 	public class AmqpChannel // : IAmqpChannel
 	{
 		private readonly ushort _channelNum;
@@ -348,16 +341,6 @@
 			return Task.CompletedTask;
 		}
 
-		private async Task InternalClose(bool sendClose)
-		{
-			if (sendClose)
-				await __SendChannelClose(AmqpConstants.ReplySuccess, "bye");
-			else
-				await __SendChannelCloseOk();
-
-			_connection.ChannelClosed(this);
-		}
-
 		internal Task Open()
 		{
 			var tcs = new TaskCompletionSource<bool>();
@@ -430,6 +413,74 @@
 			return tcs.Task;
 		}
 
+		internal Task __EnableConfirmation()
+		{
+			var tcs = new TaskCompletionSource<bool>();
+
+			_connection.SendCommand(_channelNum, 85, 10, AmqpChannelLevelFrameWriter.ConfirmSelect(noWait: false),
+				reply: (channel, classMethodId, error) =>
+				{
+					if (classMethodId == AmqpClassMethodChannelLevelConstants.ConfirmSelectOk)
+					{
+						// _connection._frameReader.Read_Channel_CloseOk(() =>
+						{
+							tcs.SetResult(true);
+						}//);
+					}
+					else
+					{
+						Util.SetException(tcs, error, classMethodId);
+					}
+					return Task.CompletedTask;
+				},
+				expectsReply: true, 
+				tcs: tcs);
+
+			return tcs.Task;
+		}
+
+		/// <summary>
+		/// This method asks the server to redeliver all unacknowledged messages on a 
+		/// specified channel. Zero or more messages may be redelivered.  This method
+		/// </summary>
+		/// <param name="requeue">  If this field is zero, the message will be redelivered to the original 
+		/// recipient. If this bit is 1, the server will attempt to requeue the message, 
+		/// potentially then delivering it to an alternative subscriber.</param>
+		/// <returns></returns>
+		public Task BasicRecover(bool requeue)
+		{
+			var tcs = new TaskCompletionSource<bool>();
+
+			_connection.SendCommand(_channelNum, 60, 110,
+				AmqpChannelLevelFrameWriter.Recover(requeue),
+				reply: (channel, classMethodId, error) =>
+				{
+					if (classMethodId == AmqpClassMethodChannelLevelConstants.RecoverOk)
+					{
+						tcs.SetResult(true);
+					}
+					else
+					{
+						Util.SetException(tcs, error, classMethodId);
+					}
+					return Task.CompletedTask;
+				},
+				expectsReply: true,
+				tcs: tcs);
+
+			return tcs.Task;
+		}
+
+		private async Task InternalClose(bool sendClose)
+		{
+			if (sendClose)
+				await __SendChannelClose(AmqpConstants.ReplySuccess, "bye");
+			else
+				await __SendChannelCloseOk();
+
+			_connection.ChannelClosed(this);
+		}
+
 		internal async Task DispatchMethod(ushort channel, int classMethodId)
 		{
 			switch (classMethodId)
@@ -442,10 +493,45 @@
 					await _connection._frameReader.Read_BasicReturn(DispatchBasicReturn);
 					break;
 
+				// Basic Ack and NAck will be sent by the server if we enabled confirmation for this channel
+				case AmqpClassMethodChannelLevelConstants.BasicAck:
+					_connection._frameReader.Read_BasicAck(ProcessAcks);
+					break;
+				
+				case AmqpClassMethodChannelLevelConstants.BasicNAck:
+					_connection._frameReader.Read_BasicNAck(ProcessNAcks);
+					break;
+
+				case AmqpClassMethodChannelLevelConstants.ChannelFlow:
+					_connection._frameReader.Read_ChannelFlow(HandleChannelFlow);
+					break;
+
 				default:
 					Console.WriteLine("Unexpected method at channel level " + classMethodId);
 					break;
 			}
+		}
+
+		private void HandleChannelFlow(bool isActive)
+		{
+			if (isActive)
+			{
+
+			}
+			else
+			{
+				
+			}
+		}
+
+		private void ProcessAcks(ulong deliveryTags, bool multiple)
+		{
+			
+		}
+
+		private void ProcessNAcks(ulong deliveryTags, bool multiple, bool requeue)
+		{
+			
 		}
 
 		private Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, 

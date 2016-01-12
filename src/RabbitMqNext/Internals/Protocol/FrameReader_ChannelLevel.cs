@@ -192,5 +192,36 @@ namespace RabbitMqNext.Internals
 				throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize + " and first body is " + length + " bytes");
 			}
 		}
+
+		public void Read_BasicAck(Action<ulong, bool> continuation)
+		{
+			ulong deliveryTags = _amqpReader.ReadULong();
+			bool multiple = _amqpReader.ReadBits() != 0;
+
+			Console.WriteLine("< BasicAck from server for  " + deliveryTags + " multiple:  " + multiple);
+
+			continuation(deliveryTags, multiple);
+		}
+
+		public void Read_BasicNAck(Action<ulong, bool, bool> continuation)
+		{
+			ulong deliveryTags = _amqpReader.ReadULong();
+			byte bits = _amqpReader.ReadBits();
+			bool multiple = (bits & 1) != 0;
+			bool requeue = (bits & 2) != 0;
+
+			Console.WriteLine("< BasicNAck from server for  " + deliveryTags + " multiple:  " + multiple + " requeue " + requeue);
+
+			continuation(deliveryTags, multiple, requeue);
+		}
+
+		public void Read_ChannelFlow(Action<bool> continuation)
+		{
+			bool isActive = _amqpReader.ReadBits() != 0;
+
+			Console.WriteLine("< ChannelFlow from server for  " + isActive);
+
+			continuation(isActive);
+		}
 	}
 }

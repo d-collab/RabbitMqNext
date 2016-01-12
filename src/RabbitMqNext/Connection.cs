@@ -41,26 +41,14 @@
 			};
 		}
 
-		public async Task<AmqpChannel> CreateChannel()
+		public Task<AmqpChannel> CreateChannel()
 		{
-			var channelNum = (ushort) Interlocked.Increment(ref _channelNumbers);
-			
-			if (channelNum > ConnectionStateMachine.MaxChannels) 
-				throw new Exception("Exceeded channel limits");
+			return InternalCreateChannel(withPubConfirm: false);
+		}
 
-			var channel = new AmqpChannel(channelNum, _connectionState);
-
-			try
-			{
-				_connectionState._channels[channelNum] = channel;
-				await channel.Open();
-				return channel;
-			}
-			catch
-			{
-				_connectionState._channels[channelNum] = null;
-				throw;
-			}
+		public Task<AmqpChannel> CreateChannelWithPublishConfirmation()
+		{
+			return InternalCreateChannel(withPubConfirm: true);
 		}
 
 		public async Task Close()
@@ -117,6 +105,33 @@
 			}
 
 			if (!started) throw new Exception("Invalid hostname " + hostname); // ipv6 not supported yet
+		}
+
+		private async Task<AmqpChannel> InternalCreateChannel(bool withPubConfirm)
+		{
+			var channelNum = (ushort)Interlocked.Increment(ref _channelNumbers);
+
+			if (channelNum > ConnectionStateMachine.MaxChannels)
+				throw new Exception("Exceeded channel limits");
+
+			var channel = new AmqpChannel(channelNum, _connectionState);
+
+			try
+			{
+				_connectionState._channels[channelNum] = channel;
+				await channel.Open();
+				if (withPubConfirm)
+				{
+					await channel.__EnableConfirmation();
+				}
+				return channel;
+			}
+			catch
+			{
+				// TODO: release channel number that wasnt used
+				_connectionState._channels[channelNum] = null;
+				throw;
+			}
 		}
 
 		private void OnSocketClosed()

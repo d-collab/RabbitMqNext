@@ -58,6 +58,7 @@
     <Compile Include="Connection.cs" />
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="IAmqpChannel.cs" />
+    <Compile Include="Internals\AmqpClassMethodChannelLevelConstants.cs" />
     <Compile Include="Internals\AmqpClassMethodConnectionLevelConstants.cs" />
     <Compile Include="Internals\AmqpError.cs" />
     <Compile Include="Internals\AmqpPrimitivesReader.cs">

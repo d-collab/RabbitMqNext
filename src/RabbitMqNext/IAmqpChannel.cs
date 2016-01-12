@@ -5,10 +5,15 @@
 	using System.IO;
 	using System.Threading.Tasks;
 
+	public enum ConsumeMode
+	{
+		SingleThreaded,
+		ParallelWithReadBarrier,
+		ParallelWithBufferCopy
+	}
+
 	public interface IAmqpChannel
 	{
-		// event Action<ushort, string, string, string> MessageUndelivered;
-
 		int ChannelNumber { get; }
 
 		bool Closed { get; }
@@ -65,9 +70,10 @@
 		/// <param name="properties"></param>
 		/// <param name="buffer"></param>
 		/// <returns></returns>
-		TaskLight BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
-			BasicProperties properties, ArraySegment<byte> buffer);
+		TaskLight BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate, BasicProperties properties, ArraySegment<byte> buffer);
 
 		Task Close();
+
+
 	}
 }

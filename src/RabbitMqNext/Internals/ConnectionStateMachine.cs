@@ -41,9 +41,8 @@
 		private readonly ObjectPool<CommandToSend> _cmdToSendObjPool;
 
 		public ConnectionStateMachine(InternalBigEndianReader reader, 
-			AmqpPrimitivesReader amqpReader, 
-			AmqpPrimitivesWriter amqpWriter, 
-			CancellationToken cancellationToken)
+									  AmqpPrimitivesReader amqpReader, AmqpPrimitivesWriter amqpWriter, 
+									  CancellationToken cancellationToken)
 		{
 			_amqpWriter = amqpWriter;
 			_cancellationToken = cancellationToken;
@@ -106,14 +105,24 @@
 
 		private async Task InternalDispatchMethodToConnection(ushort channel, int classMethodId)
 		{
+			switch (classMethodId)
+			{
+				// TODO: support block/unblock connection msgs
+				case AmqpClassMethodConnectionLevelConstants.ConnectionBlocked:
+				case AmqpClassMethodConnectionLevelConstants.ConnectionUnblocked:
+					return;
+				
+				// Any other connection level method?
+			}
+
 			CommandToSend sent;
 			if (_awaitingReplyQueue.TryDequeue(out sent))
 			{
 				await sent.ReplyAction3(channel, classMethodId, null);
 			}
-			else
+			// else
 			{
-				// nothing was really waiting for a reply
+				// nothing was really waiting for a reply.. exception?
 			}
 		}
 

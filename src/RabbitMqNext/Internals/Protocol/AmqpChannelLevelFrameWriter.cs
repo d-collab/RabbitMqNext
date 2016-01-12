@@ -283,5 +283,44 @@ namespace RabbitMqNext.Internals
 				basicPub.Done();	
 			}
 		}
+
+		public static WriterDelegate ConfirmSelect(bool noWait)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("ConfirmSelect");
+
+				ushort payloadSize = 1 + 4;
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
+				writer.WriteBit(noWait);
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			};
+		}
+
+		public static WriterDelegate Recover(bool requeue)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("Recover");
+
+				ushort payloadSize = 1 + 4;
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
+				writer.WriteBit(requeue);
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			};
+		}
+
+		public static WriterDelegate ChannelFlowOk(bool isActive)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("ChannelFlowOk");
+
+				ushort payloadSize = 1 + 4;
+				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
+				writer.WriteBit(isActive);
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			};
+		}
 	}
 }
