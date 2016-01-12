@@ -4,7 +4,6 @@
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.IO;
-	using System.Threading;
 	using System.Threading.Tasks;
 	using Internals;
 	using Internals.RingBuffer;
@@ -15,6 +14,8 @@
 		private readonly ConnectionStateMachine _connection;
 		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
 		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
+
+		internal MessagesPendingConfirmationKeeper _confirmationKeeper;
 
 		private volatile int _closed = 0;
 
@@ -213,54 +214,12 @@
 		public void BasicPublishN(string exchange, string routingKey, bool mandatory, bool immediate,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			if (properties == null || properties.IsEmpty)
-			{
-				properties = BasicProperties.Empty;
-			}
-
-			var args = _basicPubArgsPool.GetObject();
-			args.exchange = exchange;
-			args.immediate = immediate;
-			args.routingKey = routingKey;
-			args.mandatory = mandatory;
-			args.properties = properties;
-			args.buffer = buffer;
-
-			_connection.SendCommand(_channelNum, 60, 40,
-				null, // AmqpChannelLevelFrameWriter.InternalBasicPublish, 
-				reply: null, expectsReply: false,
-				// tcs: tcs,
-				tcsL: null,
-				optArg: args);
+			InternalBasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer, false);
 		}
 
 		public TaskLight BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate, BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			if (properties == null || properties.IsEmpty)
-			{
-				properties = BasicProperties.Empty;
-			}
-
-//			var tcs = new TaskLight(null);
-			var tcs = _taskLightPool.GetObject();
-
-			var args = _basicPubArgsPool.GetObject();
-//			var args = new FrameParameters.BasicPublishArgs(null);
-			args.exchange = exchange; 
-			args.immediate = immediate; 
-			args.routingKey = routingKey; 
-			args.mandatory = mandatory; 
-			args.properties = properties;
-			args.buffer = buffer;
-
-			_connection.SendCommand(_channelNum, 60, 40,
-				null, // AmqpChannelLevelFrameWriter.InternalBasicPublish, 
-				reply: null, expectsReply: false, 
-				// tcs: tcs,
-				tcsL: tcs,
-				optArg: args);
-
-			return tcs;
+			return InternalBasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer, true);
 		}
 
 		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
@@ -413,8 +372,12 @@
 			return tcs.Task;
 		}
 
-		internal Task __EnableConfirmation()
+		internal Task __EnableConfirmation(int maxunconfirmedMessages)
 		{
+			if (_confirmationKeeper != null) throw new Exception("Already set");
+
+			_confirmationKeeper = new MessagesPendingConfirmationKeeper(maxunconfirmedMessages, _connection._cancellationToken);
+
 			var tcs = new TaskCompletionSource<bool>();
 
 			_connection.SendCommand(_channelNum, 85, 10, AmqpChannelLevelFrameWriter.ConfirmSelect(noWait: false),
@@ -469,6 +432,51 @@
 				tcs: tcs);
 
 			return tcs.Task;
+		}
+
+		private TaskLight InternalBasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
+			BasicProperties properties, ArraySegment<byte> buffer, bool withTcs)
+		{
+			// TODO: log if the user withTcs=false and _confirmationKeeper != null which doesnt make sense...
+
+			if (properties == null || properties.IsEmpty)
+			{
+				properties = BasicProperties.Empty;
+			}
+
+			var needsHardConfirmation = _confirmationKeeper != null;
+
+			TaskLight tcs = null;
+			if (withTcs || needsHardConfirmation)
+			{
+				tcs = _taskLightPool.GetObject();
+			}
+
+			if (needsHardConfirmation) // we're in pub confirmation mode
+			{
+				_confirmationKeeper.WaitForSemaphore(); // make sure we're not over the limit
+				tcs = null; // now we wont confirm this upon sending the frame anymore
+			}
+
+			var args = _basicPubArgsPool.GetObject();
+			// var args = new FrameParameters.BasicPublishArgs(null);
+			args.exchange = exchange;
+			args.immediate = immediate;
+			args.routingKey = routingKey;
+			args.mandatory = mandatory;
+			args.properties = properties;
+			args.buffer = buffer;
+
+			_connection.SendCommand(_channelNum, 60, 40,
+				null, // AmqpChannelLevelFrameWriter.InternalBasicPublish, 
+				reply: null, 
+				expectsReply: false,
+				// tcs: tcs,
+				tcsL: tcs,
+				optArg: args,
+				prepare: () => { _confirmationKeeper.Add(tcs); });
+
+			return tcs;
 		}
 
 		private async Task InternalClose(bool sendClose)
@@ -526,12 +534,18 @@
 
 		private void ProcessAcks(ulong deliveryTags, bool multiple)
 		{
-			
+			if (_confirmationKeeper != null)
+			{
+				_confirmationKeeper.Confirm(deliveryTags, multiple, requeue: false, isAck: true);
+			}
 		}
 
 		private void ProcessNAcks(ulong deliveryTags, bool multiple, bool requeue)
 		{
-			
+			if (_confirmationKeeper != null)
+			{
+				_confirmationKeeper.Confirm(deliveryTags, multiple, requeue, isAck: false);
+			}
 		}
 
 		private Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, 
