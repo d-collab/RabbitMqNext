@@ -14,12 +14,10 @@ The way this is accomplished is two fold:
 * writes and reads related to the socket are consumer/producer of ringbuffer thus one upfront 
   big allocation and that's it. The read/write loop happen in two dedicated thread.
 
-
-
 **Not ready for production use.**
 
 
-Current stage: 
+### Current stage: 
 
 - Handshake [Done]
 - Create channel [Done]
@@ -33,11 +31,15 @@ Current stage:
 - Channel close (started by server or client) [Done]
 - Queue Consume / Basic Deliver [Done]
 - BasicReturn [Done]
+- Publish confirm [Done] (_will wait the Task on BasicPublish until Ack from server, so it's slow and should be judiciously used_)
 
 - ChannelFlow 
-- Heartbeat
+- Heartbeat 
 
 - Connection/channels recovery / Programming model friendly
+
+
+### Sample code
 
 
 ```C#
