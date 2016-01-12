@@ -1,6 +1,7 @@
 ﻿namespace PerfTestServer
 {
 	using System;
+	using System.Configuration;
 	using System.Runtime;
 	using System.Threading;
 	using System.Threading.Tasks;
@@ -13,11 +14,12 @@
 		const bool WithAcks = false;
 
 		// const int TotalPublish = 250000;
-		const int TotalPublish = 100;
+//		const int TotalPublish = 100;
 		// const int TotalPublish = 100000;
-		// const int TotalPublish = 500000;
+		const int TotalPublish = 500000;
 
-		const string TargetHost = "localhost";
+		static string TargetHost = "localhost";
+		static string _username, _password;
 		const string VHost = "clear_test";
 
 		static void Main(string[] args)
@@ -31,11 +33,24 @@
 
 			Console.WriteLine("I'm the server!");
 
+			// ThreadPool.SetMaxThreads(16, maxcomplePorts);
+
+			int maxworkers, minworkers;
+			int maxcomplePorts, mincomplePorts;
+			ThreadPool.GetMaxThreads(out maxworkers, out maxcomplePorts);
+			ThreadPool.GetMinThreads(out minworkers, out mincomplePorts);
+			Console.WriteLine("The threadpool max " + maxworkers + " min " + minworkers);
+
+
+			TargetHost = ConfigurationManager.AppSettings["rabbitmqserver"];
+			_username = ConfigurationManager.AppSettings["username"];
+			_password = ConfigurationManager.AppSettings["password"];
 
 			var t1 = StartRpcServer();
-			// var t2 = StartRpcServer();
+			var t2 = StartRpcServer();
+			var t3 = StartRpcServer();
 
-			Task.WaitAll(t1);
+			Task.WaitAll(t1, t2, t3);
 
 			Console.WriteLine("All done");
 
@@ -48,7 +63,8 @@
 
 			try
 			{
-				conn1 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost);
+				conn1 = await new ConnectionFactory().Connect(TargetHost, 
+					vhost: VHost, username: _username, password: _password);
 
 				Console.WriteLine("[Connected]");
 
@@ -64,19 +80,23 @@
 
 				await newChannel.QueueBind("rpc1", "test_ex", "rpc1", null, true);
 
+				// when
+				// ConsumeMode.SingleThreaded -> invoked from the readframeloop thread
+				// ConsumeMode.Parallel* -> invoked from the threadpool
+
+				// var temp = new byte[100];
 
 				Console.WriteLine("Starting Rpc channel Parallel consumer...");
-				await newChannel.BasicConsume(ConsumeMode.ParallelWithBufferCopy, delivery =>
+				await newChannel.BasicConsume(ConsumeMode.SingleThreaded, delivery =>
 				{
-					var temp = new byte[100];
+					var temp = new byte[4];
 
 					if (delivery.stream != null)
 						delivery.stream.Read(temp, 0, (int)delivery.bodySize);
-//					else
-//						temp = delivery.Body;
 
 					var x = BitConverter.ToInt32(temp, 0);
 //					Console.WriteLine("Got request " + x);
+//					Thread.SpinWait(100);
 
 					var replyProp = new BasicProperties()
 					{
@@ -94,7 +114,18 @@
 
 				await Task.Delay(TimeSpan.FromMinutes(12));
 
-				Console.WriteLine("Closing...");
+//				var ev = new AutoResetEvent(false);
+
+//				Console.CancelKeyPress += (sender, args) =>
+//				{
+//					Console.WriteLine("Exiting...");
+//					ev.Set();
+//				};
+//
+//
+//				Console.WriteLine("Waiting...");
+//				ev.WaitOne();
+
 
 				await newChannel.Close();
 			}

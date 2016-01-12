@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Configuration;
 	using System.Diagnostics;
 	using System.Runtime;
 	using System.Text;
@@ -21,9 +22,13 @@
 //		const int TotalPublish = 250000;
 //		const int TotalPublish = 100;
 //		const int TotalPublish = 100000;
-		const int TotalPublish = 900000;
+//		const int TotalPublish = 500000;
+		const int TotalPublish = 2000000;
 
-		const string TargetHost = "media";
+		const int ConcurrentCalls = 100;
+
+		static string TargetHost = "localhost";
+		static string _username, _password;
 		const string VHost = "clear_test";
 
 		private static string Message =
@@ -44,6 +49,16 @@
 			GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 			Console.WriteLine("New Latency mode: " + GCSettings.LatencyMode);
 
+		    int maxworkers, minworkers;
+		    int maxcomplePorts, mincomplePorts;
+		    ThreadPool.GetMaxThreads(out maxworkers, out maxcomplePorts);
+			ThreadPool.GetMinThreads(out minworkers, out mincomplePorts);
+			Console.WriteLine("I'm the client. The threadpool max " + maxworkers + " min " + minworkers);
+
+			TargetHost = ConfigurationManager.AppSettings["rabbitmqserver"];
+			_username = ConfigurationManager.AppSettings["username"];
+			_password = ConfigurationManager.AppSettings["password"];
+
 //		    SubscribeForGCNotifications();
 
 			var t = StartConcurrentRpc(); // StartOriginalClientRpc(); //StartRpc(); // StartOriginalClient(); // Start();
@@ -59,7 +74,8 @@
 			Connection conn2 = null;
 			try
 			{
-				conn2 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost);
+				conn2 = await new ConnectionFactory().Connect(TargetHost,
+					vhost: VHost, username: _username, password: _password);
 
 				Console.WriteLine("[Connected]");
 
@@ -76,7 +92,7 @@
 
 				var totalReceived = 0;
 
-				const int ConcurrentCalls = 50;
+				
 				var tasks = new Task[ConcurrentCalls];
 
 				for (int i = 0; i < TotalPublish; i += ConcurrentCalls)
@@ -154,8 +170,8 @@
 			Connection conn2 = null;
 			try
 			{
-				conn1 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost);
-				conn2 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost);
+				conn1 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
+				conn2 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
 
 				Console.WriteLine("[Connected]");
 
@@ -273,7 +289,7 @@
 			Connection conn = null;
 			try
 			{
-				conn = await new ConnectionFactory().Connect(TargetHost, vhost: VHost);
+				conn = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
 
 				Console.WriteLine("[Connected]");
 
@@ -389,15 +405,15 @@
 			{
 				HostName = TargetHost,
 				VirtualHost = VHost,
-				UserName = "guest",
-				Password = "guest"
+				UserName = _username,
+				Password = _password
 			}.CreateConnection();
 			var conn2 = new RabbitMQ.Client.ConnectionFactory()
 			{
 				HostName = TargetHost,
 				VirtualHost = VHost,
-				UserName = "guest",
-				Password = "guest"
+				UserName = _username,
+				Password = _password
 			}.CreateConnection();
 
 			var channel = conn1.CreateModel();
@@ -459,8 +475,8 @@
 			{
 				HostName = TargetHost,
 				VirtualHost = VHost,
-				UserName = "guest",
-				Password = "guest"
+				UserName = _username,
+				Password = _password
 			}.CreateConnection();
 
 			var channel = conn.CreateModel();
