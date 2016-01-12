@@ -110,9 +110,12 @@
     <Compile Include="Internals\Sockets\SocketExtensions.cs" />
     <Compile Include="Internals\Util.cs" />
     <Compile Include="MessageDelivery.cs" />
+    <Compile Include="MessagesPendingConfirmationKeeper.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
     <Compile Include="RpcHelper.cs" />
-    <Compile Include="TaskLight.cs" />
+    <Compile Include="TplExtensions\BaseTaskLight.cs" />
+    <Compile Include="TplExtensions\TaskLight.cs" />
+    <Compile Include="TplExtensions\TaskLight_Of_T.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

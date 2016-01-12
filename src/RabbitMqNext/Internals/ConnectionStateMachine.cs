@@ -17,7 +17,7 @@
 	internal class ConnectionStateMachine : FrameProcessor, IDisposable
 	{
 		private readonly AmqpPrimitivesWriter _amqpWriter;
-		private readonly CancellationToken _cancellationToken;
+		internal readonly CancellationToken _cancellationToken;
 
 		private readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 		private readonly AutoResetEvent _commandOutboxEvent;
@@ -161,8 +161,12 @@
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
 								  Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
-								  Func<ushort, int, AmqpError, Task> reply, bool expectsReply, 
-								  TaskCompletionSource<bool> tcs = null, object optArg = null, TaskLight tcsL = null)
+								  Func<ushort, int, AmqpError, Task> reply, 
+								  bool expectsReply, 
+								  TaskCompletionSource<bool> tcs = null, 
+								  object optArg = null, 
+								  TaskLight tcsL = null, 
+								  Action prepare = null)
 		{
 			ThrowIfErrorPending();
 
@@ -177,9 +181,9 @@
 			cmd.Tcs = tcs;
 			cmd.TcsLight = tcsL;
 			cmd.OptionalArg = optArg;
+			cmd.PrepareAction = prepare;
 
 			_commandOutbox.Enqueue(cmd);
-			// _commandOutbox2.WriteToNextAvailable(cmd);
 			_commandOutboxEvent.Set();
 		}
 
@@ -187,44 +191,43 @@
 		{
 			try
 			{
-				// while (!_cancellationToken.IsCancellationRequested)
+				
+				_commandOutboxEvent.WaitOne();
+
+				CommandToSend cmdToSend;
+				const int maxDrainBeforeFlush = 2;
+				int iterations = 0;
+				while (iterations++ < maxDrainBeforeFlush && _commandOutbox.TryDequeue(out cmdToSend))
 				{
-					_commandOutboxEvent.WaitOne();
+					cmdToSend.Prepare();
 
-					CommandToSend cmdToSend;
-					const int maxDrainBeforeFlush = 2;
-					int iterations = 0;
-					while (iterations++ < maxDrainBeforeFlush && _commandOutbox.TryDequeue(out cmdToSend))
+					if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
 					{
-						// Console.WriteLine(" writing command ");
-						// var cmdToSend = _commandOutbox2.GetNextAvailable();
-
-						if (cmdToSend.ExpectsReply)
-						{
-							if (cmdToSend.Channel == 0)
-								_awaitingReplyQueue.Enqueue(cmdToSend);
-							else
-								_channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
-						}
-
-						// writes to socket
-						var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
-						if (frameWriter != null)
-						{
-							frameWriter.Write(_amqpWriter, cmdToSend.Channel,
-												cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-						}
+						if (cmdToSend.Channel == 0)
+							_awaitingReplyQueue.Enqueue(cmdToSend);
 						else
-						{
-							cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
-														cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-						}
+							_channels[cmdToSend.Channel]._awaitingReplyQueue.Enqueue(cmdToSend);
+					}
 
-						// if writing to socket is enough, set as complete
-						if (!cmdToSend.ExpectsReply)
-						{
-							cmdToSend.ReplyAction3(0, 0, null);
-						}
+					// writes to socket
+					var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
+					if (frameWriter != null)
+					{
+						frameWriter.Write(_amqpWriter, cmdToSend.Channel,
+											cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+					}
+					else
+					{
+						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
+													cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+					}
+
+					// if writing to socket is enough, set as complete
+					if (!cmdToSend.ExpectsReply)
+					{
+#pragma warning disable 4014
+						cmdToSend.ReplyAction3(0, 0, null);
+#pragma warning restore 4014
 					}
 				}
 			}

@@ -61,9 +61,9 @@ namespace RabbitMqNext.Internals
 					}
 					else if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelClose)
 					{
-						Read_Channel_Close2(async (replyCode, replyText, oClassId, oMethodId) =>
+						Read_Channel_Close2((replyCode, replyText, oClassId, oMethodId) =>
 						{
-							await _frameProcessor.DispatchChannelCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
+							_frameProcessor.DispatchChannelCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
 						});
 					}
 					else

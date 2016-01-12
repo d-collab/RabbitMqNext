@@ -17,10 +17,16 @@
 		public ushort MethodId;
 		public Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandGenerator;
 		public Func<ushort, int, AmqpError, Task> ReplyAction;
+		public Action PrepareAction;
 		public bool ExpectsReply;
 		public object OptionalArg;
 		public TaskCompletionSource<bool> Tcs;
 		public TaskLight TcsLight;
+
+		public void Prepare()
+		{
+			if (PrepareAction != null) PrepareAction();
+		}
 
 		public async Task ReplyAction3(ushort channel, int classMethodId, AmqpError error)
 		{
@@ -47,6 +53,7 @@
 			ReplyAction = null;
 			ExpectsReply = false;
 			OptionalArg = null;
+			PrepareAction = null;
 			Tcs = null;
 			TcsLight = null;
 		}

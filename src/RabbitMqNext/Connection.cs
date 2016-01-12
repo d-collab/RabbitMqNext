@@ -46,9 +46,9 @@
 			return InternalCreateChannel(withPubConfirm: false);
 		}
 
-		public Task<AmqpChannel> CreateChannelWithPublishConfirmation()
+		public Task<AmqpChannel> CreateChannelWithPublishConfirmation(int maxunconfirmedMessages = 100)
 		{
-			return InternalCreateChannel(withPubConfirm: true);
+			return InternalCreateChannel(maxunconfirmedMessages, withPubConfirm: true);
 		}
 
 		public async Task Close()
@@ -107,7 +107,7 @@
 			if (!started) throw new Exception("Invalid hostname " + hostname); // ipv6 not supported yet
 		}
 
-		private async Task<AmqpChannel> InternalCreateChannel(bool withPubConfirm)
+		private async Task<AmqpChannel> InternalCreateChannel(int maxunconfirmedMessages = 0, bool withPubConfirm = false)
 		{
 			var channelNum = (ushort)Interlocked.Increment(ref _channelNumbers);
 
@@ -122,7 +122,7 @@
 				await channel.Open();
 				if (withPubConfirm)
 				{
-					await channel.__EnableConfirmation();
+					await channel.__EnableConfirmation(maxunconfirmedMessages);
 				}
 				return channel;
 			}
