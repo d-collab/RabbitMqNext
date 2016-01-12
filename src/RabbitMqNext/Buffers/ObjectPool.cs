@@ -3,12 +3,16 @@
 	using System;
 	using System.Threading;
 
+	/// <summary>
+	/// TODO: implement a faster version. 
+	/// all these memory barried ops in a loop are very inneficient
+	/// </summary>
 	public sealed class ObjectPool<T> : IDisposable where T : class 
 	{
 		private const int DefaultCapacity = 5;
 
 		private readonly Func<T> _objectGenerator;
-		private readonly SemaphoreSlim _semaphore;
+//		private readonly SemaphoreSlim _semaphore;
 		private readonly T[] _array;
 		private readonly int _capacity;
 
@@ -17,7 +21,7 @@
 			if (objectGenerator == null) throw new ArgumentNullException("objectGenerator");
 
 			_capacity = capacity;
-			_semaphore = new SemaphoreSlim(_capacity, _capacity);
+//			_semaphore = new SemaphoreSlim(_capacity, _capacity);
 			_array = new T[_capacity];
 			_objectGenerator = objectGenerator;
 
@@ -32,7 +36,7 @@
 
 		public T GetObject()
 		{
-			_semaphore.Wait();
+//			_semaphore.Wait();
 
 			for (var i = 0; i < _capacity; i++)
 			{
@@ -59,16 +63,19 @@
 				if (v == null)
 				{
 					// Console.WriteLine("Pool " + typeof(T).Name + " PutObject at index " + i);
-					break;
+					// break;
+					return;
 				}
 			}
 
-			_semaphore.Release();
+			Console.WriteLine("Pool " + typeof(T).Name + " PutObject: no empty slots ");
+
+//			_semaphore.Release();
 		}
 
 		public void Dispose()
 		{
-			_semaphore.Dispose();
+//			_semaphore.Dispose();
 		}
 	}
 }
