@@ -2,6 +2,7 @@ namespace RabbitMqNext
 {
 	using System;
 	using System.Runtime.CompilerServices;
+	using System.Threading;
 	using TplExtensions;
 
 
@@ -13,16 +14,19 @@ namespace RabbitMqNext
 
 		public void OnCompleted(Action continuation)
 		{
-			_continuation = continuation;
+			SetContinuation(continuation);
 		}
 
 		public TaskLight GetAwaiter()
 		{
+			Console.WriteLine("[TaskLight] GetAwaiter " + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId); 
 			return this;
 		}
 
 		public void GetResult()
 		{
+			if (HasException)
+				throw _exception2;
 		}
 	}
 }

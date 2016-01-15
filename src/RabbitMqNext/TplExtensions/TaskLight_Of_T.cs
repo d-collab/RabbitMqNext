@@ -18,7 +18,7 @@ namespace RabbitMqNext
 
 		public void OnCompleted(Action continuation)
 		{
-			_continuation = continuation;
+			SetContinuation(continuation);
 		}
 
 		public TaskLight<T> GetAwaiter()
@@ -28,8 +28,11 @@ namespace RabbitMqNext
 
 		public T GetResult()
 		{
-			if (_exception == null) return _result;
-			throw _exception;
+			if (HasException)
+				throw _exception2;
+
+			// will only be called by Compiler generated code if IsCompleted = true
+			return _result; 
 		}
 
 		public void SetResult(T result, bool runContinuationAsync = false)
