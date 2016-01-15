@@ -1,8 +1,7 @@
-namespace RabbitMqNext
+namespace RabbitMqNext.Internals
 {
 	using System;
-	using System.IO;
-	using Internals.RingBuffer;
+	using RingBuffer;
 
 	internal static class BufferUtil
 	{

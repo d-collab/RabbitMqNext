@@ -8,11 +8,11 @@ namespace RabbitMqNext.Internals
 	{
 		private readonly InternalBigEndianReader _reader;
 		private readonly AmqpPrimitivesReader _amqpReader;
-		private readonly FrameProcessor _frameProcessor;
+		private readonly IFrameProcessor _frameProcessor;
 
 		public FrameReader(InternalBigEndianReader reader, 
 						   AmqpPrimitivesReader amqpReader,
-						   FrameProcessor frameProcessor)
+						   IFrameProcessor frameProcessor)
 		{
 			_reader = reader;
 			_amqpReader = amqpReader;
@@ -52,24 +52,7 @@ namespace RabbitMqNext.Internals
 
 //					Console.WriteLine("> Incoming Method: class " + classId + " method " + methodId + " classMethodId " + classMethodId);
 
-					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionClose)
-					{
-						Read_ConnectionClose2(async (replyCode, replyText, oClassId, oMethodId) =>
-						{
-							await _frameProcessor.DispatchCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
-						});
-					}
-					else if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelClose)
-					{
-						Read_Channel_Close2((replyCode, replyText, oClassId, oMethodId) =>
-						{
-							_frameProcessor.DispatchChannelCloseMethod(channel, replyCode, replyText, oClassId, oMethodId);
-						});
-					}
-					else
-					{
-						_frameProcessor.DispatchMethod(channel, classMethodId);
-					}
+					_frameProcessor.DispatchMethod(channel, classMethodId);
 				}
 				else if (frameType == AmqpConstants.FrameHeartbeat)
 				{

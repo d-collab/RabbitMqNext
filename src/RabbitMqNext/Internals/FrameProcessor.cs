@@ -3,12 +3,13 @@ namespace RabbitMqNext.Internals
 	using System.Threading.Tasks;
 
 
-	public abstract class FrameProcessor
+	public interface IFrameProcessor
 	{
-		public abstract Task DispatchMethod(ushort channel, int classMethodId);
+		// internal abstract Task DispatchMethod(ushort channel, int classMethodId);
+		Task DispatchMethod(ushort channel, int classMethodId);
 
-		public abstract Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId);
-
-		public abstract Task DispatchChannelCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId);
+//		public abstract Task DispatchCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId);
+//
+//		public abstract Task DispatchChannelCloseMethod(ushort channel, ushort replyCode, string replyText, ushort classId, ushort methodId);
 	}
 }

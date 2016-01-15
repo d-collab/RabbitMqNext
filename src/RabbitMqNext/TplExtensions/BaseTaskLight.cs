@@ -2,8 +2,13 @@ namespace RabbitMqNext.TplExtensions
 {
 	using System;
 	using System.Runtime.CompilerServices;
+	using System.Threading;
 	using System.Threading.Tasks;
 
+	/// <summary>
+	/// A "Future" instance that can be recycled and reused, thus alleviating allocs. 
+	/// The instance reclycles itself after invoking the continuation. 
+	/// </summary>
 	public class BaseTaskLight<TDerived> : IDisposable
 	{
 		private readonly Action<TDerived> _recycler;
@@ -32,6 +37,11 @@ namespace RabbitMqNext.TplExtensions
 
 		public void SetCompleted(bool runContinuationAsync = false)
 		{
+			// we cannot EVER complete more than once. 
+
+			Thread.MemoryBarrier();
+			if (_isCompleted) return;
+
 			_isCompleted = true;
 
 			var cont = this._continuation;

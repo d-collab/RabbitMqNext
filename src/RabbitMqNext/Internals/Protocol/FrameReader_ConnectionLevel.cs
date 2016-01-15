@@ -39,16 +39,17 @@ namespace RabbitMqNext.Internals
 			continuation(channelMax, frameMax, heartbeat);
 		}
 
-		public Task Read_ConnectionClose2(Func<ushort, string, ushort, ushort, Task> continuation)
+		public async void Read_ConnectionClose2(Func<AmqpError, Task<bool>> continuation)
 		{
 			ushort replyCode = _amqpReader.ReadShort();
 			string replyText = _amqpReader.ReadShortStr();
 			ushort classId = _amqpReader.ReadShort();
 			ushort methodId = _amqpReader.ReadShort();
 
-			Console.WriteLine("< close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
+			Console.WriteLine("< connection close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
-			return continuation(replyCode, replyText, classId, methodId);
+			// continuation(replyCode, replyText, classId, methodId);
+			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode });
 		}
 
 //		public void Read_ConnectionCloseOk(Action continuation)

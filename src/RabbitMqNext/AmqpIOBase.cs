@@ -1,0 +1,144 @@
+﻿namespace RabbitMqNext
+{
+	using System;
+	using System.Collections.Concurrent;
+	using System.Threading;
+	using System.Threading.Tasks;
+	using Internals;
+
+	/// <summary>
+	/// Commonality of connection and channel
+	/// </summary>
+	public abstract class AmqpIOBase : IDisposable
+	{
+		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
+		private volatile bool _isClosed, _isDisposed;
+		
+		// if not null, it's the error that closed the channel or connection
+		internal AmqpError _lastError;
+
+		protected AmqpIOBase()
+		{
+			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
+		}
+
+		public Action<AmqpError> OnError;
+
+		public bool IsClosed { get { return _isClosed; } }
+
+		public async void Dispose()
+		{
+			if (_isDisposed) return;
+			Thread.MemoryBarrier();
+			_isDisposed = true;
+
+			await InitiateCleanClose(false, null);
+
+			InternalDispose();
+		}
+
+		protected abstract void InternalDispose();
+
+		internal abstract Task HandleFrame(int classMethodId);
+
+		internal abstract Task SendCloseConfirmation();
+
+		internal abstract Task SendStartClose();
+
+		internal virtual async Task<bool> InitiateCleanClose(bool initiatedByServer, AmqpError error)
+		{
+			if (_isClosed) return false;
+			Thread.MemoryBarrier();
+			_isClosed = true;
+
+			if (initiatedByServer)
+				await SendCloseConfirmation();
+			else
+				await SendStartClose();
+
+			DrainPending(error);
+
+			var ev = this.OnError;
+			if (ev != null && error != null)
+			{
+				ev(error);
+			}
+
+			return true;
+		}
+
+		internal Task HandReplyToAwaitingQueue(int classMethodId)
+		{
+			CommandToSend sent;
+
+			if (_awaitingReplyQueue.TryDequeue(out sent))
+			{
+				return sent.ReplyAction3(0, classMethodId, null);
+			}
+			// else
+			{
+				// nothing was really waiting for a reply.. exception? wtf?
+				// TODO: log
+			}
+
+			return Task.CompletedTask;
+		}
+
+		// A disconnect may be expected coz we send a connection close, etc.. 
+		// or it may be something abruptal
+		internal void HandleDisconnect()
+		{
+			if (_isClosed) return; // we have initiated the close
+
+			// otherwise
+
+			_lastError = new AmqpError() { ClassId = 0, MethodId = 0, ReplyCode = 0, ReplyText = "disconnected" };
+
+			DrainPending(_lastError);
+		}
+
+		internal Task<bool> HandleCloseMethodFromServer(AmqpError error) 
+		{
+			_lastError = error;
+			return InitiateCleanClose(true, error);
+		}
+
+		private void DrainPending(AmqpError error)
+		{
+			// releases every task awaiting
+			CommandToSend sent;
+#pragma warning disable 4014
+			while (_awaitingReplyQueue.TryDequeue(out sent))
+			{
+				if (error != null && sent.ClassId == error.ClassId && sent.MethodId == error.MethodId)
+				{
+					// if we find the "offending" command, then it gets a better error message
+					sent.ReplyAction3(0, 0, error);
+				}
+				else
+				{
+					// any other task dies with a generic error.
+					sent.ReplyAction3(0, 0, null);
+				}
+			}
+#pragma warning restore 4014
+		}
+
+		internal static void SetException<T>(TaskCompletionSource<T> tcs, AmqpError error, int classMethodId)
+		{
+			if (error != null)
+			{
+				tcs.SetException(new Exception("Error: " + error.ToErrorString()));
+			}
+			else if (classMethodId == 0)
+			{
+				tcs.SetException(new Exception("The server closed the connection"));
+			}
+			else
+			{
+				Console.WriteLine("Unexpected situation: classMethodId = " + classMethodId + " and error = null");
+				tcs.SetException(new Exception("Unexpected reply from the server: " + classMethodId));
+			}
+		}
+	}
+}

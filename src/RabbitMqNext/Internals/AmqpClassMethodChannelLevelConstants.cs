@@ -42,5 +42,7 @@ namespace RabbitMqNext.Internals
 
 		public const int RecoverOk = (60 << 16) | 111;
 
+		public const int CancelOk = (60 << 16) | 31;
+
 	}
 }

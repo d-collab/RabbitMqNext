@@ -1,7 +1,7 @@
 # RabbitMqNext
 
 Experimenting using [TPL](https://msdn.microsoft.com/en-us/library/dd460717%28v=vs.110%29.aspx) 
---and sync (completion ports/overlapped io) socket reads-- and buffer pools to see if a better 
+~~and sync (completion ports/overlapped io) socket reads~~ and buffer pools to see if a better 
 rabbitmq client comes out of it. 
 
 The goal is to drastically reduce contention and GC pauses. 
@@ -31,20 +31,26 @@ The way this is accomplished is two fold:
 - Channel close (started by server or client) [Done]
 - Queue Consume / Basic Deliver [Done]
 - BasicReturn [Done]
-- Publish confirm [Done] (_will wait the Task on BasicPublish until Ack from server, so it's slow and should be judiciously used_)
+- Publish confirm [Done] - _will wait the Task on BasicPublish until Ack from server, so it's slow and should be judiciously used_
 
 - ChannelFlow 
 - Heartbeat 
 
 - Connection/channels recovery / Programming model friendly
+  Upon disconnection, try to reconnect and when successfull restore the consumers
+
+Wont we support it unless we need it:
+- Any authentication method besides plain
+- multi body send (limit to framemax)
+- multi body receive  (limit to framemax)
 
 
 ### Sample code
 
-
+##### Opening a connection
 ```C#
 var conn = await ConnectionFactory.Connect(...);
 var channel = await conn.CreateChannel();
-await channel.BasicQos(0, 250, false);
+await channel.BasicQos(0, 250, false); // setting prefetch to 250
 
 ```

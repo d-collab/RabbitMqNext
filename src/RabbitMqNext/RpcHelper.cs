@@ -18,6 +18,9 @@ namespace RabbitMqNext
 
 		private readonly ObjectPool<TaskLight<MessageDelivery>> _taskResultPool;
 		private readonly TaskLight<MessageDelivery>[] _pendingCalls;
+		private readonly int _timeoutInMs;
+		private readonly long _timeoutInTicks;
+		private readonly Timer _timeoutTimer;
 
 		public RpcHelper(AmqpChannel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 3000)
 		{
@@ -26,7 +29,12 @@ namespace RabbitMqNext
 			_channel = channel;
 			_maxConcurrentCalls = maxConcurrentCalls;
 			_mode = mode;
-//			_timeoutInMs = timeoutInMs;
+			_timeoutInMs = timeoutInMs;
+			_timeoutInTicks = timeoutInMs * TimeSpan.TicksPerMillisecond;
+
+			// the impl keeps a timer pool so this is light and efficient
+			_timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs, timeoutInMs); 
+
 			_pendingCalls = new TaskLight<MessageDelivery>[maxConcurrentCalls];
 			_taskResultPool = new ObjectPool<TaskLight<MessageDelivery>>(() =>
 				new TaskLight<MessageDelivery>((inst) => _taskResultPool.PutObject(inst)), maxConcurrentCalls, true);
@@ -48,16 +56,19 @@ namespace RabbitMqNext
 			var correlationIndex = UInt32.Parse(delivery.properties.CorrelationId);
 			var pos = correlationIndex % _maxConcurrentCalls;
 
-			var task = Interlocked.Exchange(ref _pendingCalls[pos], null);
+			var taskLight = Interlocked.Exchange(ref _pendingCalls[pos], null);
 
-			if (task == null)
+			if (taskLight == null || taskLight.Id != correlationIndex)
 			{
 				// the helper was disposed and the task list was drained.
 				if (_disposed) return Task.CompletedTask;
-				throw new Exception("Something is seriously wrong");
+				
+				// other situation, the call timeout'ed previously
 			}
-
-			task.SetResult(delivery); // needs to be synchrounous
+			else
+			{
+				taskLight.SetResult(delivery); // needs to be synchrounous
+			}
 
 			return Task.CompletedTask;
 		}
@@ -65,7 +76,6 @@ namespace RabbitMqNext
 		public TaskLight<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			var task = _taskResultPool.GetObject();
-			// var task = new TaskCompletionSource<MessageDelivery>(null);
 
 			uint correlationId;
 			if (!SecureSpotAndUniqueCorrelationId(task, out correlationId))
@@ -75,13 +85,18 @@ namespace RabbitMqNext
 				return task;
 			}
 
+			task.Id = correlationId; // so we can confirm we have the right instance later
+			task.Started = DateTime.Now.Ticks;
+
 			try
 			{
 				var prop = properties ?? new BasicProperties();
 				prop.CorrelationId = correlationId.ToString();
 				prop.ReplyTo = _replyQueueName.Name;
+				// TODO: confirm this doesnt cause more overhead to rabbitmq
+				prop.Expiration = _timeoutInMs.ToString();
 
-				_channel.BasicPublishN(exchange, routing, true, false, properties, buffer);
+				_channel.BasicPublishFast(exchange, routing, true, false, properties, buffer);
 			}
 			catch (Exception ex)
 			{
@@ -117,6 +132,8 @@ namespace RabbitMqNext
 
 			_disposed = true;
 
+			this._timeoutTimer.Dispose();
+
 			if (!string.IsNullOrEmpty(_subscription))
 			{
 				_channel.BasicCancel(_subscription, false); 
@@ -127,7 +144,25 @@ namespace RabbitMqNext
 
 		private void DrainPendingCalls()
 		{
+			foreach (var pendingCall in _pendingCalls)
+			{
+				if (pendingCall == null) continue;
+				pendingCall.SetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true);
+			}
+		}
 
+		private void OnTimeoutCheck(object state)
+		{
+			var now = DateTime.Now.Ticks;
+
+			foreach (var pendingCall in _pendingCalls)
+			{
+				if (pendingCall == null) continue;
+				if (now - pendingCall.Started > _timeoutInTicks)
+				{
+					pendingCall.SetException(new Exception("Rpc call timeout"), runContinuationAsync: true);
+				}
+			}
 		}
 	}
 }

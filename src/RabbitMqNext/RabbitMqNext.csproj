@@ -44,7 +44,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AmqpChannel.cs" />
     <Compile Include="AmqpQueueInfo.cs" />
     <Compile Include="Amqp\AmqpConstants.cs" />
     <Compile Include="Amqp\Types\AmqpTimestamp.cs" />
@@ -54,10 +53,19 @@
     <Compile Include="Buffers\DefaultArrayPool.cs" />
     <Compile Include="Buffers\ObjectPool.cs" />
     <Compile Include="Buffers\Utilities.cs" />
-    <Compile Include="BufferUtil.cs" />
-    <Compile Include="Connection.cs" />
     <Compile Include="ConnectionFactory.cs" />
-    <Compile Include="IAmqpChannel.cs" />
+    <Compile Include="AmqpIOBase.cs" />
+    <Compile Include="Channel.cs" />
+    <Compile Include="ChannelIO.cs" />
+    <Compile Include="Connection.cs" />
+    <Compile Include="ConnectionIO.cs" />
+    <Compile Include="ConsumeMode.cs" />
+    <Compile Include="Internals\Sockets\SocketExtensions.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="New\SocketHolder.cs" />
+    <Compile Include="UndeliveredMessage.cs" />
+    <Compile Include="Internals\BufferUtil.cs" />
     <Compile Include="Internals\AmqpClassMethodChannelLevelConstants.cs" />
     <Compile Include="Internals\AmqpClassMethodConnectionLevelConstants.cs" />
     <Compile Include="Internals\AmqpError.cs" />
@@ -68,6 +76,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Internals\CommandToSend.cs" />
+    <Compile Include="Internals\CommonCommandSender.cs" />
     <Compile Include="Internals\ConnectionStateMachine.cs" />
     <Compile Include="Internals\FrameProcessor.cs" />
     <Compile Include="Internals\InternalBigEndianReader.cs">
@@ -107,15 +116,16 @@
     <Compile Include="Internals\SocketRingBuffers.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Internals\Sockets\SocketExtensions.cs" />
-    <Compile Include="Internals\Util.cs" />
     <Compile Include="MessageDelivery.cs" />
-    <Compile Include="MessagesPendingConfirmationKeeper.cs" />
+    <Compile Include="Internals\MessagesPendingConfirmationKeeper.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
-    <Compile Include="RpcHelper.cs" />
     <Compile Include="TplExtensions\BaseTaskLight.cs" />
     <Compile Include="TplExtensions\TaskLight.cs" />
     <Compile Include="TplExtensions\TaskLight_Of_T.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Old\" />
+    <Folder Include="Utils\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

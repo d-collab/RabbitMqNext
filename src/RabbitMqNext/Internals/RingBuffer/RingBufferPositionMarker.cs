@@ -4,6 +4,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 	/// Measures how much has been read since started, 
 	/// limited to small amounts (wont support overflowing over and over)
 	/// </summary>
+	/// TODO: broken when used with ReadGates, needs fix
 	internal struct RingBufferPositionMarker
 	{
 		private readonly ByteRingBuffer _ringBuffer;

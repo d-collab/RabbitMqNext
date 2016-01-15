@@ -19,8 +19,8 @@
 
 		const bool WithAcks = false;
 
-		const int TotalPublish = 250000;
-//		const int TotalPublish = 10;
+//		const int TotalPublish = 250000;
+		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
 //		const int TotalPublish = 500000;
 //		const int TotalPublish = 2000000;
@@ -202,7 +202,7 @@
 						CorrelationId = delivery.properties.CorrelationId
 					};
 
-					newChannel.BasicPublishN("", 
+					newChannel.BasicPublishFast("", 
 						delivery.properties.ReplyTo, false, false, 
 						replyProp, new ArraySegment<byte>(temp, 0, 4));
 
@@ -293,7 +293,8 @@
 
 				Console.WriteLine("[Connected]");
 
-				var newChannel = await conn.CreateChannel();
+				// var newChannel = await conn.CreateChannel();
+				var newChannel = await conn.CreateChannelWithPublishConfirmation();
 				Console.WriteLine("[channel created] " + newChannel.ChannelNumber);
 				await newChannel.BasicQos(0, Prefetch, false);
 
@@ -329,7 +330,7 @@
 				{
 					prop.Headers["serialization"] = i;
 					// var buffer = Encoding.ASCII.GetBytes("The " + i + " " + Message);
-					await newChannel.BasicPublish("test_ex", "routing1", false, false, prop, new ArraySegment<byte>(MessageContent));
+					await newChannel.BasicPublish("test_ex", "routing1", true, false, prop, new ArraySegment<byte>(MessageContent));
 
 					// await Task.Delay(TimeSpan.FromMilliseconds(100));
 				}
@@ -337,6 +338,8 @@
 
 				Console.WriteLine(DateTime.Now.TimeOfDay.TotalSeconds + " BasicPublish stress. Took " + watch.Elapsed.TotalMilliseconds + 
 								  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
+
+				await Task.Delay(TimeSpan.FromMilliseconds(200));
 
 				var newChannel2 = await conn.CreateChannel();
 				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);

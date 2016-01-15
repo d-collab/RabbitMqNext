@@ -8,9 +8,13 @@ namespace RabbitMqNext
 	{
 		private T _result;
 
+		internal long Started; // for timeout handling
+		internal uint Id;  // for correlation checking 
+
 		public TaskLight(Action<TaskLight<T>> recycler) : base(recycler)
 		{
 		}
+
 
 		public void OnCompleted(Action continuation)
 		{

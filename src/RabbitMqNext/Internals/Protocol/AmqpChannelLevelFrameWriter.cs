@@ -297,6 +297,25 @@ namespace RabbitMqNext.Internals
 			};
 		}
 
+		// BasicCancel
+
+		public static WriterDelegate BasicCancel(string consumerTag, bool waitConfirmation)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("BasicCancel");
+
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteShortstr(consumerTag);
+					w.WriteBits(!waitConfirmation);
+				});
+			};
+		}
+
 		public static WriterDelegate Recover(bool requeue)
 		{
 			return (writer, channel, classId, methodId, args) =>

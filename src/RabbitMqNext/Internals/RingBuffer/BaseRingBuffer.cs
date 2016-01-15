@@ -256,7 +256,9 @@
 
 				gate.index = emptyIndex;
 
+#pragma warning disable 420
 				if (Interlocked.CompareExchange(ref _gateState, newState, curState) != curState)
+#pragma warning restore 420
 				{
 					// state was changed. try again
 					continue;
@@ -275,7 +277,9 @@
 				var mask = ~(1 << index);
 				int newState = curState & mask;
 
+#pragma warning disable 420
 				if (Interlocked.CompareExchange(ref _gateState, newState, curState) != curState)
+#pragma warning restore 420
 				{
 					// state was changed. try again
 					continue;

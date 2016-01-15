@@ -7,9 +7,12 @@ namespace RabbitMqNext
 
 	public class BasicProperties
 	{
-		internal static readonly BasicProperties Empty = new BasicProperties(isFrozen: true);
+		public static readonly BasicProperties Empty = new BasicProperties(isFrozen: true, reusable: false);
 
-		private readonly bool _isFrozen;
+		private const byte FrozenMask = 0x01;
+		private const byte ReusableMask = 0x02; // vs ephemeral. eg came from objpool instance of direct allocation
+
+		private readonly byte _options = 0;
 
 		// 0x01 is reserved for continuation flag. 
 		private const ushort ContentTypePresence = 1 << 15;
@@ -44,13 +47,13 @@ namespace RabbitMqNext
 		private string _appId;
 		private string _clusterId;
 
-		public BasicProperties() : this(isFrozen: false)
+		public BasicProperties() : this(isFrozen: false, reusable: false)
 		{
 		}
 
-		internal BasicProperties(bool isFrozen)
+		internal BasicProperties(bool isFrozen, bool reusable)
 		{
-			_isFrozen = isFrozen;
+			_options = (byte) ((isFrozen ? FrozenMask : 0) | (reusable ? ReusableMask : 0));
 		}
 
 		public bool IsContentTypePresent
@@ -181,6 +184,10 @@ namespace RabbitMqNext
 			}
 		}
 
+		/// <summary>
+		/// TTL period in milliseconds - https://www.rabbitmq.com/ttl.html
+		/// Why is this a string befuddles me..
+		/// </summary>
 		public string Expiration
 		{
 			get { return _expiration; }
@@ -291,11 +298,22 @@ namespace RabbitMqNext
 			}
 		}
 
+		internal bool IsFrozen
+		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get { return (_options & FrozenMask) != 0; }
+		}
+		internal bool IsReusable
+		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get { return (_options & ReusableMask) != 0; }
+		}
+
 		internal bool IsEmpty
 		{
 			get
 			{
-				if (_isFrozen) return true;
+				if (IsFrozen) return true;
 				return _presenceSWord == 0;
 			}
 		}
@@ -303,25 +321,7 @@ namespace RabbitMqNext
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void ThrowIfFrozen()
 		{
-			if (_isFrozen) throw new Exception("This object is frozen so it cannot be changed");
+			if (IsFrozen) throw new Exception("This object is frozen so it cannot be changed");
 		}
-
-//		internal int ComputeSize()
-//		{
-//			return ((_deliveryMode != 0) ? 1 : 0) +
-//			       ((_priority != 0) ? 1 : 0) +
-//			       ((IsTimestampPresent) ? 8 : 0) +
-//			       (String.IsNullOrEmpty(_contentType) ? 0 : 1 + Encoding.UTF8.GetByteCount(_contentType)) +
-//			       (String.IsNullOrEmpty(_contentEncoding) ? 0 : 1 + Encoding.UTF8.GetByteCount(_contentEncoding)) +
-//			       (String.IsNullOrEmpty(_correlationId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_correlationId)) +
-//			       (String.IsNullOrEmpty(_replyTo) ? 0 : 1 + Encoding.UTF8.GetByteCount(_replyTo)) +
-//			       (String.IsNullOrEmpty(_type) ? 0 : 1 + Encoding.UTF8.GetByteCount(_type)) +
-//			       (String.IsNullOrEmpty(_messageId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_messageId)) +
-//			       (String.IsNullOrEmpty(_expiration) ? 0 : 1 + Encoding.UTF8.GetByteCount(_expiration)) +
-//			       (String.IsNullOrEmpty(_userId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_userId)) +
-//				   (String.IsNullOrEmpty(_appId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_appId)) +
-//				   (String.IsNullOrEmpty(_clusterId) ? 0 : 1 + Encoding.UTF8.GetByteCount(_clusterId)) +
-//			       0; // Header!!;
-//		}
 	}
 }

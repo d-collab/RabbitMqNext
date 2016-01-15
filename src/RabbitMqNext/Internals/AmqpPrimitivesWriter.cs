@@ -113,7 +113,7 @@ namespace RabbitMqNext.Internals
 
 		public void WriteShortstr(string str)
 		{
-			var len = Encoding.UTF8.GetBytes(str, 0, str.Length, _smallBuffer, 0);
+			var len = str != null ? Encoding.UTF8.GetBytes(str, 0, str.Length, _smallBuffer, 0) : 0;
 			if (len > 255) throw new Exception("Short string too long; UTF-8 encoded length=" + len + ", max=255");
 				
 			_writer.Write((byte)len);
@@ -125,6 +125,12 @@ namespace RabbitMqNext.Internals
 
 		public void WriteLongstr(string str)
 		{
+			if (str == null)
+			{
+				_writer.Write((uint)0);
+				return;
+			}
+
 			var buffer = _bufferPool.Rent(1024 * 10);
 			try
 			{

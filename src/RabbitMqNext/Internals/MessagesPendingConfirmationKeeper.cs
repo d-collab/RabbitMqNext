@@ -4,6 +4,11 @@ namespace RabbitMqNext
 	using System.Runtime.CompilerServices;
 	using System.Threading;
 
+	/// <summary>
+	/// Used when a channel is set up for publish confirm. 
+	/// keeps a bounded list of messages pending confirmation, and releases then 
+	/// when a ack/nack is received (or shutdown)
+	/// </summary>
 	internal class MessagesPendingConfirmationKeeper
 	{
 		private readonly ulong _max;

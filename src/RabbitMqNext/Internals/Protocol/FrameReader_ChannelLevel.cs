@@ -18,7 +18,7 @@ namespace RabbitMqNext.Internals
 			await continuation(queue, messageCount, consumerCount);
 		}
 
-		public void Read_Channel_Close2(Action<ushort, string, ushort, ushort> continuation)
+		public async void Read_Channel_Close2(Func<AmqpError, Task<bool>> continuation)
 		{
 			ushort replyCode = _amqpReader.ReadShort();
 			string replyText = _amqpReader.ReadShortStr();
@@ -27,7 +27,8 @@ namespace RabbitMqNext.Internals
 
 			Console.WriteLine("< channel close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
-			continuation(replyCode, replyText, classId, methodId);
+			// continuation(replyCode, replyText, classId, methodId);
+			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode });
 		}
 
 		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, int, BasicProperties, Stream, Task> continuation)
@@ -222,6 +223,15 @@ namespace RabbitMqNext.Internals
 			Console.WriteLine("< ChannelFlow from server for  " + isActive);
 
 			continuation(isActive);
+		}
+
+		public void Read_CancelOk(Action<string> continuation)
+		{
+			var consumerTag = _amqpReader.ReadShortStr();
+
+			Console.WriteLine("< CancelOk: " + consumerTag);
+
+			continuation(consumerTag);
 		}
 	}
 }

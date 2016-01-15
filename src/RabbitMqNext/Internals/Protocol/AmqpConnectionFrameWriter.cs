@@ -111,7 +111,7 @@
 
 		public static void WriteEmptyMethodFrame(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId)
 		{
-			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, 0, null, null);
+			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, 4, classId, methodId);
 			writer.WriteOctet(AmqpConstants.FrameEnd);
 		}
 	}

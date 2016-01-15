@@ -104,7 +104,7 @@
 					};
 
 					// send reply
-					newChannel.BasicPublishN("",
+					newChannel.BasicPublishFast("",
 						delivery.properties.ReplyTo, true, false,
 						replyProp, new ArraySegment<byte>(temp, 0, 4));
 
@@ -121,8 +121,6 @@
 //					Console.WriteLine("Exiting...");
 //					ev.Set();
 //				};
-//
-//
 //				Console.WriteLine("Waiting...");
 //				ev.WaitOne();
 
