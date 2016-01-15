@@ -18,7 +18,7 @@
 		{
 			_io = new ConnectionIO(this)
 			{
-//				OnError = this.OnError
+				OnError = this.OnError
 			};
 		}
 
@@ -67,13 +67,25 @@
 			return channelInst._io;
 		}
 
+		internal void CloseAllChannels(Exception reason)
+		{
+			foreach (var channel in _channels)
+			{
+				if (channel == null) continue;
+
+				channel._io.InitiateAbruptClose(reason);
+			}
+		}
+
 		internal void CloseAllChannels(bool initiatedByServer, AmqpError error)
 		{
 			foreach (var channel in _channels)
 			{
 				if (channel == null) continue;
 
+#pragma warning disable 4014
 				channel._io.InitiateCleanClose(initiatedByServer, error);
+#pragma warning restore 4014
 			}
 		}
 

@@ -99,9 +99,20 @@ namespace RabbitMqNext
 
 			await base.InitiateCleanClose(initiatedByServer, error);
 
+			CancelPendingCommands(error);
+
 			_socketHolder.Close();
 
 			return true;
+		}
+
+		internal override void InitiateAbruptClose(Exception reason)
+		{
+			_conn.CloseAllChannels(reason);
+
+			CancelPendingCommands(reason);
+
+			base.InitiateAbruptClose(reason);
 		}
 
 		protected override void InternalDispose()
@@ -120,16 +131,19 @@ namespace RabbitMqNext
 				while (!_cancellationTokenSource.Token.IsCancellationRequested)
 				{
 					_frameReader.ReadAndDispatch();
-					// t.Wait(_cancellationToken);
 				}
 			}
-			catch (ThreadAbortException)
-			{
-				// no-op
-			}
+//			catch (ThreadAbortException ex)
+//			{
+//				// no-op
+//
+//				base.InitiateAbruptClose(ex);
+//			}
 			catch (Exception ex)
 			{
 				Console.WriteLine("ReadFramesLoop error " + ex.Message);
+
+				this.InitiateAbruptClose(ex);
 			}
 		}
 
@@ -147,7 +161,11 @@ namespace RabbitMqNext
 		{
 			try
 			{
-				_commandOutboxEvent.WaitOne();
+				while (!_cancellationToken.IsCancellationRequested)
+				{
+					if (_commandOutboxEvent.WaitOne(1000))
+						break;
+				}
 
 				CommandToSend cmdToSend;
 				const int maxDrainBeforeFlush = 2;
@@ -158,11 +176,10 @@ namespace RabbitMqNext
 
 					if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
 					{
-						if (cmdToSend.Channel == 0)
-							_awaitingReplyQueue.Enqueue(cmdToSend);
-						else
-							_conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue.Enqueue(cmdToSend);
-//							_conn._channels[cmdToSend.Channel]._io._awaitingReplyQueue.Enqueue(cmdToSend);
+						var queue = cmdToSend.Channel == 0
+							? _awaitingReplyQueue : _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
+
+						queue.Enqueue(cmdToSend);
 					}
 
 					// writes to socket
@@ -190,8 +207,7 @@ namespace RabbitMqNext
 			catch (Exception ex)
 			{
 				Console.WriteLine("WriteCommandsToSocket error " + ex);
-				// Debugger.Log(1, "error", "WriteCommandsToSocket error " + ex.Message);
-				// throw;
+				this.InitiateAbruptClose(ex);
 			}
 		}
 
@@ -223,12 +239,19 @@ namespace RabbitMqNext
 			bool expectsReply, TaskCompletionSource<bool> tcs = null,
 			object optArg = null, TaskLight tcsL = null, Action prepare = null)
 		{
-//			if (!SetErrorResultIfErrorPending(tcs, tcsL))
-//			{
-//				// cancelled command since we're in error. this channel should be closed. 
-//				// TODO: we should log this fact
-//				return;
-//			}
+			if (_lastError != null)
+			{
+				// ConnClose and Channel close el al, are allowed to move fwd. 
+				var cmdId = (classId << 16) | methodId;
+				if (cmdId != AmqpClassMethodConnectionLevelConstants.ConnectionClose &&
+				    cmdId != AmqpClassMethodConnectionLevelConstants.ConnectionCloseOk &&
+					cmdId != AmqpClassMethodChannelLevelConstants.ChannelClose &&
+				    cmdId != AmqpClassMethodChannelLevelConstants.ChannelCloseOk)
+				{
+					SetErrorResultIfErrorPending(expectsReply, reply, tcs, tcsL); 
+					return;
+				}
+			}
 
 			var cmd = _cmdToSendObjPool.GetObject();
 			// var cmd = new CommandToSend(null);
@@ -245,6 +268,36 @@ namespace RabbitMqNext
 
 			_commandOutbox.Enqueue(cmd);
 			_commandOutboxEvent.Set();
+		}
+
+		private void SetErrorResultIfErrorPending(bool expectsReply, Func<ushort, int, AmqpError, Task> replyFn, 
+												  TaskCompletionSource<bool> tcs, TaskLight taskLight)
+		{
+			if (expectsReply)
+			{
+				replyFn(0, 0, _lastError);
+			}
+			else
+			{
+				AmqpIOBase.SetException(tcs, _lastError, 0);
+				AmqpIOBase.SetException(taskLight, _lastError, 0);
+			}
+		}
+
+		private void CancelPendingCommands(Exception reason)
+		{
+			CancelPendingCommands(new AmqpError() { ReplyText = reason.Message });
+		}
+
+		private void CancelPendingCommands(AmqpError error)
+		{
+			CommandToSend cmdToSend;
+			while (_commandOutbox.TryDequeue(out cmdToSend))
+			{
+#pragma warning disable 4014
+				cmdToSend.ReplyAction3(0, 0, error);
+#pragma warning restore 4014
+			}
 		}
 
 		#region Commands writing methods

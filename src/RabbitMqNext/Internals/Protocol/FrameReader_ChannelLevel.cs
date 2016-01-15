@@ -31,7 +31,8 @@ namespace RabbitMqNext.Internals
 			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode });
 		}
 
-		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, int, BasicProperties, Stream, Task> continuation)
+		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, int, BasicProperties, Stream, Task> continuation, 
+			BasicProperties properties)
 		{
 			string consumerTag = _amqpReader.ReadShortStr();
 			ulong deliveryTag = _amqpReader.ReadULong();
@@ -54,7 +55,8 @@ namespace RabbitMqNext.Internals
 			ushort weight = _reader.ReadUInt16();
 			long bodySize = (long) _reader.ReadUInt64();
 
-			BasicProperties properties = ReadRestOfContentHeader();
+			// BasicProperties properties = ReadRestOfContentHeader();
+			ReadRestOfContentHeader(properties);
 
 			// Frame Body(s)
 
@@ -91,19 +93,16 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		private BasicProperties ReadRestOfContentHeader()
+		private void ReadRestOfContentHeader(BasicProperties properties)
 		{
 			var presence = _reader.ReadUInt16();
 
-			BasicProperties properties;
+//			BasicProperties properties;
 
-			if (presence == 0) // no header content
+			if (presence != 0) // no header content
 			{
-				properties = BasicProperties.Empty;
-			}
-			else
-			{
-				properties = new BasicProperties {_presenceSWord = presence};
+				// properties = new BasicProperties {_presenceSWord = presence};
+				properties._presenceSWord = presence;
 				if (properties.IsContentTypePresent) { properties.ContentType =  _amqpReader.ReadShortStr(); }
 				if (properties.IsContentEncodingPresent) { properties.ContentEncoding =  _amqpReader.ReadShortStr(); }
 				if (properties.IsHeadersPresent) { properties.Headers =  _amqpReader.ReadTable(); }
@@ -123,7 +122,6 @@ namespace RabbitMqNext.Internals
 			byte frameEndMarker = _reader.ReadByte();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
 
-			return properties;
 		}
 
 		public void Read_BasicConsumeOk(Action<string> continuation)
@@ -135,7 +133,8 @@ namespace RabbitMqNext.Internals
 			continuation(consumerTag);
 		}
 
-		public async Task Read_BasicReturn(Func<ushort, string, string, string, int, BasicProperties, Stream, Task> continuation)
+		public async Task Read_BasicReturn(Func<ushort, string, string, string, int, BasicProperties, Stream, Task> continuation, 
+										   BasicProperties properties)
 		{
 			ushort replyCode = _amqpReader.ReadShort();
 			string replyText = _amqpReader.ReadShortStr();
@@ -157,7 +156,8 @@ namespace RabbitMqNext.Internals
 			ushort weight = _reader.ReadUInt16();
 			var bodySize = (long) _reader.ReadUInt64();
 
-			BasicProperties properties = ReadRestOfContentHeader();
+			// BasicProperties properties = ReadRestOfContentHeader();
+			ReadRestOfContentHeader(properties);
 
 			// Frame Body(s)
 

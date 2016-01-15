@@ -36,11 +36,19 @@
 			}
 			else
 			{
-				if (Tcs != null) 
-					Tcs.SetResult(true);
+				if (error != null)
+				{
+					AmqpIOBase.SetException(Tcs, error, classMethodId);
+					AmqpIOBase.SetException(TcsLight, error, classMethodId);
+				}
+				else
+				{
+					if (Tcs != null)
+						Tcs.SetResult(true);
 
-				if (TcsLight != null)
-					TcsLight.SetCompleted();
+					if (TcsLight != null)
+						TcsLight.SetCompleted();
+				}
 			}
 
 			if (_recycler != null) _recycler(this);

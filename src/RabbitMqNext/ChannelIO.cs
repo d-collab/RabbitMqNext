@@ -2,6 +2,7 @@ namespace RabbitMqNext
 {
 	using System;
 	using System.Collections.Generic;
+	using System.IO;
 	using System.Threading.Tasks;
 	using Internals;
 
@@ -39,26 +40,26 @@ namespace RabbitMqNext
 					_connectionIo._frameReader.Read_Channel_Close2(base.HandleCloseMethodFromServer);
 					break;
 
-//				case AmqpClassMethodChannelLevelConstants.BasicDeliver:
-//					await _connectionIo._frameReader.Read_BasicDelivery(DispatchDeliveredMessage);
-//					break;
-//
-//				case AmqpClassMethodChannelLevelConstants.BasicReturn:
-//					await _connectionIo._frameReader.Read_BasicReturn(DispatchBasicReturn);
-//					break;
-//
+				case AmqpClassMethodChannelLevelConstants.BasicDeliver:
+					await _connectionIo._frameReader.Read_BasicDelivery(_channel.DispatchDeliveredMessage, _channel.RentBasicProperties());
+					break;
+
+				case AmqpClassMethodChannelLevelConstants.BasicReturn:
+					await _connectionIo._frameReader.Read_BasicReturn(_channel.DispatchBasicReturn, _channel.RentBasicProperties());
+					break;
+
 //				// Basic Ack and NAck will be sent by the server if we enabled confirmation for this channel
-//				case AmqpClassMethodChannelLevelConstants.BasicAck:
-//					_connectionIo._frameReader.Read_BasicAck(ProcessAcks);
-//					break;
-//
-//				case AmqpClassMethodChannelLevelConstants.BasicNAck:
-//					_connectionIo._frameReader.Read_BasicNAck(ProcessNAcks);
-//					break;
-//
-//				case AmqpClassMethodChannelLevelConstants.ChannelFlow:
-//					_connectionIo._frameReader.Read_ChannelFlow(HandleChannelFlow);
-//					break;
+				case AmqpClassMethodChannelLevelConstants.BasicAck:
+					_connectionIo._frameReader.Read_BasicAck(_channel.ProcessAcks);
+					break;
+
+				case AmqpClassMethodChannelLevelConstants.BasicNAck:
+					_connectionIo._frameReader.Read_BasicNAck(_channel.ProcessNAcks);
+					break;
+
+				case AmqpClassMethodChannelLevelConstants.ChannelFlow:
+					_connectionIo._frameReader.Read_ChannelFlow(_channel.HandleChannelFlow);
+					break;
 
 				default:
 					await base.HandReplyToAwaitingQueue(classMethodId);
@@ -318,10 +319,8 @@ namespace RabbitMqNext
 			return tcs.Task;
 		}
 
-		public Task<string> __BasicConsume(ConsumeMode mode, 
-			string queue, string consumerTag, bool withoutAcks, 
-			bool exclusive, IDictionary<string, object> arguments, 
-			bool waitConfirmation, Action<string> confirmConsumerTag)
+		public Task<string> __BasicConsume(ConsumeMode mode, string queue, string consumerTag, bool withoutAcks, 
+										   bool exclusive, IDictionary<string, object> arguments, bool waitConfirmation, Action<string> confirmConsumerTag)
 		{
 			var tcs = new TaskCompletionSource<string>(
 				mode == ConsumeMode.ParallelWithBufferCopy || mode == ConsumeMode.ParallelWithBufferCopy ?
@@ -339,7 +338,7 @@ namespace RabbitMqNext
 						{
 							if (string.IsNullOrEmpty(consumerTag))
 							{
-								confirmConsumerTag(consumerTag);
+								confirmConsumerTag(consumerTag2);
 							}
 
 							tcs.SetResult(consumerTag2);
@@ -408,8 +407,7 @@ namespace RabbitMqNext
 				null, // AmqpChannelLevelFrameWriter.InternalBasicPublish, 
 				reply: replyFunc,
 				expectsReply: false,
-				// tcs: tcs,
-				tcsL: needsHardConfirmation ? null : tcs,
+				tcsL: needsHardConfirmation ? null : tcs, // if needsHardConfirmation the tcs will be signaled by the confirmationKeeper
 				optArg: args,
 				prepare: prepare);
 

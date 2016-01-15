@@ -20,10 +20,8 @@ namespace RabbitMqNext.Internals
 	{
 		private readonly CancellationToken _token;
 		private readonly ByteRingBuffer _inputBuffer, _outputBuffer;
-		internal readonly RingBufferStreamAdapter _inputRingBufferStream, _outputRingBufferStream;
+		private readonly RingBufferStreamAdapter _inputRingBufferStream, _outputRingBufferStream;
 
-//		private CancellationTokenSource _cancellationTokenSrc;
-		
 		private Socket _socket;
 
 		private SocketConsumer _socketConsumer;
@@ -39,7 +37,6 @@ namespace RabbitMqNext.Internals
 		public SocketHolder(CancellationToken token)
 		{
 			_token = token;
-//			_cancellationTokenSrc = new CancellationTokenSource();
 
 			_inputBuffer = new ByteRingBuffer(token);
 			_outputBuffer = new ByteRingBuffer(token);

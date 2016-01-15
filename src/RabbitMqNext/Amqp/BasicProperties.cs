@@ -5,7 +5,7 @@ namespace RabbitMqNext
 	using System.Runtime.CompilerServices;
 	
 
-	public class BasicProperties
+	public class BasicProperties : IDisposable
 	{
 		public static readonly BasicProperties Empty = new BasicProperties(isFrozen: true, reusable: false);
 
@@ -322,6 +322,15 @@ namespace RabbitMqNext
 		private void ThrowIfFrozen()
 		{
 			if (IsFrozen) throw new Exception("This object is frozen so it cannot be changed");
+		}
+
+		void IDisposable.Dispose()
+		{
+			_presenceSWord = 0; // effectilvely reset it
+			if (this.Headers != null)
+			{
+				this.Headers.Clear();
+			}
 		}
 	}
 }

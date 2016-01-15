@@ -45,6 +45,22 @@
 
 		internal abstract Task SendStartClose();
 
+		// To be use in case of exceptions on our end. Close everything asap
+		internal virtual void InitiateAbruptClose(Exception reason)
+		{
+			if (_isClosed) return;
+			Thread.MemoryBarrier();
+			_isClosed = true;
+
+			var syntheticError = new AmqpError() {ReplyText = reason.Message};
+
+			DrainPending(syntheticError);
+
+			FireErrorEvent(syntheticError);
+
+			this.Dispose();
+		}
+
 		internal virtual async Task<bool> InitiateCleanClose(bool initiatedByServer, AmqpError error)
 		{
 			if (_isClosed) return false;
@@ -58,11 +74,7 @@
 
 			DrainPending(error);
 
-			var ev = this.OnError;
-			if (ev != null && error != null)
-			{
-				ev(error);
-			}
+			FireErrorEvent(error);
 
 			return true;
 		}
@@ -124,8 +136,36 @@
 #pragma warning restore 4014
 		}
 
+		private void FireErrorEvent(AmqpError error)
+		{
+			var ev = this.OnError;
+			if (ev != null && error != null)
+			{
+				ev(error);
+			}
+		}
+
 		internal static void SetException<T>(TaskCompletionSource<T> tcs, AmqpError error, int classMethodId)
 		{
+			if (tcs == null) return;
+			if (error != null)
+			{
+				tcs.SetException(new Exception("Error: " + error.ToErrorString()));
+			}
+			else if (classMethodId == 0)
+			{
+				tcs.SetException(new Exception("The server closed the connection"));
+			}
+			else
+			{
+				Console.WriteLine("Unexpected situation: classMethodId = " + classMethodId + " and error = null");
+				tcs.SetException(new Exception("Unexpected reply from the server: " + classMethodId));
+			}
+		}
+
+		internal static void SetException(TaskLight tcs, AmqpError error, int classMethodId)
+		{
+			if (tcs == null) return;
 			if (error != null)
 			{
 				tcs.SetException(new Exception("Error: " + error.ToErrorString()));

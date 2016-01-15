@@ -3,9 +3,11 @@
 	using System;
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
+	using System.IO;
 	using System.Threading;
 	using System.Threading.Tasks;
 	using Internals;
+	using Internals.RingBuffer;
 
 	public class Channel : IDisposable
 	{
@@ -14,6 +16,8 @@
 		internal MessagesPendingConfirmationKeeper _confirmationKeeper;
 
 		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
+
+		private readonly ObjectPool<BasicProperties> _propertiesPool;
 
 		public Channel(ushort channelNumber, ConnectionIO connectionIo, CancellationToken cancellationToken)
 		{
@@ -28,6 +32,8 @@
 			};
 
 			_consumerSubscriptions = new ConcurrentDictionary<string, BasicConsumerSubscriptionInfo>(StringComparer.Ordinal);
+
+			_propertiesPool = new ObjectPool<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
 		}
 
 		public event Action<AmqpError> OnError;
@@ -43,6 +49,21 @@
 		}
 
 		public bool IsClosed { get { return _io.IsClosed; } }
+
+		public Func<UndeliveredMessage, Task> MessageUndeliveredHandler;
+
+		public BasicProperties RentBasicProperties()
+		{
+			return _propertiesPool.GetObject();
+		}
+
+		public void Return(BasicProperties properties)
+		{
+			if (properties == null) throw new ArgumentNullException("properties");
+			if (!properties.IsReusable) return;
+
+			_propertiesPool.PutObject(properties);
+		}
 
 		public Task BasicQos(uint prefetchSize, ushort prefetchCount, bool global)
 		{
@@ -146,6 +167,158 @@
 			this._io.Dispose();
 		}
 
+		internal async Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, bool redelivered, 
+			string exchange, string routingKey,	int bodySize, BasicProperties properties, Stream stream)
+		{
+			BasicConsumerSubscriptionInfo consumer;
+
+			if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
+			{
+				var delivery = new MessageDelivery()
+				{
+					bodySize = bodySize,
+					properties = properties,
+					routingKey = routingKey,
+					deliveryTag = deliveryTag,
+					redelivered = redelivered
+				};
+
+				var mode = consumer.Mode;
+				var cb = consumer.Callback;
+
+				if (mode == ConsumeMode.SingleThreaded)
+				{
+					// run with scissors
+					delivery.stream = stream;
+
+					// upon return it's assumed the user has consumed from the stream and is done with it
+					await cb(delivery);
+
+					this.Return(properties);
+				}
+				else 
+				{
+					// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
+
+					// since we dont have any control on how the user 
+					// will deal with the buffer we cant even re-use/use a pool, etc :-(
+
+					// Idea: split Ringbuffer consumers, create reader barrier. once they are all done, 
+					// move the read pos forward. Shouldnt be too hard to implement and 
+					// avoids the new buffer + GC and keeps the api Stream based consistently
+
+					if (mode == ConsumeMode.ParallelWithBufferCopy)
+					{
+						var bufferCopy = BufferUtil.Copy(stream as RingBufferStreamAdapter, (int)bodySize);
+						var memStream = new MemoryStream(bufferCopy, writable: false);
+						delivery.stream = memStream;
+					}
+					else if (mode == ConsumeMode.ParallelWithReadBarrier)
+					{
+						var readBarrier = new RingBufferStreamReadBarrier(stream as RingBufferStreamAdapter, delivery.bodySize);
+						delivery.stream = readBarrier;
+					}
+
+#pragma warning disable 4014
+					Task.Factory.StartNew(() =>
+#pragma warning restore 4014
+					{
+						try
+						{
+							using (delivery.stream)
+							{
+								cb(delivery);
+							}
+						}
+						catch (Exception e)
+						{
+							Console.WriteLine("From threadpool " + e);
+						}
+						finally
+						{
+							this.Return(properties);
+						}
+					}, TaskCreationOptions.PreferFairness);
+
+// Fingers crossed the threadpool is large enough
+//					ThreadPool.UnsafeQueueUserWorkItem((param) =>
+//					{
+//						try
+//						{
+//							using (delivery.stream)
+//							{
+//								cb(delivery);
+//							}
+//						}
+//						catch (Exception e)
+//						{
+//							Console.WriteLine("From threadpool " + e);
+//						}
+//						finally
+//						{
+//							this.Return(properties);
+//						}
+//					}, null);
+				}
+			}
+			else
+			{
+				// received msg but nobody was subscribed to get it (?) TODO: log it at least
+			}
+		}
+
+		internal void ProcessAcks(ulong deliveryTags, bool multiple)
+		{
+			if (_confirmationKeeper != null)
+			{
+				_confirmationKeeper.Confirm(deliveryTags, multiple, requeue: false, isAck: true);
+			}
+		}
+
+		internal void ProcessNAcks(ulong deliveryTags, bool multiple, bool requeue)
+		{
+			if (_confirmationKeeper != null)
+			{
+				_confirmationKeeper.Confirm(deliveryTags, multiple, requeue, isAck: false);
+			}
+		}
+
+		internal void HandleChannelFlow(bool isActive)
+		{
+			if (isActive)
+			{
+
+			}
+			else
+			{
+
+			}
+		}
+
+		internal async Task DispatchBasicReturn(ushort replyCode, string replyText, string exchange, string routingKey, 
+												int bodySize, BasicProperties properties, Stream stream)
+		{
+			var ev = this.MessageUndeliveredHandler;
+
+			// var consumed = 0;
+
+			if (ev != null)
+			{
+				var inst = new UndeliveredMessage()
+				{
+					bodySize = bodySize,
+					stream = stream,
+					properties = properties,
+					routingKey = routingKey,
+					replyCode = replyCode,
+					replyText = replyText,
+					exchange = exchange
+				};
+
+				await ev(inst);
+			}
+		}
+
 		internal Task EnableConfirmation(int maxunconfirmedMessages)
 		{
 			if (_confirmationKeeper != null) throw new Exception("Already set");
@@ -170,5 +343,11 @@
 			public ConsumeMode Mode;
 			public Func<MessageDelivery, Task> Callback;
 		}
+	}
+
+	public static class ChannelApiExtensions
+	{
+		
+
 	}
 }
