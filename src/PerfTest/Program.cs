@@ -20,9 +20,9 @@
 		const bool WithAcks = false;
 
 //		const int TotalPublish = 250000;
-		const int TotalPublish = 10;
+//		const int TotalPublish = 10;
 //		const int TotalPublish = 100000;
-//		const int TotalPublish = 500000;
+		const int TotalPublish = 500000;
 //		const int TotalPublish = 2000000;
 
 		const int ConcurrentCalls = 100;
@@ -69,72 +69,72 @@
 		    Thread.CurrentThread.Join();
 	    }
 
-		private static async Task StartConcurrentRpc()
-		{
-			Connection conn2 = null;
-			try
-			{
-				conn2 = await new ConnectionFactory().Connect(TargetHost,
-					vhost: VHost, username: _username, password: _password);
-
-				Console.WriteLine("[Connected]");
-
-				Console.WriteLine("Starting Rpc Parallel calls...");
-
-				var newChannel2 = await conn2.CreateChannel();
-				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
-				await newChannel2.BasicQos(0, Prefetch, false);
-
-				var rpcHelper = await newChannel2.CreateRpcHelper(ConsumeMode.ParallelWithBufferCopy);
-
-				var watch = new Stopwatch();
-				watch.Start();
-
-				var totalReceived = 0;
-
-				
-				var tasks = new Task[ConcurrentCalls];
-
-				for (int i = 0; i < TotalPublish; i += ConcurrentCalls)
-				{
-					for (int j = 0; j < ConcurrentCalls; j++)
-					{
-						var t = MakeCall(rpcHelper, i + j);
-						tasks[j] = t;
-					}
-
-					Task.WaitAll(tasks);
-
-					totalReceived += ConcurrentCalls;
-
-//					Console.WriteLine("calls " + totalReceived);
-
-					if (totalReceived >= TotalPublish)
-					{
-						watch.Stop();
-						Console.WriteLine("Rpc stress done. Took " +
-										  watch.Elapsed.TotalMilliseconds +
-										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " messages per second");
-						totalReceived = 0;
-					}
-				}
-
-				await Task.Delay(TimeSpan.FromMinutes(5));
-
-				await newChannel2.Close();
-			}
-			catch (AggregateException ex)
-			{
-				Console.WriteLine("[Captured error] " + ex.Message);
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("[Captured error 2] " + ex.Message);
-			}
-
-			if (conn2 != null)
-				await conn2.Close();
-		}
+//		private static async Task StartConcurrentRpc()
+//		{
+//			Connection conn2 = null;
+//			try
+//			{
+//				conn2 = await new ConnectionFactory().Connect(TargetHost,
+//					vhost: VHost, username: _username, password: _password);
+//
+//				Console.WriteLine("[Connected]");
+//
+//				Console.WriteLine("Starting Rpc Parallel calls...");
+//
+//				var newChannel2 = await conn2.CreateChannel();
+//				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
+//				await newChannel2.BasicQos(0, Prefetch, false);
+//
+//				var rpcHelper = await newChannel2.CreateRpcHelper(ConsumeMode.ParallelWithBufferCopy);
+//
+//				var watch = new Stopwatch();
+//				watch.Start();
+//
+//				var totalReceived = 0;
+//
+//				
+//				var tasks = new Task[ConcurrentCalls];
+//
+//				for (int i = 0; i < TotalPublish; i += ConcurrentCalls)
+//				{
+//					for (int j = 0; j < ConcurrentCalls; j++)
+//					{
+//						var t = MakeCall(rpcHelper, i + j);
+//						tasks[j] = t;
+//					}
+//
+//					Task.WaitAll(tasks);
+//
+//					totalReceived += ConcurrentCalls;
+//
+////					Console.WriteLine("calls " + totalReceived);
+//
+//					if (totalReceived >= TotalPublish)
+//					{
+//						watch.Stop();
+//						Console.WriteLine("Rpc stress done. Took " +
+//										  watch.Elapsed.TotalMilliseconds +
+//										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " messages per second");
+//						totalReceived = 0;
+//					}
+//				}
+//
+//				await Task.Delay(TimeSpan.FromMinutes(5));
+//
+//				await newChannel2.Close();
+//			}
+//			catch (AggregateException ex)
+//			{
+//				Console.WriteLine("[Captured error] " + ex.Message);
+//			}
+//			catch (Exception ex)
+//			{
+//				Console.WriteLine("[Captured error 2] " + ex.Message);
+//			}
+//
+//			if (conn2 != null)
+//				conn2.Dispose();
+//		}
 
 		private static async Task<int> MakeCall(RpcHelper rpcHelper, int y)
 		{
@@ -164,125 +164,125 @@
 			return y;
 		}
 
-		private static async Task StartRpc()
-		{
-			Connection conn1 = null;
-			Connection conn2 = null;
-			try
-			{
-				conn1 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
-				conn2 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
-
-				Console.WriteLine("[Connected]");
-
-				var newChannel = await conn1.CreateChannel();
-				Console.WriteLine("[channel created] " + newChannel.ChannelNumber);
-				await newChannel.BasicQos(0, Prefetch, false);
-
-				await newChannel.ExchangeDeclare("test_ex", "direct", true, false, null, true);
-
-				var qInfo = await newChannel.QueueDeclare("rpc1", false, true, false, false, null, true);
-
-				Console.WriteLine("[qInfo] " + qInfo);
-
-				await newChannel.QueueBind("rpc1", "test_ex", "rpc1", null, true);
-
-				var temp = new byte[1000];
-
-				Console.WriteLine("Starting Rpc channel consumer...");
-				await newChannel.BasicConsume(ConsumeMode.SingleThreaded, delivery =>
-				{
-					if (delivery.stream != null)
-						delivery.stream.Read(temp, 0, (int) delivery.bodySize);
-//					else 
-//						temp = delivery.Body;
-
-					var replyProp = new BasicProperties()
-					{
-						CorrelationId = delivery.properties.CorrelationId
-					};
-
-					newChannel.BasicPublishFast("", 
-						delivery.properties.ReplyTo, false, false, 
-						replyProp, new ArraySegment<byte>(temp, 0, 4));
-
-					return Task.CompletedTask;
-
-				}, "rpc1", "", true, false, null, waitConfirmation: true);
-
-				Console.WriteLine("Starting Rpc calls...");
-
-				var newChannel2 = await conn2.CreateChannel();
-				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
-				await newChannel2.BasicQos(0, Prefetch, false);
-
-				var rpcHelper = await newChannel2.CreateRpcHelper(ConsumeMode.SingleThreaded);
-
-				var watch = new Stopwatch();
-				watch.Start();
-
-				var totalReceived = 0;
-				var req = new byte[100];
-				var reply = new byte[100];
-				for (int i = 0; i < TotalPublish; i++)
-				{
-					var prop2 = new BasicProperties();
-					req[3] = (byte)((i & 0xFF000000) >> 24);
-					req[2] = (byte)((i & 0x00FF0000) >> 16);
-					req[1] = (byte)((i & 0x0000FF00) >> 8);
-					req[0] = (byte)((i & 0x000000FF));
-
-					var rpcCallResult = await rpcHelper.Call("test_ex", "rpc1", prop2, new ArraySegment<byte>(req, 0, 4));
-					if (rpcCallResult.stream != null)
-					{
-						rpcCallResult.stream.Read(reply, 0, rpcCallResult.bodySize);
-						var x = BitConverter.ToInt32(reply, 0);
-						if (x != i) throw new Exception("Invalid result for call");
-					}
-//					else if (rpcCallResult.Body != null)
+//		private static async Task StartRpc()
+//		{
+//			Connection conn1 = null;
+//			Connection conn2 = null;
+//			try
+//			{
+//				conn1 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
+//				conn2 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
+//
+//				Console.WriteLine("[Connected]");
+//
+//				var newChannel = await conn1.CreateChannel();
+//				Console.WriteLine("[channel created] " + newChannel.ChannelNumber);
+//				await newChannel.BasicQos(0, Prefetch, false);
+//
+//				await newChannel.ExchangeDeclare("test_ex", "direct", true, false, null, true);
+//
+//				var qInfo = await newChannel.QueueDeclare("rpc1", false, true, false, false, null, true);
+//
+//				Console.WriteLine("[qInfo] " + qInfo);
+//
+//				await newChannel.QueueBind("rpc1", "test_ex", "rpc1", null, true);
+//
+//				var temp = new byte[1000];
+//
+//				Console.WriteLine("Starting Rpc channel consumer...");
+//				await newChannel.BasicConsume(ConsumeMode.SingleThreaded, delivery =>
+//				{
+//					if (delivery.stream != null)
+//						delivery.stream.Read(temp, 0, (int) delivery.bodySize);
+////					else 
+////						temp = delivery.Body;
+//
+//					var replyProp = new BasicProperties()
 //					{
-//						var x = BitConverter.ToInt32(rpcCallResult.Body, 0);
+//						CorrelationId = delivery.properties.CorrelationId
+//					};
+//
+//					newChannel.BasicPublishFast("", 
+//						delivery.properties.ReplyTo, false, false, 
+//						replyProp, new ArraySegment<byte>(temp, 0, 4));
+//
+//					return Task.CompletedTask;
+//
+//				}, "rpc1", "", true, false, null, waitConfirmation: true);
+//
+//				Console.WriteLine("Starting Rpc calls...");
+//
+//				var newChannel2 = await conn2.CreateChannel();
+//				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
+//				await newChannel2.BasicQos(0, Prefetch, false);
+//
+//				var rpcHelper = await newChannel2.CreateRpcHelper(ConsumeMode.SingleThreaded);
+//
+//				var watch = new Stopwatch();
+//				watch.Start();
+//
+//				var totalReceived = 0;
+//				var req = new byte[100];
+//				var reply = new byte[100];
+//				for (int i = 0; i < TotalPublish; i++)
+//				{
+//					var prop2 = new BasicProperties();
+//					req[3] = (byte)((i & 0xFF000000) >> 24);
+//					req[2] = (byte)((i & 0x00FF0000) >> 16);
+//					req[1] = (byte)((i & 0x0000FF00) >> 8);
+//					req[0] = (byte)((i & 0x000000FF));
+//
+//					var rpcCallResult = await rpcHelper.Call("test_ex", "rpc1", prop2, new ArraySegment<byte>(req, 0, 4));
+//					if (rpcCallResult.stream != null)
+//					{
+//						rpcCallResult.stream.Read(reply, 0, rpcCallResult.bodySize);
+//						var x = BitConverter.ToInt32(reply, 0);
 //						if (x != i) throw new Exception("Invalid result for call");
 //					}
-
-					// var rpcCallResult2 = await rpcHelper.Call("test_ex", "rpc1", prop2, new ArraySegment<byte>(req, 0, 4));
-
-					var val = Interlocked.Increment(ref totalReceived);
-
-					if (val == TotalPublish)
-					{
-						watch.Stop();
-						Console.WriteLine("Rpc stress. Took " +
-										  watch.Elapsed.TotalMilliseconds +
-										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
-						totalReceived = 0;
-					}
-				}
-
-//				watch = Stopwatch.StartNew();
-//				int totalReceived = 0;
-
-//				Console.WriteLine("[subscribed to queue] " + sub);
-
-				await Task.Delay(TimeSpan.FromMinutes(5));
-
-				await newChannel.Close();
-				await newChannel2.Close();
-			}
-			catch (AggregateException ex)
-			{
-				Console.WriteLine("[Captured error] " + ex.Flatten().Message);
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("[Captured error 2] " + ex.Message);
-			}
-
-			if (conn1 != null)
-				await conn1.Close();
-			if (conn2 != null)
-				await conn2.Close();
-		}
+////					else if (rpcCallResult.Body != null)
+////					{
+////						var x = BitConverter.ToInt32(rpcCallResult.Body, 0);
+////						if (x != i) throw new Exception("Invalid result for call");
+////					}
+//
+//					// var rpcCallResult2 = await rpcHelper.Call("test_ex", "rpc1", prop2, new ArraySegment<byte>(req, 0, 4));
+//
+//					var val = Interlocked.Increment(ref totalReceived);
+//
+//					if (val == TotalPublish)
+//					{
+//						watch.Stop();
+//						Console.WriteLine("Rpc stress. Took " +
+//										  watch.Elapsed.TotalMilliseconds +
+//										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
+//						totalReceived = 0;
+//					}
+//				}
+//
+////				watch = Stopwatch.StartNew();
+////				int totalReceived = 0;
+//
+////				Console.WriteLine("[subscribed to queue] " + sub);
+//
+//				await Task.Delay(TimeSpan.FromMinutes(5));
+//
+//				await newChannel.Close();
+//				await newChannel2.Close();
+//			}
+//			catch (AggregateException ex)
+//			{
+//				Console.WriteLine("[Captured error] " + ex.Flatten().Message);
+//			}
+//			catch (Exception ex)
+//			{
+//				Console.WriteLine("[Captured error 2] " + ex.Message);
+//			}
+//
+//			if (conn1 != null)
+//				await conn1.Close();
+//			if (conn2 != null)
+//				await conn2.Close();
+//		}
 
 		private static async Task Start()
 		{
@@ -293,8 +293,8 @@
 
 				Console.WriteLine("[Connected]");
 
-				// var newChannel = await conn.CreateChannel();
-				var newChannel = await conn.CreateChannelWithPublishConfirmation();
+				var newChannel = await conn.CreateChannel();
+//				var newChannel = await conn.CreateChannelWithPublishConfirmation();
 				Console.WriteLine("[channel created] " + newChannel.ChannelNumber);
 				await newChannel.BasicQos(0, Prefetch, false);
 
@@ -399,7 +399,7 @@
 			}
 
 			if (conn != null)
-				await conn.Close();
+				conn.Dispose();
 		}
 
 		private static async Task StartOriginalClientRpc()

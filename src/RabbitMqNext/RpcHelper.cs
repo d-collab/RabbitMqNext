@@ -7,7 +7,7 @@ namespace RabbitMqNext
 
 	public class RpcHelper : IDisposable
 	{
-		private readonly AmqpChannel _channel;
+		private readonly Channel _channel;
 		private readonly int _maxConcurrentCalls;
 		private readonly ConsumeMode _mode;
 		private volatile uint _correlationCounter;
@@ -16,13 +16,13 @@ namespace RabbitMqNext
 		private string _subscription;
 		// private readonly int _timeoutInMs;
 
-		private readonly ObjectPool<TaskLight<MessageDelivery>> _taskResultPool;
-		private readonly TaskLight<MessageDelivery>[] _pendingCalls;
+		private readonly ObjectPool<TaskSlim<MessageDelivery>> _taskResultPool;
+		private readonly TaskSlim<MessageDelivery>[] _pendingCalls;
 		private readonly int _timeoutInMs;
 		private readonly long _timeoutInTicks;
 		private readonly Timer _timeoutTimer;
 
-		public RpcHelper(AmqpChannel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 3000)
+		public RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 3000)
 		{
 			if (maxConcurrentCalls <= 0) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
 
@@ -33,11 +33,11 @@ namespace RabbitMqNext
 			_timeoutInTicks = timeoutInMs * TimeSpan.TicksPerMillisecond;
 
 			// the impl keeps a timer pool so this is light and efficient
-			_timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs, timeoutInMs); 
+			_timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs, timeoutInMs);
 
-			_pendingCalls = new TaskLight<MessageDelivery>[maxConcurrentCalls];
-			_taskResultPool = new ObjectPool<TaskLight<MessageDelivery>>(() =>
-				new TaskLight<MessageDelivery>((inst) => _taskResultPool.PutObject(inst)), maxConcurrentCalls, true);
+			_pendingCalls = new TaskSlim<MessageDelivery>[maxConcurrentCalls];
+			_taskResultPool = new ObjectPool<TaskSlim<MessageDelivery>>(() =>
+				new TaskSlim<MessageDelivery>((inst) => _taskResultPool.PutObject(inst)), maxConcurrentCalls, true);
 		}
 
 		internal async Task Setup()
@@ -73,7 +73,7 @@ namespace RabbitMqNext
 			return Task.CompletedTask;
 		}
 
-		public TaskLight<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
+		public TaskSlim<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			var task = _taskResultPool.GetObject();
 
@@ -106,7 +106,7 @@ namespace RabbitMqNext
 			return task;
 		}
 
-		private bool SecureSpotAndUniqueCorrelationId(TaskLight<MessageDelivery> task, out uint correlationId)
+		private bool SecureSpotAndUniqueCorrelationId(TaskSlim<MessageDelivery> task, out uint correlationId)
 		{
 			correlationId = 0;
 

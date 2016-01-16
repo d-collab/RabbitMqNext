@@ -64,6 +64,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="New\SocketHolder.cs" />
+    <Compile Include="RpcHelper.cs" />
     <Compile Include="UndeliveredMessage.cs" />
     <Compile Include="Internals\BufferUtil.cs" />
     <Compile Include="Internals\AmqpClassMethodChannelLevelConstants.cs" />
