@@ -1,16 +1,17 @@
 namespace RabbitMqNext.Internals.RingBuffer
 {
 	using System.Threading;
+	using Locks;
 
 	/// <summary>
 	/// needs a better impl
 	/// </summary>
 	internal class LockWaitingStrategy : WaitingStrategy
 	{
-		private readonly AutoResetEvent _read = new AutoResetEvent(false);
-		private readonly AutoResetEvent _write = new AutoResetEvent(false);
-//		private readonly AutoResetSuperSlimLock _read = new AutoResetSuperSlimLock();
-//		private readonly AutoResetSuperSlimLock _write = new AutoResetSuperSlimLock();
+//		private readonly AutoResetEvent _read = new AutoResetEvent(false);
+//		private readonly AutoResetEvent _write = new AutoResetEvent(false);
+		private readonly AutoResetSuperSlimLock _read = new AutoResetSuperSlimLock();
+		private readonly AutoResetSuperSlimLock _write = new AutoResetSuperSlimLock();
 
 
 		public LockWaitingStrategy(CancellationToken token) : base(token)
@@ -19,14 +20,14 @@ namespace RabbitMqNext.Internals.RingBuffer
 
 		public override void WaitForRead()
 		{
-//			_read.Wait();
-			_read.WaitOne();
+			_read.Wait();
+//			_read.WaitOne();
 		}
 
 		public override void WaitForWrite()
 		{
-//			_write.Wait();
-			_write.WaitOne();
+			_write.Wait();
+//			_write.WaitOne();
 		}
 
 		public override void SignalReadDone()

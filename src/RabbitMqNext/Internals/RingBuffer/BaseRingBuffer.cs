@@ -20,12 +20,15 @@
 	internal abstract class BaseRingBuffer
 	{
 		// TODO: how to add padding to ensure these go and stay in L1 cache? how to debug it?
-		internal volatile uint _readPosition; 
+//		protected long p1, p2, p3, p4, p5, p6, p7;
+		protected readonly uint _bufferSize;
+
+		internal volatile uint _readPosition;
+		protected long _p1, _p2, _p3, _p4, _p5, _p6, _p7;
 		internal volatile uint _writePosition;
 
 		protected readonly CancellationToken _cancellationToken;
 		protected readonly WaitingStrategy _waitingStrategy;
-		protected readonly uint _bufferSize;
 		
 		// max gates = 256
 		const int MaxGates = 32; 
@@ -53,6 +56,7 @@
 			_waitingStrategy.SignalReadDone();
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal uint? GetMinReadingGate()
 		{
 			uint minGatePos = uint.MaxValue;
@@ -84,20 +88,22 @@
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal AvailableAndPos InternalGetReadyToReadEntries(int desiredCount, ReadingGate fromGate = null)
+		internal /*AvailableAndPos*/ int InternalGetReadyToReadEntries(int desiredCount, out int available, ReadingGate fromGate = null)
 		{
-			uint writeCursor = _writePosition; // volative read
+			uint bufferSize = _bufferSize;
+			
 			uint readCursor = _readPosition;   // volative read
+			uint writeCursor = _writePosition; // volative read
 
-			uint writePos = writeCursor & (_bufferSize - 1); // (writeCursor % _bufferSize);
-			uint readPos = readCursor & (_bufferSize - 1);   // (readCursor % _bufferSize);
+			uint writePos = writeCursor & (bufferSize - 1); // (writeCursor % _bufferSize);
+			uint readPos = readCursor & (bufferSize - 1);   // (readCursor % _bufferSize);
 
 			uint entriesFree;
 
 			if (fromGate != null)
 			{
 				// Console.WriteLine("Reading from gate. Real readpos " + readPos + " replaced by " + fromGate.pos);
-				readPos = fromGate.gpos & (_bufferSize - 1);
+				readPos = fromGate.gpos & (bufferSize - 1);
 				// entriesFree = fromGate.length;
 				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
 			}
@@ -108,7 +114,7 @@
 
 				if (writeHasWrapped) // so everything ahead of readpos is available
 				{
-					entriesFree = _bufferSize - readPos;
+					entriesFree = bufferSize - readPos;
 				}
 				else
 				{
@@ -125,29 +131,34 @@
 			}
 #endif
 
-			uint available;
+//			uint available;
 //			if (fromGate != null)
 //			{
 //				available = Math.Min(entriesFree, (uint) desiredCount);
 //			}
 //			else
 			{
-				available = Math.Min(entriesFree, (uint)desiredCount);
+				available = (int) Math.Min(entriesFree, (uint)desiredCount);
 			}
 
 			// return available;
-			return new AvailableAndPos() { available = (int)available, position = (int)readPos };
+			// return new AvailableAndPos() { available = (int)available, position = (int)readPos };
+			return (int) readPos;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal AvailableAndPos InternalGetReadyToWriteEntries(int desiredCount)
+		internal /*AvailableAndPos*/ int InternalGetReadyToWriteEntries(int desiredCount, out int available)
 		{
-			uint writeCursor = _writePosition; // volative read
-			uint readCursor = _readPosition;   // volative read
+			var buffersize = _bufferSize;
 
-			uint writePos = writeCursor & (_bufferSize - 1);
-			uint readPos = readCursor & (_bufferSize - 1);
+			uint readCursor = _readPosition;   // volative read
+			uint writeCursor = _writePosition; // volative read
+
+			uint writePos = writeCursor & (buffersize - 1);
+			uint readPos = readCursor & (buffersize - 1);
+#if DEBUG
 			var originalreadPos = readPos;
+#endif
 
 			uint entriesFree = 0;
 
@@ -160,7 +171,7 @@
 
 				// Console.WriteLine("Got gate in place. real readPos " + readPos + " becomes " + minGate.Value);
 
-				readPos = minGate.Value & (_bufferSize - 1); // now the write cannot move forward
+				readPos = minGate.Value & (buffersize - 1); // now the write cannot move forward
 			} 
 
 			var writeWrapped = readPos > writePos;
@@ -173,9 +184,9 @@
 			else
 			{
 				if (readPos == 0)
-					entriesFree = _bufferSize - writePos - 1;
+					entriesFree = buffersize - writePos - 1;
 				else
-					entriesFree = _bufferSize - writePos;
+					entriesFree = buffersize - writePos;
 			}
 
 #if DEBUG
@@ -201,9 +212,10 @@
 			}
 #endif
 
-			var available = Math.Min(entriesFree, (uint)desiredCount);
-			//			return available;
-			return new AvailableAndPos() { available = (int)available, position = (int)writePos };
+			available = (int) Math.Min(entriesFree, (uint)desiredCount);
+			// return available;
+			// return new AvailableAndPos() { available = (int)available, position = (int)writePos };
+			return (int) writePos;
 		}
 
 		protected BaseRingBuffer(CancellationToken cancellationToken, int bufferSize, WaitingStrategy waitingStrategy)
@@ -227,10 +239,10 @@
 			get { return _writePosition != _readPosition; }
 		}
 
-		internal struct AvailableAndPos
-		{
-			public int available, position;
-		}
+//		internal struct AvailableAndPos
+//		{
+//			public int available, position;
+//		}
 
 		private void AtomicSecureIndexPosAndStore(ReadingGate gate)
 		{

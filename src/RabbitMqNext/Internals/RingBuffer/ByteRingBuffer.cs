@@ -92,9 +92,12 @@
 			int totalwritten = 0;
 			while (totalwritten < count)
 			{
-				AvailableAndPos availPos = this.InternalGetReadyToWriteEntries(count - totalwritten);
+				// AvailableAndPos availPos = this.InternalGetReadyToWriteEntries(count - totalwritten);
 //				var available = (int) this.InternalGetReadyToWriteEntries(count - totalwritten);
-				var available = (int) availPos.available;
+//				var available = (int) availPos.available;
+				int available;
+				var writePos = this.InternalGetReadyToWriteEntries(count - totalwritten, out available);
+
 				if (available == 0)
 				{
 					if (writeAll)
@@ -105,7 +108,7 @@
 					break;
 				}
 
-				int writePos = (int) availPos.position;
+				// int writePos = (int) availPos.position;
 
 				Buffer.BlockCopy(buffer, offset + totalwritten, _buffer, writePos, available);
 
@@ -128,13 +131,16 @@
 
 		public void WriteBufferFromSocketRecv(Socket socket /*, bool asyncRecv = false*/)
 		{
-			AvailableAndPos availPos;
+			// AvailableAndPos availPos;
 			int available = 0;
+			int writePos = 0;
 
 			while (true)
 			{
-				availPos = this.InternalGetReadyToWriteEntries(BufferSize);
-				available = availPos.available;
+//				availPos = this.InternalGetReadyToWriteEntries(BufferSize);
+//				available = availPos.available;
+
+				writePos = this.InternalGetReadyToWriteEntries(BufferSize, out available);
 
 				if (available == 0)
 					_waitingStrategy.WaitForRead();
@@ -142,7 +148,7 @@
 					break;
 			}
 
-			int writePos = availPos.position;
+//			int writePos = availPos.position;
 
 			int received = 0;
 			{
@@ -165,8 +171,10 @@
 
 			while (totalRead < count)
 			{
-				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead, fromGate);
-				var available = (int) availPos.available;
+				// AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead, fromGate);
+				int available;
+				int readPos = this.InternalGetReadyToReadEntries(count - totalRead, out available, fromGate);
+//				var available = (int) availPos.available;
 				if (available == 0)
 				{
 					if (fillBuffer)
@@ -177,7 +185,7 @@
 					break;
 				}
 
-				int readPos = (int) availPos.position;
+//				int readPos = (int) availPos.position;
 				int dstOffset = offset + totalRead;
 
 				Buffer.BlockCopy(_buffer, readPos, buffer, dstOffset, available);
@@ -207,8 +215,11 @@
 
 			while (totalRead == 0)
 			{
-				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(BufferSize);
-				int available = availPos.available;
+				// AvailableAndPos availPos = this.InternalGetReadyToReadEntries(BufferSize);
+				// int available = availPos.available;
+
+				int available;
+				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out available, null);
 
 				// buffer is empty.. return and expect to be called again when something gets written
 				if (available == 0) 
@@ -217,7 +228,7 @@
 					return;
 				}
 
-				int readPos = availPos.position;
+//				int readPos = availPos.position;
 
 				var totalSent = 0;
 				while (totalSent < available)
@@ -244,8 +255,12 @@
 
 			while (totalSkipped < offset)
 			{
-				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(offset - totalSkipped);
-				var available = availPos.available;
+//				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(offset - totalSkipped);
+//				var available = availPos.available;
+
+				int available;
+				int readPos = this.InternalGetReadyToReadEntries(offset - totalSkipped, out available, null);
+
 				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
 				if (available == 0)
 				{
