@@ -210,30 +210,30 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 				{
 					return true;
 				}
-				Thread.SpinWait(1 << i);
-//				if (i < HowManySpinBeforeYield)
-//				{
-//					if (i == HowManySpinBeforeYield / 2)
-//					{
-//						Thread.Yield();
-//					}
-//					else
-//					{
-//						Thread.SpinWait(ProcCounter * (4 << i));
-//					}
-//				}
-//				else if (i % HowManyYieldEverySleep1 == 0)
-//				{
-//					Thread.Sleep(1);
-//				}
-//				else if (i % HowManyYieldEverySleep0 == 0)
-//				{
-//					Thread.Sleep(0);
-//				}
-//				else
-//				{
-//					Thread.Yield();
-//				}
+//				Thread.SpinWait(1 << i);
+				if (i < HowManySpinBeforeYield)
+				{
+					if (i == HowManySpinBeforeYield / 2)
+					{
+						Thread.Yield();
+					}
+					else
+					{
+						Thread.SpinWait(ProcCounter * (4 << i));
+					}
+				}
+				else if (i % HowManyYieldEverySleep1 == 0)
+				{
+					Thread.Sleep(1);
+				}
+				else if (i % HowManyYieldEverySleep0 == 0)
+				{
+					Thread.Sleep(0);
+				}
+				else
+				{
+					Thread.Yield();
+				}
 			}
 			return CheckForIsSetAndResetIfTrue();
 		}
