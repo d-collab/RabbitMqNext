@@ -107,7 +107,6 @@ namespace RabbitMqNext.TplExtensions
 			if (!HasContinuation)
 			{
 				_continuation = continuation;
-				Thread.MemoryBarrier();
 				HasContinuation = true;
 
 				if (IsCompleted)
