@@ -6,9 +6,9 @@ namespace RabbitMqNext
 	using TplExtensions;
 
 
-	public class TaskLight : BaseTaskLight<TaskLight>, INotifyCompletion
+	public class TaskSlim : BaseTaskSlim<TaskSlim>, INotifyCompletion
 	{
-		public TaskLight(Action<TaskLight> recycler) : base(recycler)
+		public TaskSlim(Action<TaskSlim> recycler) : base(recycler)
 		{
 		}
 
@@ -17,9 +17,9 @@ namespace RabbitMqNext
 			SetContinuation(continuation);
 		}
 
-		public TaskLight GetAwaiter()
+		public TaskSlim GetAwaiter()
 		{
-			Console.WriteLine("[TaskLight] GetAwaiter " + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId); 
+			Console.WriteLine("[TaskSlim] GetAwaiter " + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId); 
 			return this;
 		}
 

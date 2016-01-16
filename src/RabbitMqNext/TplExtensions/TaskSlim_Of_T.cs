@@ -4,14 +4,14 @@ namespace RabbitMqNext
 	using System.Runtime.CompilerServices;
 	using TplExtensions;
 
-	public class TaskLight<T> : BaseTaskLight<TaskLight<T>>, INotifyCompletion
+	public class TaskSlim<T> : BaseTaskSlim<TaskSlim<T>>, INotifyCompletion
 	{
 		private T _result;
 
 		internal long Started; // for timeout handling
 		internal uint Id;  // for correlation checking 
 
-		public TaskLight(Action<TaskLight<T>> recycler) : base(recycler)
+		public TaskSlim(Action<TaskSlim<T>> recycler) : base(recycler)
 		{
 		}
 
@@ -21,7 +21,7 @@ namespace RabbitMqNext
 			SetContinuation(continuation);
 		}
 
-		public TaskLight<T> GetAwaiter()
+		public TaskSlim<T> GetAwaiter()
 		{
 			return this;
 		}

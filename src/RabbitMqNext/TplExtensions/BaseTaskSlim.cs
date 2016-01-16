@@ -13,7 +13,7 @@ namespace RabbitMqNext.TplExtensions
 	/// Upon running the continuation it "recycles" itself (back to pool).
 	/// If there's no continuation this instance wont go back to pool.
 	/// </remarks>
-	public class BaseTaskLight<TDerived> : IDisposable
+	public class BaseTaskSlim<TDerived> : IDisposable
 	{
 		private const byte HasContinuationSetMask = 1;
 		private const byte IsCompleteMask = 2;
@@ -32,7 +32,7 @@ namespace RabbitMqNext.TplExtensions
 			return (TDerived) (object)this;
 		}
 
-		public BaseTaskLight(Action<TDerived> recycler)
+		public BaseTaskSlim(Action<TDerived> recycler)
 		{
 			_recycler = recycler;
 		}
@@ -50,12 +50,12 @@ namespace RabbitMqNext.TplExtensions
 			if (runContinuationAsync)
 				RunContinuationAsync = true;
 
-			Console.WriteLine("[TaskLight] SetCompleted async " + runContinuationAsync + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId); 
+			Console.WriteLine("[TaskSlim] SetCompleted async " + runContinuationAsync + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId); 
 
 			// we cannot EVER complete more than once. 
 			if (IsCompleted)
 			{
-				Console.WriteLine("[TaskLight] SetCompleted already set? "); 
+				Console.WriteLine("[TaskSlim] SetCompleted already set? "); 
 				return;
 			}
 //			Thread.MemoryBarrier();
@@ -139,7 +139,7 @@ namespace RabbitMqNext.TplExtensions
 
 		internal void SetContinuation(Action continuation)
 		{
-			Console.WriteLine("[TaskLight] OnCompleted set " + continuation.Target + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId);
+			Console.WriteLine("[TaskSlim] OnCompleted set " + continuation.Target + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId);
 
 			if (!HasContinuation)
 			{
