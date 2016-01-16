@@ -6,6 +6,11 @@ src/*/bin
 src/*/*/obj
 src/*/*/bin
 
+test/*/obj
+test/*/bin
+test/*/*/obj
+test/*/*/bin
+
 *.csproj.user
 _ReSharper*
 *.ReSharper

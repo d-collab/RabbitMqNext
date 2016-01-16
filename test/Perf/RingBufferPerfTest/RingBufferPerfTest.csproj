@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{16A0A238-0E72-48E3-85E2-834A0537F696}</ProjectGuid>
+    <ProjectGuid>{68823A2C-D13C-4B9E-B4C8-353227A30C3A}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>PerfTestServer</RootNamespace>
-    <AssemblyName>PerfTestServer</AssemblyName>
+    <RootNamespace>RingBufferPerfTest</RootNamespace>
+    <AssemblyName>RingBufferPerfTest</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -31,10 +31,10 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -43,14 +43,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ServerProgram.cs" />
+    <Compile Include="RingBufferPerfTestProgram.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\RabbitMqNext\RabbitMqNext.csproj">
+    <ProjectReference Include="..\..\..\src\RabbitMqNext\RabbitMqNext.csproj">
       <Project>{48ff9289-a49d-48e9-af6c-89cb85e934d0}</Project>
       <Name>RabbitMqNext</Name>
     </ProjectReference>

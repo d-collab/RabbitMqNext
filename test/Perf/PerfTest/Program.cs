@@ -21,8 +21,8 @@
 
 //		const int TotalPublish = 250000;
 //		const int TotalPublish = 1;
-		const int TotalPublish = 100000;
-//		const int TotalPublish = 500000;
+//		const int TotalPublish = 100000;
+		const int TotalPublish = 500000;
 //		const int TotalPublish = 2000000;
 
 		const int ConcurrentCalls = 100;

@@ -137,7 +137,7 @@
 			}
 
 			if (conn1 != null)
-				await conn1.Close();
+				conn1.Dispose();
 
 			return true;
 		}

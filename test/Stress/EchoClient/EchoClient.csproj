@@ -49,7 +49,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\RabbitMqNext\RabbitMqNext.csproj">
+    <ProjectReference Include="..\..\..\src\RabbitMqNext\RabbitMqNext.csproj">
       <Project>{48ff9289-a49d-48e9-af6c-89cb85e934d0}</Project>
       <Name>RabbitMqNext</Name>
     </ProjectReference>
