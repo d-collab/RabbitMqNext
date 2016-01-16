@@ -21,7 +21,7 @@
 		public bool ExpectsReply;
 		public object OptionalArg;
 		public TaskCompletionSource<bool> Tcs;
-		public TaskLight TcsLight;
+		public TaskSlim TcsSlim;
 
 		public void Prepare()
 		{
@@ -39,15 +39,15 @@
 				if (error != null)
 				{
 					AmqpIOBase.SetException(Tcs, error, classMethodId);
-					AmqpIOBase.SetException(TcsLight, error, classMethodId);
+					AmqpIOBase.SetException(TcsSlim, error, classMethodId);
 				}
 				else
 				{
 					if (Tcs != null)
 						Tcs.SetResult(true);
 
-					if (TcsLight != null)
-						TcsLight.SetCompleted();
+					if (TcsSlim != null)
+						TcsSlim.SetCompleted();
 				}
 			}
 
@@ -63,7 +63,7 @@
 			OptionalArg = null;
 			PrepareAction = null;
 			Tcs = null;
-			TcsLight = null;
+			TcsSlim = null;
 		}
 	}
 }

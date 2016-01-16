@@ -163,7 +163,7 @@
 			}
 		}
 
-		internal static void SetException(TaskLight tcs, AmqpError error, int classMethodId)
+		internal static void SetException(TaskSlim tcs, AmqpError error, int classMethodId)
 		{
 			if (tcs == null) return;
 			if (error != null)

@@ -104,7 +104,7 @@
 			_io.__BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer, false);
 		}
 
-		public TaskLight BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
+		public TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			return _io.__BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer, true);

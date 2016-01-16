@@ -237,7 +237,7 @@ namespace RabbitMqNext
 			Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
 			Func<ushort, int, AmqpError, Task> reply,
 			bool expectsReply, TaskCompletionSource<bool> tcs = null,
-			object optArg = null, TaskLight tcsL = null, Action prepare = null)
+			object optArg = null, TaskSlim tcsL = null, Action prepare = null)
 		{
 			if (_lastError != null)
 			{
@@ -262,7 +262,7 @@ namespace RabbitMqNext
 			cmd.commandGenerator = commandWriter;
 			cmd.ExpectsReply = expectsReply;
 			cmd.Tcs = tcs;
-			cmd.TcsLight = tcsL;
+			cmd.TcsSlim = tcsL;
 			cmd.OptionalArg = optArg;
 			cmd.PrepareAction = prepare;
 
@@ -271,7 +271,7 @@ namespace RabbitMqNext
 		}
 
 		private void SetErrorResultIfErrorPending(bool expectsReply, Func<ushort, int, AmqpError, Task> replyFn, 
-												  TaskCompletionSource<bool> tcs, TaskLight taskLight)
+												  TaskCompletionSource<bool> tcs, TaskSlim taskSlim)
 		{
 			if (expectsReply)
 			{
@@ -280,7 +280,7 @@ namespace RabbitMqNext
 			else
 			{
 				AmqpIOBase.SetException(tcs, _lastError, 0);
-				AmqpIOBase.SetException(taskLight, _lastError, 0);
+				AmqpIOBase.SetException(taskSlim, _lastError, 0);
 			}
 		}
 

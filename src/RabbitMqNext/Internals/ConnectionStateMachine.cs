@@ -153,7 +153,7 @@
 //								  bool expectsReply, 
 //								  TaskCompletionSource<bool> tcs = null, 
 //								  object optArg = null, 
-//								  TaskLight tcsL = null, 
+//								  TaskSlim tcsL = null, 
 //								  Action prepare = null)
 //		{
 //			if (!SetErrorResultIfErrorPending(tcs, tcsL))
@@ -172,7 +172,7 @@
 //			cmd.commandGenerator = commandWriter;
 //			cmd.ExpectsReply = expectsReply;
 //			cmd.Tcs = tcs;
-//			cmd.TcsLight = tcsL;
+//			cmd.TcsSlim = tcsL;
 //			cmd.OptionalArg = optArg;
 //			cmd.PrepareAction = prepare;
 //
@@ -251,7 +251,7 @@
 //			}
 //		}
 //
-//		private bool SetErrorResultIfErrorPending(TaskCompletionSource<bool> tcs = null, TaskLight tcsL = null)
+//		private bool SetErrorResultIfErrorPending(TaskCompletionSource<bool> tcs = null, TaskSlim tcsL = null)
 //		{
 //			// should we just DrainMethodsWithError();
 //			var er = this._lastError;

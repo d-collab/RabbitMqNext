@@ -12,7 +12,7 @@ namespace RabbitMqNext
 		private readonly ushort _channelNum;
 		internal readonly ConnectionIO _connectionIo;
 
-		private readonly ObjectPool<TaskLight> _taskLightPool;
+		private readonly ObjectPool<TaskSlim> _taskLightPool;
 		private readonly ObjectPool<FrameParameters.BasicPublishArgs> _basicPubArgsPool;
 
 		public ChannelIO(Channel channel, ushort channelNumber, ConnectionIO connectionIo)
@@ -21,8 +21,8 @@ namespace RabbitMqNext
 			_channelNum = channelNumber;
 			_connectionIo = connectionIo;
 
-			_taskLightPool = new ObjectPool<TaskLight>(
-				() => new TaskLight(i => _channel.GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
+			_taskLightPool = new ObjectPool<TaskSlim>(
+				() => new TaskSlim(i => _channel.GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
 
 			_basicPubArgsPool = new ObjectPool<FrameParameters.BasicPublishArgs>(
 				() => new FrameParameters.BasicPublishArgs(i => _channel.GenericRecycler(i, _basicPubArgsPool)), 1000, preInitialize: true); 
@@ -360,7 +360,7 @@ namespace RabbitMqNext
 			return tcs.Task;
 		}
 
-		public TaskLight __BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
+		public TaskSlim __BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
 										BasicProperties properties, ArraySegment<byte> buffer, 
 										bool withTcs)
 		{
@@ -377,7 +377,7 @@ namespace RabbitMqNext
 
 			Func<ushort, int, AmqpError, Task> replyFunc = null;
 			Action prepare = null;
-			TaskLight tcs = null;
+			TaskSlim tcs = null;
 			if (withTcs || needsHardConfirmation)
 			{
 				tcs = _taskLightPool.GetObject();

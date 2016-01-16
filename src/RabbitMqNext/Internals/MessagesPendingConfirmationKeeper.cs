@@ -14,7 +14,7 @@ namespace RabbitMqNext
 		private readonly ulong _max;
 		private readonly CancellationToken _token;
 		private readonly SemaphoreSlim _semaphoreSlim;
-		private readonly TaskLight[] _tasks;
+		private readonly TaskSlim[] _tasks;
 		
 		private ulong _lastSeq = 0;
 		private ulong _lastConfirmed = 0;
@@ -23,7 +23,7 @@ namespace RabbitMqNext
 		{
 			_max = (ulong) max;
 			_token = token;
-			_tasks = new TaskLight[max];
+			_tasks = new TaskSlim[max];
 			_semaphoreSlim = new SemaphoreSlim(max, max);
 		}
 
@@ -35,7 +35,7 @@ namespace RabbitMqNext
 			_semaphoreSlim.Wait(_token);
 		}
 
-		public void Add(TaskLight tcs)
+		public void Add(TaskSlim tcs)
 		{
 			// happens past semaphore, from the frame writing thread, thus "safe"
 
