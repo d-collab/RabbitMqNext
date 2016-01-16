@@ -4,6 +4,10 @@
 	using FluentAssertions;
 	using NUnit.Framework;
 
+
+	/// <summary>
+	/// missing test for run async
+	/// </summary>
 	[TestFixture]
 	public class TaskSlimTestCase
 	{

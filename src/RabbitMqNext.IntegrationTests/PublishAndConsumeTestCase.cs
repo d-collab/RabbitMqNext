@@ -98,7 +98,7 @@ namespace RabbitMqNext.IntegrationTests
 			await channel1.BasicPublish("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
 			Console.WriteLine("BasicPublish done");
 
-//			await Task.Delay(1000);
+			await Task.Delay(1000);
 
 			deliveries.Should().HaveCount(1);
 			

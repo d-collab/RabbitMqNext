@@ -159,7 +159,7 @@ namespace RabbitMqNext.Tests
 						if (autoResSlim.Wait())
 						{
 							Interlocked.Increment(ref countOfObtained);
-							Console.WriteLine(countOfObtained + " _ " + p);
+//							Console.WriteLine(countOfObtained + " _ " + p);
 							obtainedEv.Set();
 						}
 						else
@@ -180,7 +180,7 @@ namespace RabbitMqNext.Tests
 				{
 					obtainedEv.WaitOne();
 					autoResSlim.Set();
-					Console.WriteLine("*\t" + i);
+//					Console.WriteLine("*\t" + i);
 				}
 			});
 			tasks.Add(t1);

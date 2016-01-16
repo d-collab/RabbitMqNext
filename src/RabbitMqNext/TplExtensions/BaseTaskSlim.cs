@@ -23,9 +23,8 @@ namespace RabbitMqNext.TplExtensions
 		private volatile int _state;
 
 		private readonly Action<TDerived> _recycler;
-		protected Action _continuation2;
-		protected Exception _exception2;
-		// protected volatile bool _isCompleted;
+		protected Action _continuation;
+		protected Exception _exception;
 
 		public TDerived GetDerived()
 		{
@@ -40,9 +39,8 @@ namespace RabbitMqNext.TplExtensions
 		public virtual void Recycle()
 		{
 			_state = 0;
-			_continuation2 = null;
-//			_isCompleted = false;
-			_exception2 = null;
+			_continuation = null;
+			_exception = null;
 		}
 
 		public void SetCompleted(bool runContinuationAsync = false)
@@ -50,44 +48,12 @@ namespace RabbitMqNext.TplExtensions
 			if (runContinuationAsync)
 				RunContinuationAsync = true;
 
-			Console.WriteLine("[TaskSlim] SetCompleted async " + runContinuationAsync + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId); 
-
 			// we cannot EVER complete more than once. 
-			if (IsCompleted)
-			{
-				Console.WriteLine("[TaskSlim] SetCompleted already set? "); 
-				return;
-			}
-//			Thread.MemoryBarrier();
+			if (IsCompleted) throw new Exception("Already set as completed");
+			
 			IsCompleted = true;
 
 			RunContinuation(runContinuationAsync);
-		}
-
-		private void RunContinuation(bool runContinuationAsync)
-		{
-			var cont = this._continuation2;
-			if (cont != null)
-			{
-				if (!runContinuationAsync)
-				{
-					cont();
-
-					DoRecycle();
-				}
-				else
-				{
-					Task.Factory.FromAsync(cont.BeginInvoke, cont.EndInvoke, null)
-						.ContinueWith(t =>
-						{
-							DoRecycle();
-						});
-				}
-			}
-			else
-			{
-				// DoRecycle();
-			}
 		}
 
 		public void SetException(Exception exception, bool runContinuationAsync = false)
@@ -95,7 +61,7 @@ namespace RabbitMqNext.TplExtensions
 			if (runContinuationAsync)
 				RunContinuationAsync = true;
 
-			_exception2 = exception;
+			_exception = exception;
 			HasException = true;
 
 			SetCompleted(runContinuationAsync);
@@ -103,10 +69,9 @@ namespace RabbitMqNext.TplExtensions
 
 		public void Dispose()
 		{
-			// _isCompleted = false;
 			_state = 0;
-			_continuation2 = null;
-			_exception2 = null;
+			_continuation = null;
+			_exception = null;
 		}
 
 		public bool IsCompleted
@@ -139,11 +104,9 @@ namespace RabbitMqNext.TplExtensions
 
 		internal void SetContinuation(Action continuation)
 		{
-			Console.WriteLine("[TaskSlim] OnCompleted set " + continuation.Target + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId);
-
 			if (!HasContinuation)
 			{
-				_continuation2 = continuation;
+				_continuation = continuation;
 				Thread.MemoryBarrier();
 				HasContinuation = true;
 
@@ -155,6 +118,28 @@ namespace RabbitMqNext.TplExtensions
 			else
 			{
 				throw new Exception("Very inconsistent state: continuation already set");
+			}
+		}
+
+		private void RunContinuation(bool runContinuationAsync)
+		{
+			var cont = this._continuation;
+			if (cont != null)
+			{
+				if (!runContinuationAsync)
+				{
+					cont();
+
+					DoRecycle();
+				}
+				else
+				{
+					Task.Factory.FromAsync(cont.BeginInvoke, cont.EndInvoke, null)
+						.ContinueWith(t =>
+						{
+							DoRecycle();
+						});
+				}
 			}
 		}
 

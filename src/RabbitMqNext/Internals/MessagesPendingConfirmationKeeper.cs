@@ -1,4 +1,4 @@
-namespace RabbitMqNext
+namespace RabbitMqNext.Internals
 {
 	using System;
 	using System.Runtime.CompilerServices;

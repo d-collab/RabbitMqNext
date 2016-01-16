@@ -19,14 +19,12 @@ namespace RabbitMqNext
 
 		public TaskSlim GetAwaiter()
 		{
-			Console.WriteLine("[TaskSlim] GetAwaiter " + " Thread " + Thread.CurrentThread.Name + " " + Thread.CurrentThread.ManagedThreadId); 
 			return this;
 		}
 
 		public void GetResult()
 		{
-			if (HasException)
-				throw _exception2;
+			if (HasException) throw _exception;
 		}
 	}
 }

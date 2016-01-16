@@ -15,7 +15,6 @@ namespace RabbitMqNext
 		{
 		}
 
-
 		public void OnCompleted(Action continuation)
 		{
 			SetContinuation(continuation);
@@ -28,8 +27,7 @@ namespace RabbitMqNext
 
 		public T GetResult()
 		{
-			if (HasException)
-				throw _exception2;
+			if (HasException) throw _exception;
 
 			// will only be called by Compiler generated code if IsCompleted = true
 			return _result; 

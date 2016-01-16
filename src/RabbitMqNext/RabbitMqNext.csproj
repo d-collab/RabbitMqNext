@@ -77,7 +77,7 @@
     </Compile>
     <Compile Include="Internals\CommandToSend.cs" />
     <Compile Include="Internals\CommonCommandSender.cs" />
-    <Compile Include="Internals\ConnectionStateMachine.cs" />
+    <Compile Include="Old\ConnectionStateMachine.cs" />
     <Compile Include="Internals\FrameProcessor.cs" />
     <Compile Include="Internals\InternalBigEndianReader.cs">
       <SubType>Code</SubType>
@@ -101,7 +101,6 @@
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetCASEvent.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncAutoResetEvent.cs" />
     <Compile Include="Internals\RingBuffer\Locks\AsyncManualResetEvent.cs" />
-    <Compile Include="Internals\RingBuffer\ElementRingBuffer.cs" />
     <Compile Include="Internals\RingBuffer\ByteRingBuffer.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferPositionMarker.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs">
@@ -124,7 +123,6 @@
     <Compile Include="TplExtensions\TaskSlim_Of_T.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Old\" />
     <Folder Include="Utils\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
