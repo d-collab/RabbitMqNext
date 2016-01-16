@@ -60,6 +60,7 @@
     <Compile Include="Connection.cs" />
     <Compile Include="ConnectionIO.cs" />
     <Compile Include="ConsumeMode.cs" />
+    <Compile Include="Internals\RingBuffer\ReadingGate.cs" />
     <Compile Include="Internals\Sockets\SocketExtensions.cs">
       <SubType>Code</SubType>
     </Compile>

@@ -33,33 +33,25 @@ namespace RabbitMqNext.Internals
 			}
 			if (reverse && BitConverter.IsLittleEndian && count > 1)
 			{
-				Array.Reverse(buffer);
+				var len = buffer.Length;
+				byte left, right;
+				for (int i = 0; i < len / 2; i++)
+				{
+					var other = len - 1 - i;
+					if (other == i) break;
+					left = Buffer.GetByte(buffer, i);
+					right = Buffer.GetByte(buffer, len - 1 - i);
+					Buffer.SetByte(buffer, other, left);
+					Buffer.SetByte(buffer, i, right);
+				}
+				// Array.Reverse(buffer);
 			}
 		}
 
-//		public async Task FillBuffer(byte[] buffer, int count, bool reverse = true)
-//		{
-//			int totalRead = 0;
-//			while (totalRead < count)
-//			{
-//				// var read = await _ringBufferStream.ReadTaskAsync(buffer, totalRead, count - totalRead);
-//				var read = await _ringBufferStream.ReadAsync(buffer, totalRead, count - totalRead, _ringBufferStream.CancellationToken);
-//				totalRead += read;
-//			}
-//			if (reverse && BitConverter.IsLittleEndian && count > 1)
-//			{
-//				Array.Reverse(buffer);
-//			}
-//		}
-
 		public byte ReadByte()
 		{
-			// await FillBuffer(_oneByteArray, 1);
 			FillBufferWithLock(_oneByteArray, 1, false);
 			return _oneByteArray[0];
-			// return b;
-			// return _cachedByteTaskResult[b];
-			//			return b;
 		}
 
 		public sbyte ReadSByte()

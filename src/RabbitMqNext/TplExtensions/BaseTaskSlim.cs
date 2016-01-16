@@ -151,7 +151,7 @@ namespace RabbitMqNext.TplExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void AtomicChangeState(byte mask)
 		{
-			var spinWait = new SpinWait();
+			// var spinWait = new SpinWait();
 			while (true)
 			{
 				var curState = _state;
@@ -163,7 +163,7 @@ namespace RabbitMqNext.TplExtensions
 				{
 					break;
 				}
-				spinWait.SpinOnce();
+//				spinWait.SpinOnce();
 			}
 		}
 	}

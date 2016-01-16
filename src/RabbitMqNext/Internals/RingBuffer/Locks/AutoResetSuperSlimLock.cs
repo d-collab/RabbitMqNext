@@ -2,8 +2,8 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 {
 	using System;
 	using System.Collections.Concurrent;
-	using System.Collections.Generic;
 	using System.Runtime.CompilerServices;
+	using System.Runtime.InteropServices;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -14,6 +14,15 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 	/// </summary>
 	internal class AutoResetSuperSlimLock
 	{
+		[StructLayout(LayoutKind.Explicit, Size = 64)]
+		private struct LockState
+		{
+			[FieldOffset(8)]
+			internal volatile int _state;
+		}
+
+		private LockState _lockState;
+
 		internal const int SignalledStateMask = 0x8000;      // 1000 0000 0000 0000
 		internal const int SignalledStatePos = 15;
 		internal const int NumWaitersStateMask = (0xFF);     // 0000 0000 1111 1111
@@ -22,7 +31,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 //		internal const int RelWaitersStatePos = 8;
 
 		private readonly ConcurrentQueue<TaskCompletionSource<bool>> _waiters = new ConcurrentQueue<TaskCompletionSource<bool>>();
-		private volatile int _state;
+		// private volatile int _state;
+
+
 		private readonly object _lock = new object();
 		
 		private static readonly int ProcCounter = Environment.ProcessorCount;
@@ -34,7 +45,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		public AutoResetSuperSlimLock(bool initialState = false)
 		{
-			if (initialState) _state = SignalledStateMask;
+			if (initialState) _lockState._state = SignalledStateMask;
 		}
 
 		public Task WaitAsync()
@@ -111,6 +122,8 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		public void Set()
 		{
+			if (_lockState._state == SignalledStateMask) return;
+
 			AtomicChange(1, SignalledStatePos, SignalledStateMask);
 
 			TaskCompletionSource<bool> tcs = null;
@@ -141,7 +154,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		public bool IsSet
 		{
 			[MethodImpl(MethodImplOptions.AggressiveInlining)]
-			get { return (_state & SignalledStateMask) != 0; }
+			get { return (_lockState._state & SignalledStateMask) != 0; }
 		}
 
 		public void Dispose()
@@ -163,27 +176,28 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			var spinWait = new SpinWait();
 			while (true)
 			{
-				var curState = _state;
+				var curState = _lockState._state;
 
 				// (1) zero the updateBits.  eg oldState = [11111111]    flag=00111000  newState= [11000111]
 				// (2) map in the newBits.              eg [11000111] newBits=00101000, newState= [11101111]
 				int newState = (curState & ~mask) | (val << shifts);
 
 #pragma warning disable 420
-				if (Interlocked.CompareExchange(ref _state, newState, curState) == curState)
+				if (Interlocked.CompareExchange(ref _lockState._state, newState, curState) == curState)
 #pragma warning restore 420
 				{
 					break;
 				}
 
 				spinWait.SpinOnce();
+//				Thread.SpinWait(4);
 			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal bool TryAtomicXor(int val, int shifts, int mask)
 		{
-			var curState = _state;
+			var curState = _lockState._state;
 
 			// (1) zero the updateBits.  eg oldState = [11111111]    flag=00111000  newState= [11000111]
 			// (2) map in the newBits.              eg [11000111] newBits=00101000, newState= [11101111]
@@ -197,7 +211,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			// expected [000001]
 
 #pragma warning disable 420
-			return (Interlocked.CompareExchange(ref _state, newState, expected) == expected);
+			return (Interlocked.CompareExchange(ref _lockState._state, newState, expected) == expected);
 #pragma warning restore 420
 		}
 
@@ -210,30 +224,30 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 				{
 					return true;
 				}
-//				Thread.SpinWait(1 << i);
-				if (i < HowManySpinBeforeYield)
-				{
-					if (i == HowManySpinBeforeYield / 2)
-					{
-						Thread.Yield();
-					}
-					else
-					{
-						Thread.SpinWait(ProcCounter * (4 << i));
-					}
-				}
-				else if (i % HowManyYieldEverySleep1 == 0)
-				{
-					Thread.Sleep(1);
-				}
-				else if (i % HowManyYieldEverySleep0 == 0)
-				{
-					Thread.Sleep(0);
-				}
-				else
-				{
-					Thread.Yield();
-				}
+				Thread.SpinWait(1 << i);
+//				if (i < HowManySpinBeforeYield)
+//				{
+//					if (i == HowManySpinBeforeYield / 2)
+//					{
+//						Thread.Yield();
+//					}
+//					else
+//					{
+//						Thread.SpinWait(ProcCounter * (4 << i));
+//					}
+//				}
+//				else if (i % HowManyYieldEverySleep1 == 0)
+//				{
+//					Thread.Sleep(1);
+//				}
+//				else if (i % HowManyYieldEverySleep0 == 0)
+//				{
+//					Thread.Sleep(0);
+//				}
+//				else
+//				{
+//					Thread.Yield();
+//				}
 			}
 			return CheckForIsSetAndResetIfTrue();
 		}
@@ -242,7 +256,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		{
 			get
 			{
-				return ExtractStatePortionAndShiftRight(_state, NumWaitersStateMask, NumWaitersStatePos);
+				return ExtractStatePortionAndShiftRight(_lockState._state, NumWaitersStateMask, NumWaitersStatePos);
 			}
 			set
 			{

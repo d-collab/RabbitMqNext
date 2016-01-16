@@ -13,7 +13,6 @@ namespace RabbitMqNext.Internals.RingBuffer
 		private readonly AutoResetSuperSlimLock _read = new AutoResetSuperSlimLock();
 		private readonly AutoResetSuperSlimLock _write = new AutoResetSuperSlimLock();
 
-
 		public LockWaitingStrategy(CancellationToken token) : base(token)
 		{
 		}

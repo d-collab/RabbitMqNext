@@ -2,30 +2,32 @@
 {
 	using System;
 	using System.Runtime.CompilerServices;
+	using System.Runtime.InteropServices;
 	using System.Threading;
 
 
-	internal class ReadingGate
-	{
-		public volatile bool inEffect = true;
-		public volatile uint gpos, length;
-		public int index;
-
-		public override string ToString()
-		{
-			return "[ineffect " + inEffect + " gpos "+ gpos+" len " + length + " idx " + index + "]";
-		}
-	}
-
 	internal abstract class BaseRingBuffer
 	{
-		// TODO: how to add padding to ensure these go and stay in L1 cache? how to debug it?
-//		protected long p1, p2, p3, p4, p5, p6, p7;
 		protected readonly uint _bufferSize;
 
-		internal volatile uint _readPosition;
-		protected long _p1, _p2, _p3, _p4, _p5, _p6, _p7;
-		internal volatile uint _writePosition;
+//		internal volatile uint _readPosition;
+//		internal volatile uint _writePosition;
+
+		[StructLayout(LayoutKind.Explicit, Size = 64)]
+		internal struct ReadR
+		{
+			[FieldOffset(0)] 
+			internal volatile uint _readPosition;
+		}
+		[StructLayout(LayoutKind.Explicit, Size = 64)]
+		internal struct WriteW
+		{
+			[FieldOffset(0)]
+			internal volatile uint _writePosition;
+		}
+
+		internal ReadR _readP;
+		internal WriteW _writeP;
 
 		protected readonly CancellationToken _cancellationToken;
 		protected readonly WaitingStrategy _waitingStrategy;
@@ -40,7 +42,7 @@
 		{
 			if (_gateState == -1) throw new Exception("Max gates reached");
 
-			var gate = new ReadingGate() { gpos = _readPosition, length = length };
+			var gate = new ReadingGate() { gpos = _readP._readPosition, length = length };
 
 			AtomicSecureIndexPosAndStore(gate);
 
@@ -88,12 +90,12 @@
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal /*AvailableAndPos*/ int InternalGetReadyToReadEntries(int desiredCount, out int available, ReadingGate fromGate = null)
+		internal int InternalGetReadyToReadEntries(int desiredCount, out int available, ReadingGate fromGate = null)
 		{
 			uint bufferSize = _bufferSize;
-			
-			uint readCursor = _readPosition;   // volative read
-			uint writeCursor = _writePosition; // volative read
+
+			uint writeCursor = _writeP._writePosition; // volative read
+			uint readCursor = _readP._readPosition;   // volative read
 
 			uint writePos = writeCursor & (bufferSize - 1); // (writeCursor % _bufferSize);
 			uint readPos = readCursor & (bufferSize - 1);   // (readCursor % _bufferSize);
@@ -147,12 +149,12 @@
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal /*AvailableAndPos*/ int InternalGetReadyToWriteEntries(int desiredCount, out int available)
+		internal int InternalGetReadyToWriteEntries(int desiredCount, out int available)
 		{
 			var buffersize = _bufferSize;
 
-			uint readCursor = _readPosition;   // volative read
-			uint writeCursor = _writePosition; // volative read
+			uint writeCursor = _writeP._writePosition; // volative read
+			uint readCursor = _readP._readPosition;   // volative read
 
 			uint writePos = writeCursor & (buffersize - 1);
 			uint readPos = readCursor & (buffersize - 1);
@@ -163,16 +165,16 @@
 			uint entriesFree = 0;
 
 			// damn gates. 
-			var minGate = GetMinReadingGate();
-			if (minGate.HasValue) 
-			{
-				// get min gate index, which becomes essentially the barrier to continue to write
-				// what we do is to hide from this operation the REAL readpos
-
-				// Console.WriteLine("Got gate in place. real readPos " + readPos + " becomes " + minGate.Value);
-
-				readPos = minGate.Value & (buffersize - 1); // now the write cannot move forward
-			} 
+//			var minGate = GetMinReadingGate();
+//			if (minGate.HasValue) 
+//			{
+//				// get min gate index, which becomes essentially the barrier to continue to write
+//				// what we do is to hide from this operation the REAL readpos
+//
+//				// Console.WriteLine("Got gate in place. real readPos " + readPos + " becomes " + minGate.Value);
+//
+//				readPos = minGate.Value & (buffersize - 1); // now the write cannot move forward
+//			} 
 
 			var writeWrapped = readPos > writePos;
 
@@ -195,8 +197,8 @@
 				if (!(entriesFree <= _bufferSize - 1))
 				{
 					var msg = "Assert write1 failed: " + entriesFree + " must be less or equal to " + (BufferSize - 1) +
-						" originalreadPos " + originalreadPos + " readpos " + readPos + " write " + writePos + 
-						" G w " + _writePosition + " G r " + _readPosition;
+						" originalreadPos " + originalreadPos + " readpos " + readPos + " write " + writePos +
+						" G w " + _writeP._writePosition + " G r " + _readP._readPosition;
 					System.Diagnostics.Debug.WriteLine(msg);
 					throw new Exception(msg);
 				}
@@ -236,7 +238,7 @@
 		public bool HasUnreadContent
 		{
 			// two volatives reads
-			get { return _writePosition != _readPosition; }
+			get { return _writeP._writePosition != _readP._readPosition; }
 		}
 
 //		internal struct AvailableAndPos
@@ -303,10 +305,10 @@
 
 		// For unit testing only
 
-		internal uint GlobalReadPos { get { return _readPosition; } }
-		internal uint GlobalWritePos { get { return _writePosition; } }
-		internal uint LocalReadPos { get { return _readPosition % _bufferSize; } }
-		internal uint LocalWritePos { get { return _writePosition % _bufferSize; } }
+		internal uint GlobalReadPos { get { return _readP._readPosition; } }
+		internal uint GlobalWritePos { get { return _writeP._writePosition; } }
+		internal uint LocalReadPos { get { return _readP._readPosition % _bufferSize; } }
+		internal uint LocalWritePos { get { return _writeP._writePosition % _bufferSize; } }
 
 	}
 }

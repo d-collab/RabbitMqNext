@@ -4,6 +4,7 @@
 	using System.Diagnostics;
 	using System.IO;
 	using System.Net.Sockets;
+	using System.Runtime.InteropServices;
 	using System.Text;
 	using System.Threading;
 	using System.Threading.Tasks;
@@ -114,7 +115,7 @@
 
 				totalwritten += available;
 
-				_writePosition += (uint)available; // volative write
+				_writeP._writePosition += (uint)available; // volative write
 
 				_waitingStrategy.SignalWriteDone(); // signal - if someone is waiting
 			}
@@ -155,7 +156,7 @@
 				received = socket.Receive(_buffer, writePos, available, SocketFlags.None);
 			}
 
-			_writePosition += (uint)received; // volative write
+			_writeP._writePosition += (uint)received; // volative write
 
 			_waitingStrategy.SignalWriteDone(); // signal - if someone is waiting
 		}
@@ -200,7 +201,7 @@
 				else
 				{
 					// if (!fillBuffer) break;
-					_readPosition += (uint)available; // volative write
+					_readP._readPosition += (uint)available; // volative write
 				}
 
 				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
@@ -241,7 +242,7 @@
 					totalSent += sent;
 
 					// maybe better throughput if this goes inside the inner loop
-					_readPosition += (uint)sent; // volative write
+					_readP._readPosition += (uint)sent; // volative write
 					_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 				}
 
@@ -270,7 +271,7 @@
 
 				totalSkipped += available;
 
-				_readPosition += (uint)available; // volative write
+				_readP._readPosition += (uint)available; // volative write
 
 				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 			}
