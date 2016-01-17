@@ -98,13 +98,14 @@
 //					Console.WriteLine("Got request " + x);
 //					Thread.SpinWait(100);
 
-					var replyProp = new BasicProperties()
-					{
-						CorrelationId = delivery.properties.CorrelationId
-					};
+//					var replyProp = new BasicProperties()
+//					{
+//						CorrelationId = delivery.properties.CorrelationId
+//					};
+					var replyProp = newChannel.RentBasicProperties();
 
 					// send reply
-					newChannel.BasicPublishFast("",
+					newChannel.BasicPublish("",
 						delivery.properties.ReplyTo, true, false,
 						replyProp, new ArraySegment<byte>(temp, 0, 4));
 

@@ -70,14 +70,14 @@
 			return _io.__BasicQos(prefetchSize, prefetchCount, global);
 		}
 
-		public Task BasicAck(ulong deliveryTag, bool multiple)
+		public void BasicAck(ulong deliveryTag, bool multiple)
 		{
-			return _io.__BasicAck(deliveryTag, multiple);
+			_io.__BasicAck(deliveryTag, multiple);
 		}
 
-		public Task BasicNAck(ulong deliveryTag, bool multiple, bool requeue)
+		public void BasicNAck(ulong deliveryTag, bool multiple, bool requeue)
 		{
-			return _io.__BasicNAck(deliveryTag, multiple, requeue);
+			_io.__BasicNAck(deliveryTag, multiple, requeue);
 		}
 
 		public Task ExchangeDeclare(string exchange, string type, bool durable, bool autoDelete,
@@ -98,16 +98,18 @@
 			return _io.__QueueBind(queue, exchange, routingKey, arguments, waitConfirmation);
 		}
 
-		public void BasicPublishFast(string exchange, string routingKey, bool mandatory, bool immediate,
+		public TaskSlim BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory, bool immediate,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			_io.__BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer, false);
+			if (_confirmationKeeper == null) throw new Exception("This channel is not set up for confirmations");
+
+			return _io.__BasicPublishConfirm(exchange, routingKey, mandatory, immediate, properties, buffer);
 		}
 
-		public TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
+		public void BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			return _io.__BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer, true);
+			_io.__BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer);
 		}
 
 		public Task<string> BasicConsume(ConsumeMode mode, Func<MessageDelivery, Task> consumer,
@@ -148,12 +150,12 @@
 			return _io.__BasicRecover(requeue);
 		}
 
-//		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
-//		{
-//			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
-//			await helper.Setup();
-//			return helper;
-//		}
+		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
+		{
+			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
+			await helper.Setup();
+			return helper;
+		}
 
 		public async Task Close()
 		{
@@ -192,9 +194,14 @@
 					delivery.stream = stream;
 
 					// upon return it's assumed the user has consumed from the stream and is done with it
-					await cb(delivery);
-
-					this.Return(properties);
+					try
+					{
+						await cb(delivery);
+					}
+					finally
+					{
+						this.Return(properties);
+					}
 				}
 				else 
 				{
@@ -213,14 +220,15 @@
 						var memStream = new MemoryStream(bufferCopy, writable: false);
 						delivery.stream = memStream;
 					}
-					else if (mode == ConsumeMode.ParallelWithReadBarrier)
-					{
-						var readBarrier = new RingBufferStreamReadBarrier(stream as RingBufferStreamAdapter, delivery.bodySize);
-						delivery.stream = readBarrier;
-					}
+//					else if (mode == ConsumeMode.ParallelWithReadBarrier)
+//					{
+//						var readBarrier = new RingBufferStreamReadBarrier(stream as RingBufferStreamAdapter, delivery.bodySize);
+//						delivery.stream = readBarrier;
+//					}
 
 #pragma warning disable 4014
 					Task.Factory.StartNew(() =>
+					// ThreadPool.UnsafeQueueUserWorkItem((param) =>
 #pragma warning restore 4014
 					{
 						try
@@ -240,25 +248,6 @@
 						}
 					}, TaskCreationOptions.PreferFairness);
 
-// Fingers crossed the threadpool is large enough
-//					ThreadPool.UnsafeQueueUserWorkItem((param) =>
-//					{
-//						try
-//						{
-//							using (delivery.stream)
-//							{
-//								cb(delivery);
-//							}
-//						}
-//						catch (Exception e)
-//						{
-//							Console.WriteLine("From threadpool " + e);
-//						}
-//						finally
-//						{
-//							this.Return(properties);
-//						}
-//					}, null);
 				}
 			}
 			else

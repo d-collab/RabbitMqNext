@@ -85,7 +85,7 @@
 
 			if (_awaitingReplyQueue.TryDequeue(out sent))
 			{
-				return sent.ReplyAction3(0, classMethodId, null);
+				return sent.RunReplyAction(0, classMethodId, null);
 			}
 			// else
 			{
@@ -125,12 +125,12 @@
 				if (error != null && sent.ClassId == error.ClassId && sent.MethodId == error.MethodId)
 				{
 					// if we find the "offending" command, then it gets a better error message
-					sent.ReplyAction3(0, 0, error);
+					sent.RunReplyAction(0, 0, error);
 				}
 				else
 				{
 					// any other task dies with a generic error.
-					sent.ReplyAction3(0, 0, null);
+					sent.RunReplyAction(0, 0, null);
 				}
 			}
 #pragma warning restore 4014

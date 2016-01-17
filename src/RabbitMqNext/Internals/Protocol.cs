@@ -14,7 +14,7 @@ namespace RabbitMqNext.Internals
 				{ "product", Encoding.UTF8.GetBytes("RabbitMQ") },
 				{ "version", Encoding.UTF8.GetBytes("0.0.0.1") },
 				{ "platform", Encoding.UTF8.GetBytes(".net") },
-				{ "copyright", Encoding.UTF8.GetBytes("Castle Project - 2016") },
+				{ "copyright", Encoding.UTF8.GetBytes("Clear CTVM 2015,16") },
 				{ "information", Encoding.UTF8.GetBytes("Licensed under LGPL") },
 				{ "capabilities", new Dictionary<string, object>
 				{

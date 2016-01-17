@@ -46,10 +46,10 @@
 				return Task.CompletedTask;
 			}, "queue_direct", consumerTag: "", withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true);
 
-			await channel1.BasicPublish("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
-			await channel1.BasicPublish("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
-			await channel1.BasicPublish("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
-			await channel1.BasicPublish("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
+			await channel1.BasicPublishWithConfirmation("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
+			await channel1.BasicPublishWithConfirmation("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
+			await channel1.BasicPublishWithConfirmation("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
+			await channel1.BasicPublishWithConfirmation("test_direct", "routing", true, false, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
 			await Task.Delay(1000);
 
 			deliveries.Should().HaveCount(4);

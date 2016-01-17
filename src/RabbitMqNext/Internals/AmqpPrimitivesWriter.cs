@@ -376,7 +376,7 @@ namespace RabbitMqNext.Internals
 					if (properties.IsReplyToPresent) { w.WriteShortstr(properties.ReplyTo); }
 					if (properties.IsExpirationPresent) { w.WriteShortstr(properties.Expiration); }
 					if (properties.IsMessageIdPresent) { w.WriteShortstr(properties.MessageId); }
-					if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp); }
+					if (properties.IsTimestampPresent) { w.WriteTimestamp(properties.Timestamp.Value); }
 					if (properties.IsTypePresent) { w.WriteShortstr(properties.Type); }
 					if (properties.IsUserIdPresent) { w.WriteShortstr(properties.UserId); }
 					if (properties.IsAppIdPresent) { w.WriteShortstr(properties.AppId); }

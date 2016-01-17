@@ -212,32 +212,30 @@
 
 		public void ReadBufferIntoSocketSend(Socket socket/*, bool asyncSend*/)
 		{
-			int totalRead = 0;
+//			int totalRead = 0;
 
-			while (totalRead == 0)
+			// while (totalRead == 0)
+			while(true)
 			{
 				// AvailableAndPos availPos = this.InternalGetReadyToReadEntries(BufferSize);
 				// int available = availPos.available;
 
-				int available;
-				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out available, null);
+				int totalRead;
+				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out totalRead, null);
 
 				// buffer is empty.. return and expect to be called again when something gets written
-				if (available == 0) 
+				if (totalRead == 0) 
 				{
-					// _waitingStrategy.WaitForWrite();
-					return;
+					_waitingStrategy.WaitForWrite();
+					continue;
 				}
 
-//				int readPos = availPos.position;
+				Console.WriteLine("Will send " + totalRead);
 
 				var totalSent = 0;
-				while (totalSent < available)
+				while (totalSent < totalRead)
 				{
-					var sent = 0;
-					{
-						sent = socket.Send(_buffer, readPos + totalSent, available - totalSent, SocketFlags.None);
-					}
+					var sent = socket.Send(_buffer, readPos + totalSent, totalRead - totalSent, SocketFlags.None);
 
 					totalSent += sent;
 
@@ -246,7 +244,8 @@
 					_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
 				}
 
-				totalRead += available;
+				break;
+//				totalRead += available;
 			}
 		}
 

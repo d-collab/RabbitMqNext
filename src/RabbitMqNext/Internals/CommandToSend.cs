@@ -28,7 +28,7 @@
 			if (PrepareAction != null) PrepareAction();
 		}
 
-		public async Task ReplyAction3(ushort channel, int classMethodId, AmqpError error)
+		public async Task RunReplyAction(ushort channel, int classMethodId, AmqpError error)
 		{
 			if (this.ReplyAction != null)
 			{

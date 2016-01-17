@@ -64,7 +64,7 @@
     <Compile Include="Internals\Sockets\SocketExtensions.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="New\SocketHolder.cs" />
+    <Compile Include="Internals\SocketHolder.cs" />
     <Compile Include="RpcHelper.cs" />
     <Compile Include="UndeliveredMessage.cs" />
     <Compile Include="Internals\BufferUtil.cs" />
@@ -79,7 +79,6 @@
     </Compile>
     <Compile Include="Internals\CommandToSend.cs" />
     <Compile Include="Internals\CommonCommandSender.cs" />
-    <Compile Include="Old\ConnectionStateMachine.cs" />
     <Compile Include="Internals\FrameProcessor.cs" />
     <Compile Include="Internals\InternalBigEndianReader.cs">
       <SubType>Code</SubType>
@@ -114,9 +113,6 @@
     <Compile Include="Internals\RingBuffer\Utils.cs" />
     <Compile Include="Internals\RingBuffer\WaitingStrategy.cs" />
     <Compile Include="Internals\RingBuffer\WaitingStrategy.LockWaitingStrategy.cs" />
-    <Compile Include="Internals\SocketRingBuffers.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="MessageDelivery.cs" />
     <Compile Include="Internals\MessagesPendingConfirmationKeeper.cs" />
     <Compile Include="Properties\AsmInfo.cs" />

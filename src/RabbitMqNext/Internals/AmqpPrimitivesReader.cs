@@ -27,16 +27,6 @@ namespace RabbitMqNext.Internals
 			return _reader.ReadByte();
 		}
 
-//		public Task<byte> ReadOctet()
-//		{
-//			return _reader.ReadByte();
-//		}
-
-//		public Task<ushort> ReadShort()
-//		{
-//			return _reader.ReadUInt16();
-//		}
-		
 		public ushort ReadShort()
 		{
 			return _reader.ReadUInt16();

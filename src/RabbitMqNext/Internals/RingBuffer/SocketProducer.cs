@@ -17,12 +17,13 @@ namespace RabbitMqNext.Internals.RingBuffer
 		private readonly CancellationToken _cancellationToken;
 
 		public SocketProducer(Socket socket, ByteRingBuffer ringBuffer, 
-							  CancellationToken cancellationToken)
+							  CancellationToken cancellationToken, int index)
 		{
 			_socket = socket;
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
-			ThreadFactory.CreateBackgroundThread(ReadSocketIntoRingBuffer, "SocketProducer");
+
+			ThreadFactory.CreateBackgroundThread(ReadSocketIntoRingBuffer, "SocketProducer_" + index);
 		}
 
 		public event Action<Socket, Exception> OnNotifyClosed;

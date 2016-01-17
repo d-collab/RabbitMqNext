@@ -10,9 +10,6 @@
 	{
 		protected readonly uint _bufferSize;
 
-//		internal volatile uint _readPosition;
-//		internal volatile uint _writePosition;
-
 		[StructLayout(LayoutKind.Explicit, Size = 64)]
 		internal struct ReadR
 		{

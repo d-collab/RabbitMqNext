@@ -33,7 +33,7 @@ namespace RabbitMqNext
 		internal ushort _presenceSWord = 0;
 
 		private IDictionary<string, object> _headers;
-		private AmqpTimestamp _timestamp;
+		private AmqpTimestamp? _timestamp;
 		private byte _deliveryMode;
 		private byte _priority;
 		private string _contentType;
@@ -276,13 +276,13 @@ namespace RabbitMqNext
 			}
 		}
 
-		public AmqpTimestamp Timestamp
+		public AmqpTimestamp? Timestamp
 		{
 			get { return _timestamp; }
 			set
 			{
 				ThrowIfFrozen();
-				IsTimestampPresent = true;
+				IsTimestampPresent = value.HasValue;
 				_timestamp = value;
 			}
 		}
@@ -311,6 +311,7 @@ namespace RabbitMqNext
 
 		internal bool IsEmpty
 		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			get
 			{
 				if (IsFrozen) return true;
@@ -331,6 +332,11 @@ namespace RabbitMqNext
 			{
 				this.Headers.Clear();
 			}
+			_deliveryMode = _priority = 0;
+			_contentType = _contentEncoding = _correlationId = null;
+			_replyTo = _expiration = _messageId = _type = null;
+			_userId = _appId = _clusterId = null;
+			_timestamp = null;
 		}
 	}
 }

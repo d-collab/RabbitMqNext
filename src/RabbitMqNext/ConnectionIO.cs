@@ -31,6 +31,7 @@ namespace RabbitMqNext
 		private ushort _channelMax;
 		private uint _frameMax;
 		#endregion
+		private static int _counter = 0;
 
 		public ConnectionIO(Connection connection)
 		{
@@ -95,6 +96,18 @@ namespace RabbitMqNext
 
 		internal override async Task<bool> InitiateCleanClose(bool initiatedByServer, AmqpError error)
 		{
+			if (!initiatedByServer)
+			{
+				while (true)
+				{
+					if (_socketHolder.StillSending)
+					{
+						Thread.Sleep(1000); // give it some time to finish writing to the socket (if it's open)
+					}
+					break;
+				}
+			}
+
 			_conn.CloseAllChannels(initiatedByServer, error);
 
 			await base.InitiateCleanClose(initiatedByServer, error);
@@ -121,7 +134,59 @@ namespace RabbitMqNext
 			_socketHolder.Dispose();
 		}
 
-		#endregion 
+		#endregion
+
+		// Run on its own thread, and invokes user code from it (task continuations)
+		private void WriteFramesLoop()
+		{
+			try
+			{
+				while (!this._cancellationToken.IsCancellationRequested)
+				{
+					_commandOutboxEvent.WaitOne();
+
+					CommandToSend cmdToSend;
+					while (_commandOutbox.TryDequeue(out cmdToSend))
+					{
+						cmdToSend.Prepare();
+
+						if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
+						{
+							var queue = cmdToSend.Channel == 0
+								? _awaitingReplyQueue : _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
+
+							queue.Enqueue(cmdToSend);
+						}
+
+						// writes to socket
+						var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
+						if (frameWriter != null)
+						{
+							frameWriter.Write(_amqpWriter, cmdToSend.Channel,
+								cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+						}
+						else
+						{
+							cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
+								cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+						}
+
+						// if writing to socket is enough, set as complete
+						if (!cmdToSend.ExpectsReply)
+						{
+	#pragma warning disable 4014
+							cmdToSend.RunReplyAction(0, 0, null);
+	#pragma warning restore 4014
+						}
+				}
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("WriteCommandsToSocket error " + ex);
+				this.InitiateAbruptClose(ex);
+			}
+		}
 
 		// Run on its own thread, and invokes user code from it
 		private void ReadFramesLoop()
@@ -152,75 +217,21 @@ namespace RabbitMqNext
 			base.HandleDisconnect(); // either a consequence of a close method, or unexpected disconnect
 		}
 
-		private void OnReadyToWrite()
-		{
-			WriteCommands();
-		}
-
-		private void WriteCommands()
-		{
-			try
-			{
-				while (!_cancellationToken.IsCancellationRequested)
-				{
-					if (_commandOutboxEvent.WaitOne(1000))
-						break;
-				}
-
-				CommandToSend cmdToSend;
-				const int maxDrainBeforeFlush = 2;
-				int iterations = 0;
-				while (iterations++ < maxDrainBeforeFlush && _commandOutbox.TryDequeue(out cmdToSend))
-				{
-					cmdToSend.Prepare();
-
-					if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
-					{
-						var queue = cmdToSend.Channel == 0
-							? _awaitingReplyQueue : _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
-
-						queue.Enqueue(cmdToSend);
-					}
-
-					// writes to socket
-					var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
-					if (frameWriter != null)
-					{
-						frameWriter.Write(_amqpWriter, cmdToSend.Channel,
-							cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-					}
-					else
-					{
-						cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel,
-							cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-					}
-
-					// if writing to socket is enough, set as complete
-					if (!cmdToSend.ExpectsReply)
-					{
-#pragma warning disable 4014
-						cmdToSend.ReplyAction3(0, 0, null);
-#pragma warning restore 4014
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("WriteCommandsToSocket error " + ex);
-				this.InitiateAbruptClose(ex);
-			}
-		}
 
 		internal async Task InternalDoConnectSocket(string hostname, int port)
 		{
-			await _socketHolder.Connect(hostname, port, OnSocketClosed, OnReadyToWrite);
+			var index = Interlocked.Increment(ref _counter);
+
+			await _socketHolder.Connect(hostname, port, OnSocketClosed, index);
 
 			_amqpWriter = new AmqpPrimitivesWriter(_socketHolder.Writer, null, null);
 			_amqpReader = new AmqpPrimitivesReader(_socketHolder.Reader);
 
 			_frameReader = new FrameReader(_socketHolder.Reader, _amqpReader, this);
 
-			var t2 = new Thread(ReadFramesLoop) { IsBackground = true, Name = "ReadFramesLoop" };
+			var t1 = new Thread(WriteFramesLoop) { IsBackground = true, Name = "WriteFramesLoop_" + index };
+			t1.Start();
+			var t2 = new Thread(ReadFramesLoop) { IsBackground = true, Name = "ReadFramesLoop_" + index };
 			t2.Start();
 		}
 
@@ -295,7 +306,7 @@ namespace RabbitMqNext
 			while (_commandOutbox.TryDequeue(out cmdToSend))
 			{
 #pragma warning disable 4014
-				cmdToSend.ReplyAction3(0, 0, error);
+				cmdToSend.RunReplyAction(0, 0, error);
 #pragma warning restore 4014
 			}
 		}

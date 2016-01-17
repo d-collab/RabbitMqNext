@@ -22,8 +22,6 @@ namespace RabbitMqNext.Internals
 			_ringBufferStream = ringBufferStream;
 		}
 
-		// public long Position { get { return _ringBufferStream.Position; } }
-
 		public void FillBufferWithLock(byte[] buffer, int count, bool reverse = true)
 		{
 			int totalRead = 0;
@@ -33,18 +31,7 @@ namespace RabbitMqNext.Internals
 			}
 			if (reverse && BitConverter.IsLittleEndian && count > 1)
 			{
-				var len = buffer.Length;
-				byte left, right;
-				for (int i = 0; i < len / 2; i++)
-				{
-					var other = len - 1 - i;
-					if (other == i) break;
-					left = Buffer.GetByte(buffer, i);
-					right = Buffer.GetByte(buffer, len - 1 - i);
-					Buffer.SetByte(buffer, other, left);
-					Buffer.SetByte(buffer, i, right);
-				}
-				// Array.Reverse(buffer);
+				Array.Reverse(buffer);
 			}
 		}
 

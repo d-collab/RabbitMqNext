@@ -35,7 +35,7 @@ namespace RabbitMqNext.IntegrationTests
 				error.ReplyText.Should().Be("PRECONDITION_FAILED - unknown delivery tag 2");
 			};
 
-			await channel.BasicAck(2, true); // will cause the channel to close, since its invalid
+			channel.BasicAck(2, true); // will cause the channel to close, since its invalid
 		}
 
 		[Test]
@@ -49,7 +49,7 @@ namespace RabbitMqNext.IntegrationTests
 				error.ReplyText.Should().Be("PRECONDITION_FAILED - unknown delivery tag 2");
 			};
 
-			await channel.BasicNAck(2, false, requeue: true); // will cause the channel to close, since its invalid
+			channel.BasicNAck(2, false, requeue: true); // will cause the channel to close, since its invalid
 		}
 
 		[Test]

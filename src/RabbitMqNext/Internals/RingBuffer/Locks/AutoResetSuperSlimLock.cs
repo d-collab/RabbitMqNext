@@ -17,8 +17,8 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		[StructLayout(LayoutKind.Explicit, Size = 64)]
 		private struct LockState
 		{
-			[FieldOffset(8)]
-			internal volatile int _state;
+			[FieldOffset(0)]
+			internal  int _state;
 		}
 
 		private LockState _lockState;
@@ -27,12 +27,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		internal const int SignalledStatePos = 15;
 		internal const int NumWaitersStateMask = (0xFF);     // 0000 0000 1111 1111
 		internal const int NumWaitersStatePos = 0;
-//		internal const int RelWaitersStateMask = (0x7F00);   // 0111 1111 0000 0000
-//		internal const int RelWaitersStatePos = 8;
 
 		private readonly ConcurrentQueue<TaskCompletionSource<bool>> _waiters = new ConcurrentQueue<TaskCompletionSource<bool>>();
 		// private volatile int _state;
-
 
 		private readonly object _lock = new object();
 		
@@ -224,7 +221,8 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 				{
 					return true;
 				}
-				Thread.SpinWait(1 << i);
+				Thread.SpinWait(1);
+				// Thread.SpinWait(1 << i);
 //				if (i < HowManySpinBeforeYield)
 //				{
 //					if (i == HowManySpinBeforeYield / 2)
@@ -254,16 +252,19 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		internal int Waiters
 		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			get
 			{
 				return ExtractStatePortionAndShiftRight(_lockState._state, NumWaitersStateMask, NumWaitersStatePos);
 			}
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			set
 			{
 				AtomicChange(value, NumWaitersStatePos, NumWaitersStateMask);
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static int ExtractStatePortionAndShiftRight(int state, int mask, int rightBitShiftCount)
 		{
 			//convert to uint before shifting so that right-shift does not replicate the sign-bit,

@@ -17,21 +17,15 @@ namespace RabbitMqNext.Internals.RingBuffer
 		private readonly Socket _socket;
 		private readonly ByteRingBuffer _ringBuffer;
 		private readonly CancellationToken _cancellationToken;
-		private readonly Action _flushWrite;
 
 		public SocketConsumer(Socket socket, ByteRingBuffer ringBuffer,
-							  CancellationToken cancellationToken, 
-							  Action flushWrite)
+							  CancellationToken cancellationToken, int index)
 		{
 			_socket = socket;
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
-			_flushWrite = flushWrite;
-		}
 
-		public void Start()
-		{
-			ThreadFactory.CreateBackgroundThread(WriteSocketFromRingBuffer, "SocketConsumer");
+			ThreadFactory.CreateBackgroundThread(WriteSocketFromRingBuffer, "SocketConsumer_" + index);
 		}
 
 		public event Action<Socket, Exception> OnNotifyClosed;
@@ -42,9 +36,11 @@ namespace RabbitMqNext.Internals.RingBuffer
 			{
 				while (!_cancellationToken.IsCancellationRequested)
 				{
+					Console.WriteLine("Will read from RB and send");
+
 					_ringBuffer.ReadBufferIntoSocketSend(_socket);
 
-					_flushWrite();
+					Console.WriteLine("Done Sending");
 				}
 			}
 			catch (SocketException ex)
