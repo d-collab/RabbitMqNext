@@ -36,11 +36,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 			{
 				while (!_cancellationToken.IsCancellationRequested)
 				{
-					Console.WriteLine("Will read from RB and send");
-
 					_ringBuffer.ReadBufferIntoSocketSend(_socket);
-
-					Console.WriteLine("Done Sending");
 				}
 			}
 			catch (SocketException ex)

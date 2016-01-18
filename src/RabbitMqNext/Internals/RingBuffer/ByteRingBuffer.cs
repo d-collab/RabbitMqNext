@@ -230,8 +230,6 @@
 					continue;
 				}
 
-				Console.WriteLine("Will send " + totalRead);
-
 				var totalSent = 0;
 				while (totalSent < totalRead)
 				{
