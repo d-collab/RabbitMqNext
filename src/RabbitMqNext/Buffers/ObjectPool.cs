@@ -9,12 +9,6 @@
 	/// </summary>
 	public sealed class ObjectPool<T> : IDisposable where T : class 
 	{
-//		public class ObjectPoolItem<T>
-//		{
-//			public T Item;
-//			public int index;
-//		}
-
 		private const int DefaultCapacity = 5;
 
 		private readonly Func<T> _objectGenerator;
@@ -39,6 +33,67 @@
 				}
 			}
 		}
+
+//		private SpinLock _lock = new SpinLock(false);
+//		private  uint _position;
+
+//		public T GetObject1()
+//		{
+//			bool taken = false;
+//			_lock.Enter(ref taken);
+//			try
+//			{
+//				var pos = _position++;
+//				if (pos == _array.Length)
+//				{
+//					Console.WriteLine("run out of items");
+//					return _objectGenerator();
+//				}
+//
+//				var v = _array[pos];
+//				if (v == null)
+//				{
+//					v = _objectGenerator();
+//				}
+//				else
+//				{
+//					_array[pos] = null;
+//				}
+//
+//				return v;
+//			}
+//			finally
+//			{
+//				if (taken) _lock.Exit();
+//			}
+//		}
+//
+//		public void PutObject1(T item)
+//		{
+//			bool taken = false;
+//			_lock.Enter(ref taken);
+//			try
+//			{
+//				var pos = --_position;
+//
+//				var v = _array[pos];
+//				if (v != null)
+//				{
+//					Console.WriteLine("Consistency error at index " + pos);
+//				}
+//				else
+//				{
+//					var disposable = item as IDisposable;
+//					if (disposable != null) disposable.Dispose();
+//
+//					_array[pos] = item;
+//				}
+//			}
+//			finally
+//			{
+//				if (taken) _lock.Exit();
+//			}
+//		}
 
 		public T GetObject()
 		{

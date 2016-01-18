@@ -1,6 +1,7 @@
 ﻿namespace RabbitMqNext.Internals
 {
 	using System;
+	using System.Runtime.CompilerServices;
 	using System.Threading.Tasks;
 
 	internal sealed class CommandToSend : IDisposable
@@ -23,7 +24,8 @@
 		public TaskCompletionSource<bool> Tcs;
 		public TaskSlim TcsSlim;
 
-		public void Prepare()
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal void Prepare()
 		{
 			if (PrepareAction != null) PrepareAction();
 		}

@@ -20,9 +20,9 @@
 		const bool WithAcks = false;
 
 //		const int TotalPublish = 250000;
-		const int TotalPublish = 200;
+//		const int TotalPublish = 200;
 //		const int TotalPublish = 100000;
-//		const int TotalPublish = 500000;
+		const int TotalPublish = 500000;
 //		const int TotalPublish = 2000000;
 
 		const int ConcurrentCalls = 100;
@@ -330,7 +330,7 @@
 				{
 					prop.Headers["serialization"] = i;
 					// var buffer = Encoding.ASCII.GetBytes("The " + i + " " + Message);
-					newChannel.BasicPublish("test_ex", "routing1", true, false, prop, new ArraySegment<byte>(MessageContent));
+					await newChannel.BasicPublish("test_ex", "routing1", true, false, prop, new ArraySegment<byte>(MessageContent));
 
 					// await Task.Delay(TimeSpan.FromMilliseconds(100));
 				}
@@ -351,38 +351,36 @@
 				int totalReceived = 0;
 
 				Console.WriteLine("[subscribing to queue] ");
-//				var sub = await newChannel2.BasicConsume(ConsumeMode.SingleThreaded, async (delivery) =>
-//				{
-//					// var len = await delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
-//					// var str = Encoding.UTF8.GetString(temp, 0, len);
-//					// Console.WriteLine("Received : " + str.Length);
-//
-//					if (WithAcks)
-//					{
-//						if (totalReceived % 2 == 0)
-//							newChannel2.BasicAck(delivery.deliveryTag, false);
-//						else
-//							newChannel2.BasicNAck(delivery.deliveryTag, false, false);
-//					}
-//
-//					// newChannel2.BasicAck()
-//
-//					var val = Interlocked.Increment(ref totalReceived);
-//
-//					if (val == TotalPublish)
-//					{
-//						watch.Stop();
-//						Console.WriteLine("Consume stress. Took " + 
-//										  watch.Elapsed.TotalMilliseconds + 
-//										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
-//						totalReceived = 0;
-//					}
-//
-//					// return Task.CompletedTask;
-//
-//				}, "queue1", "tag123", !WithAcks, false, null, true);
-//
-//				Console.WriteLine("[subscribed to queue] " + sub);
+				var sub = await newChannel2.BasicConsume(ConsumeMode.SingleThreaded, async (delivery) =>
+				{
+					// var len = await delivery.stream.ReadAsync(temp, 0, (int) delivery.bodySize);
+					// var str = Encoding.UTF8.GetString(temp, 0, len);
+					// Console.WriteLine("Received : " + str.Length);
+
+					if (WithAcks)
+					{
+						if (totalReceived % 2 == 0)
+							newChannel2.BasicAck(delivery.deliveryTag, false);
+						else
+							newChannel2.BasicNAck(delivery.deliveryTag, false, false);
+					}
+
+					var val = Interlocked.Increment(ref totalReceived);
+
+					if (val == TotalPublish)
+					{
+						watch.Stop();
+						Console.WriteLine("Consume stress. Took " + 
+										  watch.Elapsed.TotalMilliseconds + 
+										  "ms - rate of " + (TotalPublish / watch.Elapsed.TotalSeconds) + " message per second");
+						totalReceived = 0;
+					}
+
+					// return Task.CompletedTask;
+
+				}, "queue1", "tag123", !WithAcks, false, null, true);
+
+				Console.WriteLine("[subscribed to queue] " + sub);
 
 				await Task.Delay(TimeSpan.FromMinutes(5));
 

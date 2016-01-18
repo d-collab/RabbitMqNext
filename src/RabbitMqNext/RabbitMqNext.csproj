@@ -53,12 +53,13 @@
     <Compile Include="Buffers\DefaultArrayPool.cs" />
     <Compile Include="Buffers\ObjectPool.cs" />
     <Compile Include="Buffers\Utilities.cs" />
+    <Compile Include="ChannelApiExtensions.cs" />
     <Compile Include="ConnectionFactory.cs" />
-    <Compile Include="AmqpIOBase.cs" />
+    <Compile Include="Io\AmqpIOBase.cs" />
     <Compile Include="Channel.cs" />
-    <Compile Include="ChannelIO.cs" />
+    <Compile Include="Io\ChannelIO.cs" />
     <Compile Include="Connection.cs" />
-    <Compile Include="ConnectionIO.cs" />
+    <Compile Include="Io\ConnectionIO.cs" />
     <Compile Include="ConsumeMode.cs" />
     <Compile Include="Internals\RingBuffer\ReadingGate.cs" />
     <Compile Include="Internals\Sockets\SocketExtensions.cs">
