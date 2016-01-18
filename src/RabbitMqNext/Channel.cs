@@ -106,9 +106,19 @@
 			return _io.__BasicPublishConfirm(exchange, routingKey, mandatory, immediate, properties, buffer);
 		}
 
-		public void BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
+		public TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
+
+			return _io.__BasicPublishTask(exchange, routingKey, mandatory, immediate, properties, buffer);
+		}
+
+		public void BasicPublishFast(string exchange, string routingKey, bool mandatory, bool immediate,
+			BasicProperties properties, ArraySegment<byte> buffer)
+		{
+			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
+
 			_io.__BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer);
 		}
 
@@ -152,6 +162,8 @@
 
 		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
 		{
+			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
+
 			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
 			await helper.Setup();
 			return helper;
@@ -332,11 +344,5 @@
 			public ConsumeMode Mode;
 			public Func<MessageDelivery, Task> Callback;
 		}
-	}
-
-	public static class ChannelApiExtensions
-	{
-		
-
 	}
 }
