@@ -7,6 +7,7 @@ namespace RabbitMqNext
 	using System.Threading;
 	using System.Threading.Tasks;
 	using Internals;
+	using Internals.RingBuffer.Locks;
 
 	public class ConnectionIO : AmqpIOBase, IFrameProcessor
 	{
@@ -16,6 +17,7 @@ namespace RabbitMqNext
 		internal readonly CancellationToken _cancellationToken;
 
 		private readonly AutoResetEvent _commandOutboxEvent;
+//		private readonly AutoResetSuperSlimLock _commandOutboxEvent;
 		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
 		private readonly ObjectPool<CommandToSend> _cmdToSendObjPool;
 		
@@ -42,6 +44,7 @@ namespace RabbitMqNext
 			_socketHolder = new SocketHolder(_cancellationTokenSource.Token);
 
 			_commandOutboxEvent = new AutoResetEvent(false);
+			// _commandOutboxEvent = new AutoResetSuperSlimLock(false);
 			_commandOutbox = new ConcurrentQueue<CommandToSend>();
 
 			_cmdToSendObjPool = new ObjectPool<CommandToSend>(() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 120, true);
@@ -143,7 +146,8 @@ namespace RabbitMqNext
 			{
 				while (!this._cancellationToken.IsCancellationRequested)
 				{
-					_commandOutboxEvent.WaitOne();
+					_commandOutboxEvent.WaitOne(1000);
+//					_commandOutboxEvent.Wait();
 
 					CommandToSend cmdToSend;
 					while (_commandOutbox.TryDequeue(out cmdToSend))
@@ -153,7 +157,8 @@ namespace RabbitMqNext
 						if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
 						{
 							var queue = cmdToSend.Channel == 0
-								? _awaitingReplyQueue : _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
+								? _awaitingReplyQueue : 
+								  _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
 
 							queue.Enqueue(cmdToSend);
 						}
@@ -174,11 +179,11 @@ namespace RabbitMqNext
 						// if writing to socket is enough, set as complete
 						if (!cmdToSend.ExpectsReply)
 						{
-	#pragma warning disable 4014
+#pragma warning disable 4014
 							cmdToSend.RunReplyAction(0, 0, null);
-	#pragma warning restore 4014
+#pragma warning restore 4014
 						}
-				}
+					}
 				}
 			}
 			catch (Exception ex)
@@ -216,7 +221,6 @@ namespace RabbitMqNext
 		{
 			base.HandleDisconnect(); // either a consequence of a close method, or unexpected disconnect
 		}
-
 
 		internal async Task InternalDoConnectSocket(string hostname, int port)
 		{

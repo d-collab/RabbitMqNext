@@ -349,10 +349,45 @@ namespace RabbitMqNext
 			return tcs.Task;
 		}
 
+		internal TaskSlim __BasicPublishTask(string exchange, string routingKey, bool mandatory, bool immediate,
+			BasicProperties properties, ArraySegment<byte> buffer)
+		{
+			if (properties == null)
+			{
+				properties = BasicProperties.Empty;
+			}
+
+			TaskSlim tcs = _taskLightPool.GetObject();
+			var args = _basicPubArgsPool.GetObject();
+			args.exchange = exchange;
+			args.immediate = immediate;
+			args.routingKey = routingKey;
+			args.mandatory = mandatory;
+			args.properties = properties;
+			args.buffer = buffer;
+
+			_connectionIo.SendCommand(_channelNum, 60, 40,
+				null, // AmqpChannelLevelFrameWriter.InternalBasicPublish, 
+				reply: (channel, classMethodId, error) =>
+				{
+					if (properties.IsReusable)
+					{
+						_channel.Return(properties); // the tcs is left for the confirmation keeper
+					}
+					tcs.SetCompleted();
+					return Task.CompletedTask;
+				},
+				expectsReply: false,
+				tcsL: null,
+				optArg: args);
+
+			return tcs;
+		}
+
 		internal TaskSlim __BasicPublishConfirm(string exchange, string routingKey, bool mandatory, bool immediate,
 												BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			if (properties == null || properties.IsEmpty)
+			if (properties == null)
 			{
 				properties = BasicProperties.Empty;
 			}
@@ -391,7 +426,7 @@ namespace RabbitMqNext
 		internal void __BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
 									BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			if (properties == null || properties.IsEmpty)
+			if (properties == null)
 			{
 				properties = BasicProperties.Empty;
 			}
