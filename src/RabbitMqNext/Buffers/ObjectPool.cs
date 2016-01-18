@@ -34,74 +34,14 @@
 			}
 		}
 
-//		private SpinLock _lock = new SpinLock(false);
-//		private  uint _position;
-
-//		public T GetObject1()
-//		{
-//			bool taken = false;
-//			_lock.Enter(ref taken);
-//			try
-//			{
-//				var pos = _position++;
-//				if (pos == _array.Length)
-//				{
-//					Console.WriteLine("run out of items");
-//					return _objectGenerator();
-//				}
-//
-//				var v = _array[pos];
-//				if (v == null)
-//				{
-//					v = _objectGenerator();
-//				}
-//				else
-//				{
-//					_array[pos] = null;
-//				}
-//
-//				return v;
-//			}
-//			finally
-//			{
-//				if (taken) _lock.Exit();
-//			}
-//		}
-//
-//		public void PutObject1(T item)
-//		{
-//			bool taken = false;
-//			_lock.Enter(ref taken);
-//			try
-//			{
-//				var pos = --_position;
-//
-//				var v = _array[pos];
-//				if (v != null)
-//				{
-//					Console.WriteLine("Consistency error at index " + pos);
-//				}
-//				else
-//				{
-//					var disposable = item as IDisposable;
-//					if (disposable != null) disposable.Dispose();
-//
-//					_array[pos] = item;
-//				}
-//			}
-//			finally
-//			{
-//				if (taken) _lock.Exit();
-//			}
-//		}
-
 		public T GetObject()
 		{
 //			_semaphore.Wait();
 
 			for (var i = 0; i < _capacity; i++)
 			{
-				var v = Interlocked.Exchange(ref _array[i], null);
+				// worst case scenario is O(n) and cmp exc is slow. so think about better impl
+				var v = Interlocked.Exchange(ref _array[i], null); 
 				if (v != null)
 				{
 					// Console.WriteLine("Pool " + typeof(T).Name + " GetObject at index " + i);
@@ -120,12 +60,11 @@
 
 			for (int i = 0; i < _capacity; i++)
 			{
+				// worst case scenario is O(n) and cmp exc is slow. so think about better impl
 				var v = Interlocked.CompareExchange(ref _array[i], item, null);
 				if (v == null)
 				{
-					// Console.WriteLine("Pool " + typeof(T).Name + " PutObject at index " + i);
-					// break;
-					return;
+					return; // found spot. done
 				}
 			}
 

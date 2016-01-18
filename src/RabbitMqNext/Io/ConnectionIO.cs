@@ -1,4 +1,4 @@
-namespace RabbitMqNext
+namespace RabbitMqNext.Io
 {
 	using System;
 	using System.Collections.Concurrent;
@@ -6,8 +6,9 @@ namespace RabbitMqNext
 	using System.Text;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using Internals;
-	using Internals.RingBuffer.Locks;
+	using RabbitMqNext;
+	using RabbitMqNext.Internals;
+
 
 	public class ConnectionIO : AmqpIOBase, IFrameProcessor
 	{
@@ -17,7 +18,6 @@ namespace RabbitMqNext
 		internal readonly CancellationToken _cancellationToken;
 
 		private readonly AutoResetEvent _commandOutboxEvent;
-//		private readonly AutoResetSuperSlimLock _commandOutboxEvent;
 		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
 		private readonly ObjectPool<CommandToSend> _cmdToSendObjPool;
 		
@@ -329,8 +329,8 @@ namespace RabbitMqNext
 					{
 						_frameReader.Read_ConnectionStart((versionMajor, versionMinor, serverProperties, mechanisms, locales) =>
 						{
-							//  _serverProperties = serverProperties;
-							//  _mechanisms = mechanisms;
+							this._serverProperties = serverProperties;
+							this._mechanisms = mechanisms;
 
 							tcs.SetResult(true);
 						});
@@ -392,7 +392,8 @@ namespace RabbitMqNext
 			var auth = Encoding.UTF8.GetBytes("\0" + username + "\0" + password);
 			var writer = AmqpConnectionFrameWriter.ConnectionStartOk(Protocol.ClientProperties, "PLAIN", auth, "en_US");
 
-			SendCommand(0, 10, 30, writer,
+			SendCommand(0, 10, 30, 
+				writer,
 				reply: (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionTune)
@@ -452,9 +453,7 @@ namespace RabbitMqNext
 
 			this.SendCommand(0, 10, 51,
 				AmqpConnectionFrameWriter.ConnectionCloseOk,
-				reply: null,
-				expectsReply: false,
-				tcs: tcs);
+				reply: null, expectsReply: false, tcs: tcs);
 
 			return tcs.Task;
 		}

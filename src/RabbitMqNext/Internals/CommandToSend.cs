@@ -3,6 +3,8 @@
 	using System;
 	using System.Runtime.CompilerServices;
 	using System.Threading.Tasks;
+	using RabbitMqNext.Io;
+	using RabbitMqNext.Internals;
 
 	internal sealed class CommandToSend : IDisposable
 	{

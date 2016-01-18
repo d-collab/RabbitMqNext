@@ -66,6 +66,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Internals\SocketHolder.cs" />
+    <Compile Include="QueueConsumer.cs" />
     <Compile Include="RpcHelper.cs" />
     <Compile Include="UndeliveredMessage.cs" />
     <Compile Include="Internals\BufferUtil.cs" />

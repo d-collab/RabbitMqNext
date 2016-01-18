@@ -1,10 +1,12 @@
-﻿namespace RabbitMqNext
+﻿namespace RabbitMqNext.Io
 {
 	using System;
 	using System.Collections.Concurrent;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using Internals;
+	using RabbitMqNext;
+	using RabbitMqNext.Internals;
+
 
 	/// <summary>
 	/// Commonality of connection and channel

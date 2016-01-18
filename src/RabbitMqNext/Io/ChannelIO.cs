@@ -1,9 +1,11 @@
-namespace RabbitMqNext
+namespace RabbitMqNext.Io
 {
 	using System;
 	using System.Collections.Generic;
 	using System.Threading.Tasks;
-	using Internals;
+	using RabbitMqNext;
+	using RabbitMqNext.Internals;
+
 
 	public class ChannelIO : AmqpIOBase
 	{
@@ -47,7 +49,7 @@ namespace RabbitMqNext
 					await _connectionIo._frameReader.Read_BasicReturn(_channel.DispatchBasicReturn, _channel.RentBasicProperties());
 					break;
 
-//				// Basic Ack and NAck will be sent by the server if we enabled confirmation for this channel
+				// Basic Ack and NAck will be sent by the server if we enabled confirmation for this channel
 				case AmqpClassMethodChannelLevelConstants.BasicAck:
 					_connectionIo._frameReader.Read_BasicAck(_channel.ProcessAcks);
 					break;
@@ -88,7 +90,8 @@ namespace RabbitMqNext
 
 			var writer = AmqpChannelLevelFrameWriter.ChannelOpen();
 
-			_connectionIo.SendCommand(_channelNum, 20, 10, writer,
+			_connectionIo.SendCommand(_channelNum, 20, 10, 
+				writer,
 				reply: (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelOpenOk)
@@ -114,15 +117,13 @@ namespace RabbitMqNext
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
-			_connectionIo.SendCommand(_channelNum, 20, 40, AmqpChannelLevelFrameWriter.ChannelClose,
+			_connectionIo.SendCommand(_channelNum, 20, 40, 
+				AmqpChannelLevelFrameWriter.ChannelClose,
 				reply: (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodChannelLevelConstants.ChannelCloseOk)
 					{
-						// _connection._frameReader.Read_Channel_CloseOk(() =>
-						{
-							tcs.SetResult(true);
-						}//);
+						tcs.SetResult(true);
 					}
 					else
 					{
@@ -181,7 +182,8 @@ namespace RabbitMqNext
 
 			var writer = AmqpChannelLevelFrameWriter.BasicQos(prefetchSize, prefetchCount, global);
 
-			_connectionIo.SendCommand(_channelNum, 60, 10, writer,
+			_connectionIo.SendCommand(_channelNum, 60, 10, 
+				writer,
 				reply: (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodChannelLevelConstants.BasicQosOk)
@@ -228,7 +230,8 @@ namespace RabbitMqNext
 			var writer = AmqpChannelLevelFrameWriter.ExchangeDeclare(exchange, type, durable, autoDelete,
 				arguments, false, false, waitConfirmation);
 
-			_connectionIo.SendCommand(_channelNum, 40, 10, writer,
+			_connectionIo.SendCommand(_channelNum, 40, 10, 
+				writer,
 				reply: (channel, classMethodId, error) =>
 				{
 					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeDeclareOk)
@@ -254,7 +257,8 @@ namespace RabbitMqNext
 			var writer = AmqpChannelLevelFrameWriter.QueueDeclare(queue, passive, durable,
 				exclusive, autoDelete, arguments, waitConfirmation);
 
-			_connectionIo.SendCommand(_channelNum, 50, 10, writer,
+			_connectionIo.SendCommand(_channelNum, 50, 10, 
+				writer,
 				reply: async (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueueDeclareOk)
@@ -291,7 +295,8 @@ namespace RabbitMqNext
 
 			var writer = AmqpChannelLevelFrameWriter.QueueBind(queue, exchange, routingKey, arguments, waitConfirmation);
 
-			_connectionIo.SendCommand(_channelNum, 50, 20, writer,
+			_connectionIo.SendCommand(_channelNum, 50, 20, 
+				writer,
 				reply: (channel, classMethodId, error) =>
 				{
 					if (!waitConfirmation || (classMethodId == AmqpClassMethodChannelLevelConstants.QueueBindOk))
@@ -312,13 +317,13 @@ namespace RabbitMqNext
 			bool exclusive, IDictionary<string, object> arguments, bool waitConfirmation, Action<string> confirmConsumerTag)
 		{
 			var tcs = new TaskCompletionSource<string>(
-				mode == ConsumeMode.ParallelWithBufferCopy || mode == ConsumeMode.ParallelWithBufferCopy ?
-				TaskCreationOptions.RunContinuationsAsynchronously : TaskCreationOptions.None);
+				mode == ConsumeMode.ParallelWithBufferCopy ? TaskCreationOptions.RunContinuationsAsynchronously : TaskCreationOptions.None);
 
 			var writer = AmqpChannelLevelFrameWriter.BasicConsume(
 				queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
 
-			_connectionIo.SendCommand(_channelNum, 60, 20, writer,
+			_connectionIo.SendCommand(_channelNum, 60, 20, 
+				writer,
 				reply: (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
@@ -440,7 +445,7 @@ namespace RabbitMqNext
 			args.buffer = buffer;
 
 			_connectionIo.SendCommand(_channelNum, 60, 40,
-				null, // AmqpChannelLevelFrameWriter.InternalBasicPublish, 
+				null, // writer
 				reply: (channel, classMethodId, error) =>
 				{
 					if (properties.IsReusable)

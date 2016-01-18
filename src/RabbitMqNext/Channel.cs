@@ -6,8 +6,9 @@
 	using System.IO;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using Internals;
-	using Internals.RingBuffer;
+	using RabbitMqNext.Internals;
+	using RabbitMqNext.Internals.RingBuffer;
+	using RabbitMqNext.Io;
 
 	public class Channel : IDisposable
 	{
@@ -120,6 +121,34 @@
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
 			_io.__BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer);
+		}
+
+		public Task<string> BasicConsume(ConsumeMode mode, QueueConsumer consumer,
+			string queue, string consumerTag, bool withoutAcks, bool exclusive,
+			IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			if (consumer == null) throw new ArgumentNullException("consumer");
+			if (!waitConfirmation && string.IsNullOrEmpty(consumerTag))
+				throw new ArgumentException("You must specify a consumer tag if waitConfirmation = false");
+
+			if (!string.IsNullOrEmpty(consumerTag))
+			{
+				_consumerSubscriptions[consumerTag] = new BasicConsumerSubscriptionInfo
+				{
+					Mode = mode,
+					_consumer = consumer
+				};
+			}
+
+			return _io.__BasicConsume(mode, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation,
+				consumerTag2 =>
+				{
+					_consumerSubscriptions[consumerTag2] = new BasicConsumerSubscriptionInfo
+					{
+						Mode = mode,
+						_consumer = consumer
+					};
+				});
 		}
 
 		public Task<string> BasicConsume(ConsumeMode mode, Func<MessageDelivery, Task> consumer,
@@ -343,6 +372,7 @@
 		{
 			public ConsumeMode Mode;
 			public Func<MessageDelivery, Task> Callback;
+			public QueueConsumer _consumer;
 		}
 	}
 }

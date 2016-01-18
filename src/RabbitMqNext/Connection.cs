@@ -4,7 +4,8 @@
 	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using Internals;
+	using RabbitMqNext.Io;
+	using RabbitMqNext.Internals;
 
 	public class Connection : IDisposable
 	{

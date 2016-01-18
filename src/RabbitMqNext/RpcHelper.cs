@@ -67,7 +67,7 @@ namespace RabbitMqNext
 			}
 			else
 			{
-				taskLight.SetResult(delivery); // needs to be synchrounous
+				taskLight.SetResult(delivery);
 			}
 
 			return Task.CompletedTask;
@@ -90,13 +90,13 @@ namespace RabbitMqNext
 
 			try
 			{
-				var prop = properties ?? new BasicProperties();
+				var prop = properties ?? _channel.RentBasicProperties();
 				prop.CorrelationId = correlationId.ToString();
 				prop.ReplyTo = _replyQueueName.Name;
 				// TODO: confirm this doesnt cause more overhead to rabbitmq
 				prop.Expiration = _timeoutInMs.ToString();
 
-				_channel.BasicPublish(exchange, routing, true, false, properties, buffer);
+				_channel.BasicPublishFast(exchange, routing, true, false, properties, buffer);
 			}
 			catch (Exception ex)
 			{
