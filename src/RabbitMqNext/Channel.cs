@@ -228,6 +228,7 @@
 
 				var mode = consumer.Mode;
 				var cb = consumer.Callback;
+				var consumerInstance = consumer._consumer;
 
 				if (mode == ConsumeMode.SingleThreaded)
 				{
@@ -238,7 +239,10 @@
 					// upon return it's assumed the user has consumed from the stream and is done with it
 					try
 					{
-						await cb(delivery);
+						if (cb != null)
+							await cb(delivery);
+						else
+							await consumerInstance.Consume(delivery);
 					}
 					finally
 					{
@@ -278,7 +282,10 @@
 						{
 							using (delivery.stream)
 							{
-								cb(delivery);
+								if (cb != null)
+									cb(delivery);
+								else
+									consumerInstance.Consume(delivery);
 							}
 						}
 						catch (Exception e)
