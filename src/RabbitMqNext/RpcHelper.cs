@@ -22,7 +22,7 @@ namespace RabbitMqNext
 		private readonly long _timeoutInTicks;
 		private readonly Timer _timeoutTimer;
 
-		public RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 3000)
+		public RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 6000)
 		{
 			if (maxConcurrentCalls <= 0) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
 
@@ -33,7 +33,7 @@ namespace RabbitMqNext
 			_timeoutInTicks = timeoutInMs * TimeSpan.TicksPerMillisecond;
 
 			// the impl keeps a timer pool so this is light and efficient
-			_timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs, timeoutInMs);
+			// _timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs, timeoutInMs);
 
 			_pendingCalls = new TaskSlim<MessageDelivery>[maxConcurrentCalls];
 			_taskResultPool = new ObjectPool<TaskSlim<MessageDelivery>>(() =>
@@ -160,7 +160,13 @@ namespace RabbitMqNext
 				if (pendingCall == null) continue;
 				if (now - pendingCall.Started > _timeoutInTicks)
 				{
-					pendingCall.SetException(new Exception("Rpc call timeout"), runContinuationAsync: true);
+					try
+					{
+						pendingCall.SetException(new Exception("Rpc call timeout"), runContinuationAsync: true);
+					}
+					catch (Exception)
+					{
+					}
 				}
 			}
 		}
