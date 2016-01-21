@@ -231,7 +231,8 @@
 
 				if (mode == ConsumeMode.SingleThreaded)
 				{
-					// run with scissors
+					// run with scissors, we're letting 
+					// the user code mess with the ring buffer in the name of performance
 					delivery.stream = stream;
 
 					// upon return it's assumed the user has consumed from the stream and is done with it
@@ -241,6 +242,7 @@
 					}
 					finally
 					{
+						// fingers crossed the user cloned the buffer if she needs it later
 						this.Return(properties);
 					}
 				}

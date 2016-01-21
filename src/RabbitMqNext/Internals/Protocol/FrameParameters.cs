@@ -54,7 +54,7 @@ namespace RabbitMqNext.Internals
 			public BasicProperties properties;
 			public ArraySegment<byte> buffer;
 
-			public void Done()
+			internal void Done()
 			{
 				if (_recycler != null)
 					_recycler(this);

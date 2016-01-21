@@ -5,7 +5,7 @@ namespace RabbitMqNext
 	using System.Runtime.CompilerServices;
 	
 
-	public class BasicProperties : IDisposable
+	public class BasicProperties : IDisposable, ICloneable
 	{
 		public static readonly BasicProperties Empty = new BasicProperties(isFrozen: true, reusable: false);
 
@@ -296,6 +296,41 @@ namespace RabbitMqNext
 				IsHeadersPresent = value != null;
 				_headers = value;
 			}
+		}
+
+		#region Implementation of ICloneable
+
+		object ICloneable.Clone()
+		{
+			var cloned = new BasicProperties(false, false)
+			{
+				_presenceSWord = this._presenceSWord,
+				_timestamp = this._timestamp,
+				_deliveryMode = this._deliveryMode,
+				_priority = this._priority,
+				_contentType = this._contentType,
+				_contentEncoding = this._contentEncoding,
+				_correlationId = this._correlationId,
+				_replyTo = this._replyTo,
+				_expiration = this._expiration,
+				_messageId = this._messageId,
+				_type = this._type,
+				_userId = this._userId,
+				_appId = this._appId,
+				_clusterId = this._clusterId,
+			};
+			if (this._headers != null && this._headers.Count != 0)
+			{
+				cloned._headers = new Dictionary<string, object>(this._headers);
+			}
+			return cloned;
+		}
+
+		#endregion
+
+		public BasicProperties Clone()
+		{
+			return (this as ICloneable).Clone() as BasicProperties;
 		}
 
 		internal bool IsFrozen

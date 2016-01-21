@@ -158,17 +158,15 @@ namespace RabbitMqNext.Internals
 		private static void WriteBasicPropertiesAsHeader(AmqpPrimitivesWriter writer, 
 			ushort channel, ulong bodySize, BasicProperties properties)
 		{
-			if (properties.IsEmpty)
+			if (properties.IsEmpty) 
 			{
+				// short cut when it's empty
+
 				uint payloadSize = 4 + 8 + 2;
 				writer.WriteFrameStart(AmqpConstants.FrameHeader, channel, payloadSize, 60, 0);
-//				writer.WriteUShort((ushort)60);
-//				writer.WriteUShort((ushort)0); // weight. not used
 				writer.WriteULong(bodySize);
-
 				// no support for continuation. must be less than 15 bits used
 				writer.WriteUShort(properties._presenceSWord);
-
 				writer.WriteOctet(AmqpConstants.FrameEnd);
 			}
 			else
@@ -241,23 +239,26 @@ namespace RabbitMqNext.Internals
 				// First frame: Method
 				uint payloadSize = (uint) (9 + basicPub.exchange.Length + basicPub.routingKey.Length);
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
-//				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				var w = writer;
 				{
-//					w.WriteUShort(classId);
-//					w.WriteUShort(methodId);
 					w.WriteUShort(0); // reserved1
 					w.WriteShortstr(basicPub.exchange);
 					w.WriteShortstr(basicPub.routingKey);
 					w.WriteBits(basicPub.mandatory, basicPub.immediate);
-				} //);
+				}
 				writer.WriteOctet(AmqpConstants.FrameEnd);
+				// First frame completed
 
+				// Header frame (basic properties)
 				WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
+				// Header frame completed
 
 				// what's the max frame size we can write?
 				if (!writer.FrameMaxSize.HasValue) throw new Exception("wtf? no frame max set!");
 				
+
+				// Frame body
+
 				var maxSubFrameSize =
 					writer.FrameMaxSize == 0 ? (int)buffer.Count :
 												(int)writer.FrameMaxSize.Value - EmptyFrameSize;
@@ -277,6 +278,8 @@ namespace RabbitMqNext.Internals
 
 					writer.WriteOctet(AmqpConstants.FrameEnd);
 				}
+
+				// Frame body completed
 			}
 //			finally
 			{

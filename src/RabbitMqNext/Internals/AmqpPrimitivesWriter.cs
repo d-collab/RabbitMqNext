@@ -63,6 +63,7 @@ namespace RabbitMqNext.Internals
 				return;
 			}
 
+			// retiring this method of calculating payload so we save another delegate allocation
 //			WriteBufferWithPayloadFirst(w =>
 //			{
 //				foreach (var entry in table)
@@ -360,8 +361,6 @@ namespace RabbitMqNext.Internals
 
 				var w = memStream._writer2;
 				{
-//					w.WriteUShort((ushort)60);
-//					w.WriteUShort((ushort)0); // weight. not used
 					w.WriteULong(bodySize);
 
 					// no support for continuation. must be less than 15 bits used
