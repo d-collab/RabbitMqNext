@@ -7,6 +7,8 @@ namespace RabbitMqNext.Internals
 
 	internal partial class FrameReader
 	{
+		private static readonly MemoryStream EmptyStream = new MemoryStream(new byte[0], writable: false);
+
 		public async Task Read_QueueDeclareOk(Func<string, uint, uint, Task> continuation)
 		{
 			Console.WriteLine("< QueueDeclareOk");
@@ -56,44 +58,56 @@ namespace RabbitMqNext.Internals
 			long bodySize = (long) _reader.ReadUInt64();
 
 			// BasicProperties properties = ReadRestOfContentHeader();
-			ReadRestOfContentHeader(properties);
+			ReadRestOfContentHeader(properties, bodySize == 0);
 
 			// Frame Body(s)
 
-			// Support just single body at this moment.
-
-			frameHeaderStart = _reader.ReadByte();
-			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
-
-			// await _reader.SkipBy(2);
-			channel =   _reader.ReadUInt16();
-			uint length = _reader.ReadUInt32();
-
-			// Pending Frame end
-
-			if (length == bodySize)
+			if (bodySize != 0)
 			{
-				var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+				// Support just single body at this moment.
 
-				await continuation(consumerTag, deliveryTag, redelivered, exchange,
-					routingKey, (int)length, properties, (Stream) _reader._ringBufferStream);
+				frameHeaderStart = _reader.ReadByte();
+				if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
-				if (marker.LengthRead < length)
+				// await _reader.SkipBy(2);
+				channel = _reader.ReadUInt16();
+				uint length = _reader.ReadUInt32();
+
+				// Pending Frame end
+
+				if (length == bodySize)
 				{
-					checked
+					var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+
+					await continuation(consumerTag, deliveryTag, redelivered, exchange,
+						routingKey, (int) length, properties, (Stream) _reader._ringBufferStream);
+
+					if (marker.LengthRead < length)
 					{
-						int offset = (int) ( length - marker.LengthRead );
-						await _reader.SkipBy(offset);
+						checked
+						{
+							int offset = (int) (length - marker.LengthRead);
+							await _reader.SkipBy(offset);
+						}
 					}
+				}
+				else
+				{
+					throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize +
+					                                " and first body is " + length + " bytes");
 				}
 			}
 			else
 			{
-				throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize + " and first body is " + length + " bytes");
+				// Empty body size, which is OK
+
+				await continuation(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, EmptyStream);
+
 			}
 		}
 
-		private void ReadRestOfContentHeader(BasicProperties properties)
+
+		private void ReadRestOfContentHeader(BasicProperties properties, bool skipFrameEnd)
 		{
 			var presence = _reader.ReadUInt16();
 
@@ -119,9 +133,11 @@ namespace RabbitMqNext.Internals
 				if (properties.IsClusterIdPresent) { properties.ClusterId = _amqpReader.ReadShortStr(); }
 			}
 
-			byte frameEndMarker = _reader.ReadByte();
-			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
-
+			if (!skipFrameEnd)
+			{
+				byte frameEndMarker = _reader.ReadByte();
+				if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
+			}
 		}
 
 		public void Read_BasicConsumeOk(Action<string> continuation)
@@ -157,40 +173,46 @@ namespace RabbitMqNext.Internals
 			var bodySize = (long) _reader.ReadUInt64();
 
 			// BasicProperties properties = ReadRestOfContentHeader();
-			ReadRestOfContentHeader(properties);
+			ReadRestOfContentHeader(properties, bodySize == 0);
 
 			// Frame Body(s)
-
-			frameHeaderStart = _reader.ReadByte();
-			if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
-
-			await _reader.SkipBy(2); // channel = _reader.ReadUInt16();
-			uint length = _reader.ReadUInt32();
-
-			// must leave pending Frame end
-
-			if (length == bodySize)
+			if (bodySize != 0)
 			{
-				// continuation(replyCode, replyText, exchange, routingKey);
-				
-				var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+				frameHeaderStart = _reader.ReadByte();
+				if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
-				await
-					continuation(replyCode, replyText, exchange, 
-						routingKey, (int)length, properties, (Stream) _reader._ringBufferStream);
+				await _reader.SkipBy(2); // channel = _reader.ReadUInt16();
+				uint length = _reader.ReadUInt32();
 
-				if (marker.LengthRead < length)
+				// must leave pending Frame end
+
+				if (length == bodySize)
 				{
-					checked
+					// continuation(replyCode, replyText, exchange, routingKey);
+
+					var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+
+					await continuation(replyCode, replyText, exchange, routingKey, (int)length, properties, _reader._ringBufferStream);
+
+					if (marker.LengthRead < length)
 					{
-						int offset = (int)(length - marker.LengthRead);
-						await _reader.SkipBy(offset);
+						checked
+						{
+							int offset = (int)(length - marker.LengthRead);
+							await _reader.SkipBy(offset);
+						}
 					}
+				}
+				else
+				{
+					throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize + " and first body is " + length + " bytes");
 				}
 			}
 			else
 			{
-				throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize + " and first body is " + length + " bytes");
+				// no body
+
+				await continuation(replyCode, replyText, exchange, routingKey, 0, properties, EmptyStream);
 			}
 		}
 
