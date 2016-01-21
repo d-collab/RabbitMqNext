@@ -8,15 +8,11 @@
 
 	public class RingBufferStreamAdapter : Stream
 	{
-//		private readonly SingleConsumer _consumer;
-//		private readonly SingleProducer _producer;
 		internal readonly ByteRingBuffer _ringBuffer;
 
 		internal RingBufferStreamAdapter(ByteRingBuffer ringBuffer)
 		{
 			_ringBuffer = ringBuffer;
-//			_consumer = new SingleConsumer(ringBuffer, ringBuffer.CancellationToken);
-//			_producer = new SingleProducer(ringBuffer, ringBuffer.CancellationToken);
 		}
 
 		public CancellationToken CancellationToken
@@ -24,30 +20,31 @@
 			get { return _ringBuffer.CancellationToken; }
 		}
 
+		public int Read(byte[] buffer, int offset, int count, bool fillBuffer)
+		{
+			return _ringBuffer.Read(buffer, offset, count, fillBuffer);
+		}
+
 		public override int Read(byte[] buffer, int offset, int count)
 		{
 			// Note: fills up the buffer or hangs
 			// return _consumer.Read(buffer, offset, count, fillBuffer: true);
-			return _ringBuffer.Read(buffer, offset, count, fillBuffer: true);
+			var read = _ringBuffer.Read(buffer, offset, count, fillBuffer: false);
+			return read;
 		}
 		
 		public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
-//			 return _consumer.ReadAsync(buffer, offset, count, cancellationToken);
-//			return _ringBuffer.ReadAsync(buffer, offset, count, fillBuffer: true, cancellationToken: cancellationToken);
 			throw new NotImplementedException();
 		}
 
 		public override void Write(byte[] buffer, int offset, int count)
 		{
-			// Note: this writes all buffer content
-			// _producer.Write(buffer, offset, count);
 			_ringBuffer.Write(buffer, offset, count, writeAll: true);
 		}
 
 		public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
-			// return _producer.WriteAsync(buffer, offset, count, cancellationToken);
 			return _ringBuffer.WriteAsync(buffer, offset, count, true, cancellationToken);
 		}
 

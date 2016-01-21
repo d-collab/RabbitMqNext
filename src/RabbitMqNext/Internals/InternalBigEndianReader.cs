@@ -27,7 +27,7 @@ namespace RabbitMqNext.Internals
 			int totalRead = 0;
 			while (totalRead < count)
 			{
-				totalRead += _ringBufferStream.Read(buffer, totalRead, count - totalRead);
+				totalRead += _ringBufferStream.Read(buffer, totalRead, count - totalRead, fillBuffer: true);
 			}
 			if (reverse && BitConverter.IsLittleEndian && count > 1)
 			{
