@@ -14,11 +14,12 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 	/// </summary>
 	internal class AutoResetSuperSlimLock
 	{
-		[StructLayout(LayoutKind.Explicit, Size = 64)]
+		[StructLayout(LayoutKind.Sequential)]
 		private struct LockState
 		{
-			[FieldOffset(0)]
-			internal  int _state;
+			internal PaddingForInt32 _pad0;
+			internal volatile int _state;
+			internal PaddingForInt32 _pad1;
 		}
 
 		private LockState _lockState;
@@ -117,6 +118,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			return true;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void Set()
 		{
 			if (_lockState._state == SignalledStateMask) return;

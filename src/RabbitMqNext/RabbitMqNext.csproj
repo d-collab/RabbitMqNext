@@ -55,6 +55,7 @@
     <Compile Include="Buffers\Utilities.cs" />
     <Compile Include="ChannelApiExtensions.cs" />
     <Compile Include="ConnectionFactory.cs" />
+    <Compile Include="Internals\RingBuffer\Padding.cs" />
     <Compile Include="Io\AmqpIOBase.cs" />
     <Compile Include="Channel.cs" />
     <Compile Include="Io\ChannelIO.cs" />
@@ -109,12 +110,9 @@
     <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Internals\RingBuffer\RingBufferStreamReadBarrier.cs" />
     <Compile Include="Internals\RingBuffer\SocketConsumer.cs" />
     <Compile Include="Internals\RingBuffer\SocketProducer.cs" />
     <Compile Include="Internals\RingBuffer\Utils.cs" />
-    <Compile Include="Internals\RingBuffer\WaitingStrategy.cs" />
-    <Compile Include="Internals\RingBuffer\WaitingStrategy.LockWaitingStrategy.cs" />
     <Compile Include="MessageDelivery.cs" />
     <Compile Include="Internals\MessagesPendingConfirmationKeeper.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
