@@ -35,7 +35,7 @@ namespace RabbitMqNext.Io
 		#endregion
 		private static int _counter = 0;
 
-		public ConnectionIO(Connection connection)
+		public ConnectionIO(Connection connection) : base(channelNum: 0)
 		{
 			_cancellationTokenSource = new CancellationTokenSource();
 			_cancellationToken = _cancellationTokenSource.Token;
@@ -47,7 +47,7 @@ namespace RabbitMqNext.Io
 			// _commandOutboxEvent = new AutoResetSuperSlimLock(false);
 			_commandOutbox = new ConcurrentQueue<CommandToSend>();
 
-			_cmdToSendObjPool = new ObjectPool<CommandToSend>(() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 120, true);
+			_cmdToSendObjPool = new ObjectPool<CommandToSend>(() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 200, true);
 		}
 
 		#region FrameProcessor

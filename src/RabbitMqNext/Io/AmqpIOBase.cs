@@ -15,12 +15,14 @@
 	{
 		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 		private volatile bool _isClosed, _isDisposed;
-		
+		internal readonly ushort _channelNum;
+
 		// if not null, it's the error that closed the channel or connection
 		internal AmqpError _lastError;
 
-		protected AmqpIOBase()
+		protected AmqpIOBase(ushort channelNum)
 		{
+			_channelNum = channelNum;
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
 		}
 
@@ -87,7 +89,7 @@
 
 			if (_awaitingReplyQueue.TryDequeue(out sent))
 			{
-				return sent.RunReplyAction(0, classMethodId, null);
+				return sent.RunReplyAction(_channelNum, classMethodId, null);
 			}
 			// else
 			{
@@ -106,7 +108,7 @@
 
 			// otherwise
 
-			_lastError = new AmqpError() { ClassId = 0, MethodId = 0, ReplyCode = 0, ReplyText = "disconnected" };
+			_lastError = new AmqpError { ClassId = 0, MethodId = 0, ReplyCode = 0, ReplyText = "disconnected" };
 
 			DrainPending(_lastError);
 		}
@@ -160,8 +162,11 @@
 			}
 			else
 			{
-				Console.WriteLine("Unexpected situation: classMethodId = " + classMethodId + " and error = null");
-				tcs.SetException(new Exception("Unexpected reply from the server: " + classMethodId));
+				var classId = classMethodId >> 16;
+				var methodId = classMethodId & 0x0000FFFF;
+
+				Console.WriteLine("Unexpected situation: classId = " + classId + " method " + methodId + " and error = null");
+				tcs.SetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
 			}
 		}
 
@@ -178,8 +183,11 @@
 			}
 			else
 			{
-				Console.WriteLine("Unexpected situation: classMethodId = " + classMethodId + " and error = null");
-				tcs.SetException(new Exception("Unexpected reply from the server: " + classMethodId));
+				var classId = classMethodId >> 16;
+				var methodId = classMethodId & 0x0000FFFF;
+
+				Console.WriteLine("Unexpected situation: classId = " + classId + " method " + methodId + " and error = null");
+				tcs.SetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
 			}
 		}
 	}

@@ -33,7 +33,7 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ExchangeDeclare");
+				Console.WriteLine("ExchangeDeclare " + exchange);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -54,7 +54,7 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("QueueDeclare");
+				Console.WriteLine("QueueDeclare " + queue);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -95,7 +95,7 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("BasicConsume");
+				Console.WriteLine("BasicConsume  " + queue);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -117,7 +117,7 @@ namespace RabbitMqNext.Internals
 
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ChannelOpen");
+				Console.WriteLine("BasicQos");
 
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
 
@@ -138,7 +138,7 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("QueueBind");
+				// Console.WriteLine("QueueBind " + queue + " | " + exchange + " | " + routingKey);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{

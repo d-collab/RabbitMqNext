@@ -11,11 +11,11 @@ namespace RabbitMqNext.Internals
 
 		public async Task Read_QueueDeclareOk(Func<string, uint, uint, Task> continuation)
 		{
-			Console.WriteLine("< QueueDeclareOk");
-
 			string queue = _amqpReader.ReadShortStr();
 			uint messageCount = _amqpReader.ReadLong();
 			uint consumerCount = _amqpReader.ReadLong();
+
+			Console.WriteLine("< QueueDeclareOk  " + queue);
 
 			await continuation(queue, messageCount, consumerCount);
 		}
@@ -144,7 +144,7 @@ namespace RabbitMqNext.Internals
 		{
 			var consumerTag = _amqpReader.ReadShortStr();
 
-			Console.WriteLine("< BasicConsumeOk ");
+			// Console.WriteLine("< BasicConsumeOk  " + consumerTag);
 
 			continuation(consumerTag);
 		}

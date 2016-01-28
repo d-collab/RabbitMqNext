@@ -10,16 +10,15 @@ namespace RabbitMqNext.Io
 	public class ChannelIO : AmqpIOBase
 	{
 		private readonly Channel _channel;
-		private readonly ushort _channelNum;
 		internal readonly ConnectionIO _connectionIo;
 
 		private readonly ObjectPool<TaskSlim> _taskLightPool;
 		private readonly ObjectPool<FrameParameters.BasicPublishArgs> _basicPubArgsPool;
 
 		public ChannelIO(Channel channel, ushort channelNumber, ConnectionIO connectionIo)
+			: base(channelNumber)
 		{
 			_channel = channel;
-			_channelNum = channelNumber;
 			_connectionIo = connectionIo;
 
 			_taskLightPool = new ObjectPool<TaskSlim>(
@@ -236,6 +235,8 @@ namespace RabbitMqNext.Io
 				{
 					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeDeclareOk)
 					{
+						Console.WriteLine("< ExchangeDeclareOk " + exchange);
+
 						tcs.SetResult(true);
 					}
 					else
@@ -316,7 +317,7 @@ namespace RabbitMqNext.Io
 		public Task<string> __BasicConsume(ConsumeMode mode, string queue, string consumerTag, bool withoutAcks, 
 			bool exclusive, IDictionary<string, object> arguments, bool waitConfirmation, Action<string> confirmConsumerTag)
 		{
-			var tcs = new TaskCompletionSource<string>(
+			var tcs = new TaskCompletionSource<string>( // TaskCreationOptions.AttachedToParent | 
 				mode == ConsumeMode.ParallelWithBufferCopy ? TaskCreationOptions.RunContinuationsAsynchronously : TaskCreationOptions.None);
 
 			var writer = AmqpChannelLevelFrameWriter.BasicConsume(
@@ -326,6 +327,8 @@ namespace RabbitMqNext.Io
 				writer,
 				reply: (channel, classMethodId, error) =>
 				{
+					Console.WriteLine("< BasicConsumeOk  " + queue);
+
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
 					{
 						_connectionIo._frameReader.Read_BasicConsumeOk((consumerTag2) =>
