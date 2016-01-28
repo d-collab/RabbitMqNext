@@ -34,6 +34,23 @@
 
 		public async Task RunReplyAction(ushort channel, int classMethodId, AmqpError error)
 		{
+#if DEBUG
+			if (classMethodId != 0)
+			{
+				// Confirm reply
+				var classId = classMethodId >> 16;
+				var methodId = classMethodId & 0x0000FFFF;
+
+				var matchesClass = (ClassId == classId);
+				var matchesMethod = MethodId == (methodId - 1);
+
+				if (!matchesClass || !matchesMethod)
+				{
+					Console.WriteLine("[channel " + channel + "] Command for " + ClassId + "|" + MethodId + " did not match reply " + classId + "|" + methodId);
+				}
+			}
+#endif
+
 			if (this.ReplyAction != null)
 			{
 				await this.ReplyAction(channel, classMethodId, error);
