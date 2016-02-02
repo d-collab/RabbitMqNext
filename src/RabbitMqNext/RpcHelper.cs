@@ -156,6 +156,16 @@ namespace RabbitMqNext
 			DrainPendingCalls();
 		}
 
+		/*
+		private TaskSlim<MessageDelivery> ReleaseSpot(string correlationId, out uint correlationIndex)
+		{
+			correlationIndex = UInt32.Parse(correlationId);
+			var pos = correlationIndex % _maxConcurrentCalls;
+
+			return Interlocked.Exchange(ref _pendingCalls[pos], null);
+		}
+		*/
+
 		private void DrainPendingCalls()
 		{
 			foreach (var pendingCall in _pendingCalls)
