@@ -21,6 +21,7 @@ namespace RabbitMqNext
 		private readonly int _timeoutInMs;
 		private readonly long _timeoutInTicks;
 		private readonly Timer _timeoutTimer;
+		private readonly SemaphoreSlim _semaphoreSlim;
 
 		public RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 6000)
 		{
@@ -31,6 +32,8 @@ namespace RabbitMqNext
 			_mode = mode;
 			_timeoutInMs = timeoutInMs;
 			_timeoutInTicks = timeoutInMs * TimeSpan.TicksPerMillisecond;
+
+			_semaphoreSlim = new SemaphoreSlim(maxConcurrentCalls, maxConcurrentCalls);
 
 			// the impl keeps a timer pool so this is light and efficient
 			// _timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs, timeoutInMs);
@@ -70,16 +73,22 @@ namespace RabbitMqNext
 				taskLight.SetResult(delivery);
 			}
 
+			_semaphoreSlim.Release();
+
 			return Task.CompletedTask;
 		}
 
 		public TaskSlim<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			_semaphoreSlim.Wait();
+
 			var task = _taskResultPool.GetObject();
 
 			uint correlationId;
 			if (!SecureSpotAndUniqueCorrelationId(task, out correlationId))
 			{
+				_semaphoreSlim.Release();
+
 				Console.WriteLine("max calls reached!");
 				task.SetException(new Exception("reached max calls"));
 				return task;
@@ -100,6 +109,11 @@ namespace RabbitMqNext
 			}
 			catch (Exception ex)
 			{
+				// release spot
+				Interlocked.Exchange(ref _pendingCalls[correlationId % _maxConcurrentCalls], null);
+
+				_semaphoreSlim.Release();
+
 				task.SetException(ex);
 			}
 
