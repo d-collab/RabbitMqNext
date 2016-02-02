@@ -274,7 +274,7 @@
 //					}
 
 #pragma warning disable 4014
-					Task.Factory.StartNew(() =>
+					Task.Factory.StartNew(async () =>
 					// ThreadPool.UnsafeQueueUserWorkItem((param) =>
 #pragma warning restore 4014
 					{
@@ -283,9 +283,9 @@
 							using (delivery.stream)
 							{
 								if (cb != null)
-									cb(delivery);
+									await cb(delivery);
 								else
-									consumerInstance.Consume(delivery);
+									await consumerInstance.Consume(delivery);
 							}
 						}
 						catch (Exception e)
