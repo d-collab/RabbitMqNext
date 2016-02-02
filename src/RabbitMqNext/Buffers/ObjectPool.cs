@@ -49,7 +49,7 @@
 				}
 			}
 
-			Console.WriteLine("Pool " + typeof(T).Name + " run out of items. creating new one ");
+			// Console.WriteLine("Pool " + typeof(T).Name + " run out of items. creating new one ");
 			return _objectGenerator();
 		}
 
@@ -68,7 +68,7 @@
 				}
 			}
 
-			Console.WriteLine("Pool " + typeof(T).Name + " PutObject: no empty slots ");
+			// Console.WriteLine("Pool " + typeof(T).Name + " PutObject: no empty slots ");
 
 //			_semaphore.Release();
 		}
