@@ -101,13 +101,10 @@ namespace RabbitMqNext.Io
 		{
 			if (!initiatedByServer)
 			{
-				while (true)
+				while (!_commandOutbox.IsEmpty && !_socketHolder.IsClosed)
 				{
-					if (_socketHolder.StillSending)
-					{
-						Thread.Sleep(1000); // give it some time to finish writing to the socket (if it's open)
-					}
-					break;
+					// give it some time to finish writing to the socket (if it's open)
+					Thread.Sleep(250); 
 				}
 			}
 

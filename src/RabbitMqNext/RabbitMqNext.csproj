@@ -56,6 +56,7 @@
     <Compile Include="ChannelApiExtensions.cs" />
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="Internals\RingBuffer\Padding.cs" />
+    <Compile Include="Internals\RingBuffer\SocketStreamWriterAdapter.cs" />
     <Compile Include="Io\AmqpIOBase.cs" />
     <Compile Include="Channel.cs" />
     <Compile Include="Io\ChannelIO.cs" />

@@ -19,12 +19,12 @@ namespace RabbitMqNext.Internals
 	public class SocketHolder
 	{
 		private readonly CancellationToken _token;
-		private readonly ByteRingBuffer _inputBuffer, _outputBuffer;
-		private readonly RingBufferStreamAdapter _inputRingBufferStream, _outputRingBufferStream;
+		private readonly ByteRingBuffer _inputBuffer; //, _outputBuffer;
+		private readonly RingBufferStreamAdapter _inputRingBufferStream; //_outputRingBufferStream;
 
 		private Socket _socket;
 
-		private SocketConsumer _socketConsumer;
+		private SocketStreamWriterAdapter _socketConsumer;
 		private SocketProducer _socketProducer;
 		private Action _notifyWhenClosed;
 
@@ -39,22 +39,22 @@ namespace RabbitMqNext.Internals
 			_token = token;
 
 			_inputBuffer = new ByteRingBuffer(token);
-			_outputBuffer = new ByteRingBuffer(token);
+//			_outputBuffer = new ByteRingBuffer(token);
 
 			_inputRingBufferStream = new RingBufferStreamAdapter(_inputBuffer);
-			_outputRingBufferStream = new RingBufferStreamAdapter(_outputBuffer);
+//			_outputRingBufferStream = new RingBufferStreamAdapter(_outputBuffer);
 		}
 
-		public bool StillSending
+		public bool IsClosed
 		{
-			get { return _socketIsClosed == 0 && _outputBuffer.HasUnreadContent; }
+			get { return _socketIsClosed == 1; } //&& _outputBuffer.HasUnreadContent; }
 		}
 
 		// Should be called on termination, no chance of reusing it afterwards
 		public void Dispose()
 		{
 			_inputRingBufferStream.Dispose();
-			_outputRingBufferStream.Dispose();
+			// _outputRingBufferStream.Dispose();
 
 			if (_socket != null)
 			{
@@ -118,14 +118,14 @@ namespace RabbitMqNext.Internals
 			_notifyWhenClosed = notifyWhenClosed;
 
 			// WriteLoop
-			_socketConsumer = new SocketConsumer(_socket, _outputBuffer, _token, _index);
+			_socketConsumer = new SocketStreamWriterAdapter(_socket, _token);
 			_socketConsumer.OnNotifyClosed += OnSocketClosed;
 
 			// ReadLoop
 			_socketProducer = new SocketProducer(_socket, _inputBuffer, _token, _index);
 			_socketProducer.OnNotifyClosed += OnSocketClosed;
 
-			Writer = new InternalBigEndianWriter(_outputRingBufferStream);
+			Writer = new InternalBigEndianWriter(_socketConsumer);
 			Reader = new InternalBigEndianReader(_inputRingBufferStream);
 //
 //			_socketConsumer.Start();
