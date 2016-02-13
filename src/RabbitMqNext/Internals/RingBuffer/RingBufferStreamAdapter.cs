@@ -30,6 +30,10 @@
 			// Note: fills up the buffer or hangs
 			// return _consumer.Read(buffer, offset, count, fillBuffer: true);
 			var read = _ringBuffer.Read(buffer, offset, count, fillBuffer: false);
+			if (read == 0)
+			{
+				return _ringBuffer.Read(buffer, offset, count, fillBuffer: true);	
+			}
 			return read;
 		}
 		
