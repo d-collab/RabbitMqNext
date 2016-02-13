@@ -15,6 +15,8 @@ namespace RabbitMqNext.Internals
 		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(1024 * 15, 20);
 		private readonly byte[] _smallBuffer = new byte[300];
 
+		private const bool InternStrings = true;
+
 		public uint? FrameMaxSize { get; set; }
 
 		public AmqpPrimitivesReader(InternalBigEndianReader reader)
@@ -58,6 +60,10 @@ namespace RabbitMqNext.Internals
 
 			_reader.FillBufferWithLock(_smallBuffer, byteCount, reverse: false);
 			var str = Encoding.UTF8.GetString(_smallBuffer, 0, byteCount);
+			if (InternStrings)
+			{
+				return String.Intern(str);
+			}
 			return str;
 		}
 
@@ -71,6 +77,10 @@ namespace RabbitMqNext.Internals
 			{
 				_reader.FillBufferWithLock(buffer, byteCount, reverse: false);
 				var str = Encoding.UTF8.GetString(buffer, 0, byteCount);
+				if (InternStrings)
+				{
+					return String.Intern(str);
+				}
 				return str;
 			}
 			finally
