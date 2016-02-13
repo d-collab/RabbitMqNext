@@ -264,7 +264,7 @@
 					if (mode == ConsumeMode.ParallelWithBufferCopy)
 					{
 						var bufferCopy = BufferUtil.Copy(stream as RingBufferStreamAdapter, (int)bodySize);
-						var memStream = new MemoryStream(bufferCopy, writable: false);
+						var memStream = new MemoryStream(bufferCopy, 0, bodySize, writable: false);
 						delivery.stream = memStream;
 					}
 //					else if (mode == ConsumeMode.ParallelWithReadBarrier)
