@@ -27,73 +27,98 @@
 		internal State _state;
 
 		protected readonly CancellationToken _cancellationToken;
-//		protected readonly WaitingStrategy _waitingStrategy;
 
-		protected readonly AutoResetSuperSlimLock _read = new AutoResetSuperSlimLock();
-		protected readonly AutoResetSuperSlimLock _write = new AutoResetSuperSlimLock();
+		protected readonly AutoResetSuperSlimLock _readLock = new AutoResetSuperSlimLock();
+		protected readonly AutoResetSuperSlimLock _writeLock = new AutoResetSuperSlimLock();
 		
-		// max gates = 256
-//		const int MaxGates = 32; 
-//		private readonly ReadingGate[] _gates = new ReadingGate[MaxGates];
-//		private volatile int _gateState = 0; // 11111111 11111111 11111111 11111111
+		const int MaxGates = 64; 
+		private readonly ReadingGate[] _gates = new ReadingGate[MaxGates];
+		private long _gateState = 0L; // 11111111 11111111 11111111 11111111
+
+		private readonly SemaphoreSlim _gateSemaphoreSlim = new SemaphoreSlim(MaxGates, MaxGates);
 
 		// adds to the current position
-//		internal ReadingGate AddReadingGate(uint length)
-//		{
-//			if (_gateState == -1) throw new Exception("Max gates reached");
-//
-//			var gate = new ReadingGate() { gpos = _readP._readPosition, length = length };
-//
-//			AtomicSecureIndexPosAndStore(gate);
-//
-//			return gate;
-//		}
-//
-//		internal void RemoveReadingGate(ReadingGate gate)
-//		{
-//			if (gate.inEffect == false) return;
-//			gate.inEffect = false;
-//			AtomicRemoveAtIndex(gate.index);
-//			// if waiting for write coz of gate, given them another chance
-//			_waitingStrategy.SignalReadDone();
-//		}
-//
-//		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-//		internal uint? GetMinReadingGate()
-//		{
-//			uint minGatePos = uint.MaxValue;
-//
-//			int oldGateState = 0;
-//			do
-//			{
-//				oldGateState = _gateState;
-//				if (oldGateState == 0) return null;
-//
-//				for (int i = 0; i < MaxGates; i++)
-//				{
-//					if ((oldGateState & (1 << i)) != 0)
-//					{
-//						var el = _gates[i];
-//						if (el == null) // race
-//							continue;
-//						if (el.inEffect) // otherwise ignored
-//						{
-//							if (minGatePos > el.gpos)
-//								minGatePos = el.gpos;
-//						}
-//					}
-//				}
-//				// if it changed in the meantime, we need to recalculate
-//			} while (oldGateState != _gateState); 
-//
-//			return minGatePos;
-//		}
+		internal bool TryAddReadingGate(uint length, out ReadingGate gate)
+		{
+			_gateSemaphoreSlim.Wait();
+
+			gate = null;
+
+			if (Volatile.Read(ref _gateState) == -1L)
+			{
+				return false;
+			}
+
+			gate = new ReadingGate
+			{
+				inEffect = true,
+				gpos = _state._readPosition,
+				length = length
+			};
+
+			AtomicSecureIndexPosAndStore(gate);
+
+			return true;
+		}
+
+		internal void RemoveReadingGate(ReadingGate gate)
+		{
+			if (gate.inEffect == false) return;
+			gate.inEffect = false;
+			AtomicRemoveAtIndex(gate.index);
+			// if waiting for write coz of gate, given them another chance
+			// _waitingStrategy.SignalReadDone();
+
+			_gateSemaphoreSlim.Release();
+
+			_readLock.Set();
+		}
 
 #if !DEBUG
 		// [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
-		internal int InternalGetReadyToReadEntries(int desiredCount, out int available, 
-			ReadingGate fromGate = null)
+		internal uint? GetMinReadingGate()
+		{
+			uint minGatePos = uint.MaxValue;
+
+			long oldGateState = 0;
+			bool hadSomeMin = false;
+			
+			do
+			{
+				oldGateState = Volatile.Read(ref _gateState);
+				if (oldGateState == 0L) return null;
+
+				for (int i = 0; i < MaxGates; i++)
+				{
+					if ((oldGateState & (1L << i)) != 0L)
+					{
+						var el = _gates[i];
+						if (el == null) // race
+							continue;
+						
+						if (el.inEffect) // otherwise ignored
+						{
+							if (minGatePos > el.gpos)
+							{
+								hadSomeMin = true;
+								minGatePos = el.gpos;
+							}
+						}
+					}
+				}
+				// if it changed in the meantime, we need to recalculate
+			} while (oldGateState != Volatile.Read(ref _gateState));
+
+			if (!hadSomeMin) return null;
+
+			return minGatePos;
+		}
+
+#if !DEBUG
+		// [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+		internal int InternalGetReadyToReadEntries(int desiredCount, out int available, ReadingGate fromGate = null)
 		{
 			uint bufferSize = _state._bufferSize;
 
@@ -112,13 +137,13 @@
 
 			uint entriesFree;
 
-//			if (fromGate != null)
-//			{
-//				// Console.WriteLine("Reading from gate. Real readpos " + readPos + " replaced by " + fromGate.pos);
-//				readPos = fromGate.gpos & (bufferSize - 1);
-//				// entriesFree = fromGate.length;
-//				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
-//			}
+			if (fromGate != null)
+			{
+				// Console.WriteLine("Reading from gate. Real readCursor " + readCursor + " replaced by " + fromGate.gpos);
+				readPos = fromGate.gpos & (bufferSize - 1);
+				// entriesFree = fromGate.length;
+				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
+			}
 
 			// else
 			{
@@ -143,18 +168,15 @@
 			}
 #endif
 
-//			uint available;
-//			if (fromGate != null)
-//			{
-//				available = Math.Min(entriesFree, (uint) desiredCount);
-//			}
-//			else
+			if (fromGate != null)
+			{
+				available = InternalMin(entriesFree, desiredCount);
+			}
+			else
 			{
 				available = InternalMin(entriesFree, desiredCount);
 			}
 
-			// return available;
-			// return new AvailableAndPos() { available = (int)available, position = (int)readPos };
 			return (int) readPos;
 		}
 
@@ -185,16 +207,16 @@
 			uint entriesFree = 0;
 
 			// damn gates. 
-//			var minGate = GetMinReadingGate();
-//			if (minGate.HasValue) 
-//			{
-//				// get min gate index, which becomes essentially the barrier to continue to write
-//				// what we do is to hide from this operation the REAL readpos
-//
-//				// Console.WriteLine("Got gate in place. real readPos " + readPos + " becomes " + minGate.Value);
-//
-//				readPos = minGate.Value & (buffersize - 1); // now the write cannot move forward
-//			} 
+			var minGate = GetMinReadingGate();
+			if (minGate.HasValue) 
+			{
+				// get min gate index, which becomes essentially the barrier to continue to write
+				// what we do is to hide from this operation the REAL readpos
+
+				// Console.WriteLine("Got gate in place. real readCursor " + readCursor + " becomes " + minGate.Value);
+
+				readPos = minGate.Value & (buffersize - 1); // now the write cannot move forward
+			} 
 
 			var writeWrapped = readPos > writePos;
 
@@ -270,62 +292,63 @@
 			return v2;
 		}
 
-//		private void AtomicSecureIndexPosAndStore(ReadingGate gate)
-//		{
-//			while (true)
-//			{
-//				var curState = _gateState; // vol read
-//				var emptyIndex = -1;
-//
-//				// find empty spot
-//				for (var i = 0; i < MaxGates; i++)
-//				{
-//					int mask = 1 << i;
-//					if ((curState & mask) == 0)
-//					{
-//						emptyIndex = i; 
-//						break;
-//					}
-//				}
-//
-//				if (emptyIndex == -1) continue; // try again from the beginning
-//
-//				int newState = curState | (1 << emptyIndex);
-//
-//				gate.index = emptyIndex;
-//
-//#pragma warning disable 420
-//				if (Interlocked.CompareExchange(ref _gateState, newState, curState) != curState)
-//#pragma warning restore 420
-//				{
-//					// state was changed. try again
-//					continue;
-//				}
-//
-//				_gates[emptyIndex] = gate; // race between changing the state and saving to array.
-//				break;
-//			}
-//		}
+		private void AtomicSecureIndexPosAndStore(ReadingGate gate)
+		{
+			while (true)
+			{
+				long curState = Volatile.Read(ref _gateState); 
 
-//		private void AtomicRemoveAtIndex(int index)
-//		{
-//			while (true)
-//			{
-//				var curState = _gateState; // vol read
-//				var mask = ~(1 << index);
-//				int newState = curState & mask;
-//
-//#pragma warning disable 420
-//				if (Interlocked.CompareExchange(ref _gateState, newState, curState) != curState)
-//#pragma warning restore 420
-//				{
-//					// state was changed. try again
-//					continue;
-//				}
-//
-//				break;
-//			}
-//		}
+				var emptyIndex = -1;
+
+				// find empty spot
+				for (int i = 0; i < MaxGates; i++)
+				{
+					long mask = 1L << i;
+					if ((curState & mask) == 0)
+					{
+						emptyIndex = i; 
+						break;
+					}
+				}
+
+				if (emptyIndex == -1) continue; // try again from the beginning
+
+				long newState = curState | (1L << emptyIndex);
+
+				gate.index = emptyIndex;
+
+#pragma warning disable 420
+				if (Interlocked.CompareExchange(ref _gateState, newState, curState) != curState)
+#pragma warning restore 420
+				{
+					// state was changed. try again
+					continue;
+				}
+
+				_gates[emptyIndex] = gate; // race between changing the state and saving to array.
+				break;
+			}
+		}
+
+		private void AtomicRemoveAtIndex(int index)
+		{
+			while (true)
+			{
+				var curState = Volatile.Read(ref _gateState); // vol read
+				var mask = ~(1 << index);
+				long newState = curState & mask;
+
+#pragma warning disable 420
+				if (Interlocked.CompareExchange(ref _gateState, newState, curState) != curState)
+#pragma warning restore 420
+				{
+					// state was changed. try again
+					continue;
+				}
+
+				break;
+			}
+		}
 
 		// For unit testing only
 
@@ -333,6 +356,5 @@
 		internal uint GlobalWritePos { get { return _state._writePosition; } }
 		internal uint LocalReadPos { get { return _state._readPosition % _state._bufferSize; } }
 		internal uint LocalWritePos { get { return _state._writePosition % _state._bufferSize; } }
-
 	}
 }

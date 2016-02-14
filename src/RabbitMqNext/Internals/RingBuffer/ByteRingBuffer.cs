@@ -94,8 +94,6 @@
 			int totalwritten = 0;
 			while (totalwritten < count)
 			{
-//				var available = (int) this.InternalGetReadyToWriteEntries(count - totalwritten);
-//				var available = (int) availPos.available;
 				int available;
 				var writePos = this.InternalGetReadyToWriteEntries(count - totalwritten, out available);
 
@@ -103,13 +101,11 @@
 				{
 					if (writeAll)
 					{
-						_read.Wait();
+						_readLock.Wait();
 						continue;
 					}
 					break;
 				}
-
-				// int writePos = (int) availPos.position;
 
 				Buffer.BlockCopy(buffer, offset + totalwritten, _buffer, writePos + _bufferPadding, available);
 
@@ -120,7 +116,7 @@
 				_state._writePosition = newWritePos;      // volative write
 				_state._writePositionCopy = newWritePos;  // + read
 
-				_write.Set(); // signal - if someone is waiting
+				_writeLock.Set(); // signal - if someone is waiting
 			}
 
 			return totalwritten;
@@ -135,24 +131,18 @@
 
 		public void WriteBufferFromSocketRecv(Socket socket /*, bool asyncRecv = false*/)
 		{
-			// AvailableAndPos availPos;
 			int available = 0;
 			int writePos = 0;
 
 			while (true)
 			{
-//				availPos = this.InternalGetReadyToWriteEntries(BufferSize);
-//				available = availPos.available;
-
 				writePos = this.InternalGetReadyToWriteEntries(BufferSize, out available);
 
 				if (available == 0)
-					_read.Wait();
+					_readLock.Wait();
 				else
 					break;
 			}
-
-//			int writePos = availPos.position;
 
 			int received = 0;
 			{
@@ -163,7 +153,7 @@
 			_state._writePosition = newWritePos;   // volative write
 			_state._writePositionCopy = newWritePos;
 
-			_write.Set(); // signal - if someone is waiting
+			_writeLock.Set(); // signal - if someone is waiting
 		}
 
 		public int Read(byte[] buffer, int offset, int count, bool fillBuffer = false, ReadingGate fromGate = null)
@@ -177,21 +167,18 @@
 
 			while (totalRead < count)
 			{
-				// AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead, fromGate);
 				int available;
 				int readPos = this.InternalGetReadyToReadEntries(count - totalRead, out available, fromGate);
-//				var available = (int) availPos.available;
 				if (available == 0)
 				{
 					if (fillBuffer)
 					{
-						_write.Wait();
+						_writeLock.Wait();
 						continue;
 					} 
 					break;
 				}
 
-//				int readPos = (int) availPos.position;
 				int dstOffset = offset + totalRead;
 
 				Buffer.BlockCopy(_buffer, readPos + _bufferPadding, buffer, dstOffset, available);
@@ -211,7 +198,7 @@
 					_state._readPositionCopy = newReadPos;
 				}
 
-				_read.Set(); // signal - if someone is waiting
+				_readLock.Set(); // signal - if someone is waiting
 			}
 
 			return totalRead;
@@ -219,9 +206,6 @@
 
 		public void ReadBufferIntoSocketSend(Socket socket/*, bool asyncSend*/)
 		{
-//			int totalRead = 0;
-
-			// while (totalRead == 0)
 			while(true)
 			{
 				int totalRead;
@@ -230,7 +214,7 @@
 				// buffer is empty.. return and expect to be called again when something gets written
 				if (totalRead == 0) 
 				{
-					_write.Wait();
+					_writeLock.Wait();
 					continue;
 				}
 
@@ -246,7 +230,7 @@
 					_state._readPosition = newReadPos; // volative write
 					_state._readPositionCopy = newReadPos;
 
-					_read.Set(); // signal - if someone is waiting
+					_readLock.Set(); // signal - if someone is waiting
 				}
 
 				break;
@@ -260,16 +244,13 @@
 
 			while (totalSkipped < offset)
 			{
-//				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(offset - totalSkipped);
-//				var available = availPos.available;
-
 				int available;
 				int readPos = this.InternalGetReadyToReadEntries(offset - totalSkipped, out available, null);
 
 				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
 				if (available == 0)
 				{
-					_write.Wait();
+					_writeLock.Wait();
 					continue;
 				}
 
@@ -279,7 +260,7 @@
 				_state._readPosition = newReadPos; // volative write
 				_state._readPositionCopy = newReadPos;
 
-				_read.Set(); // signal - if someone is waiting
+				_readLock.Set(); // signal - if someone is waiting
 			}
 
 			return Task.CompletedTask;
@@ -290,8 +271,8 @@
 		public void Dispose()
 		{
 			// _waitingStrategy.Dispose();
-			_read.Dispose();
-			_write.Dispose();
+			_readLock.Dispose();
+			_writeLock.Dispose();
 		}
 	}
 }

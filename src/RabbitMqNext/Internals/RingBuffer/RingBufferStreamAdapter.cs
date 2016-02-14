@@ -56,12 +56,9 @@
 		{
 			if (origin != SeekOrigin.Current) throw new NotSupportedException("Only from current is supported");
 
-			// checked
-			{
-				var offsetAsInt = (int)offset;
-				_ringBuffer.Skip(offsetAsInt);
-				return offset;
-			}
+			var offsetAsInt = (int)offset;
+			_ringBuffer.Skip(offsetAsInt); // this may block waiting for buffer available. 
+			return offset;
 		}
 
 		public override void SetLength(long value)
