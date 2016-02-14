@@ -34,11 +34,11 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		private readonly object _lock = new object();
 		
-		private static readonly int ProcCounter = Environment.ProcessorCount;
-
-		private const int HowManySpinBeforeYield = 10;
-		private const int HowManyYieldEverySleep0 = 5;
-		private const int HowManyYieldEverySleep1 = 20;
+//		private static readonly int ProcCounter = Environment.ProcessorCount;
+//
+//		private const int HowManySpinBeforeYield = 10;
+//		private const int HowManyYieldEverySleep0 = 5;
+//		private const int HowManyYieldEverySleep1 = 20;
 		private const int SpinCount = 10;
 
 		public AutoResetSuperSlimLock(bool initialState = false)
