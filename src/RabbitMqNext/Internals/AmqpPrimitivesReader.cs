@@ -162,11 +162,6 @@ namespace RabbitMqNext.Internals
 			return value;
 		}
 
-//		public Task<uint> ReadLong()
-//		{
-//			return _reader.ReadUInt32();
-//		}
-
 		public uint ReadLong()
 		{
 			return _reader.ReadUInt32();

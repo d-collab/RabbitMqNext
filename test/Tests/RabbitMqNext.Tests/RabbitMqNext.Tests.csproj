@@ -65,8 +65,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AmqpPrimitivesWriterTestCase.cs" />
     <Compile Include="AutoResetSuperSlimLockTestCase.cs" />
     <Compile Include="ObjectPoolTestCase.cs" />
+    <Compile Include="RingBuffer2OpsTestCase.cs" />
     <Compile Include="TaskSlimTestCase.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

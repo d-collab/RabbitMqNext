@@ -3,7 +3,7 @@ namespace RabbitMqNext
 	public enum ConsumeMode
 	{
 		SingleThreaded,
-//		ParallelWithReadBarrier,
+		ParallelWithReadBarrier,
 		ParallelWithBufferCopy
 	}
 }
