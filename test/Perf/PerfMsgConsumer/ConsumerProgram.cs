@@ -75,7 +75,7 @@
 				}
 				catch (Exception e)
 				{
-					Console.WriteLine("   Received " + ToStr(buffer) + " __ ");
+					Console.WriteLine("   Received " + ToStr(buffer) + " __ " + delivery.stream);
 					Console.Error.WriteLine(e);
 				}
 
