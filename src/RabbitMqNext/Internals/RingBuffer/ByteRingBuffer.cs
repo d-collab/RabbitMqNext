@@ -62,7 +62,12 @@
 		public const int DefaultBufferSize = 0x80000;     //     524.288
 
 		private readonly byte[] _buffer;
-		private const int _bufferPadding = 128;
+		// private const int _bufferPadding = 128;
+		private const int _bufferPadding = 0;
+
+#if DEBUGSOCKET
+		private readonly FileStream _fsRecvWriter;
+#endif
 
 		/// <summary>
 		/// Creates with default buffer size and 
@@ -81,6 +86,12 @@
 			if (bufferSize < MinBufferSize) throw new ArgumentException("buffer must be at least " + MinBufferSize, "bufferSize");
 
 			_buffer = new byte[bufferSize + (_bufferPadding * 2)];
+
+#if DEBUGSOCKET
+			var filename = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "socketout.bin");
+			if (File.Exists(filename)) File.Delete(filename);
+			_fsRecvWriter = new FileStream(filename, FileMode.OpenOrCreate);
+#endif
 		}
 
 		// TODO: check better options: http://xoofx.com/blog/2010/10/23/high-performance-memcpy-gotchas-in-c/
@@ -144,10 +155,12 @@
 					break;
 			}
 
-			int received = 0;
-			{
-				received = socket.Receive(_buffer, _bufferPadding + writePos, available, SocketFlags.None);
-			}
+			int received = socket.Receive(_buffer, _bufferPadding + writePos, available, SocketFlags.None);
+
+#if DEBUGSOCKET
+			_fsRecvWriter.Write(_buffer, _bufferPadding + writePos, received);
+			_fsRecvWriter.Flush();
+#endif
 
 			var newWritePos = _state._writePosition + (uint)received;
 			_state._writePosition = newWritePos;   // volative write
@@ -187,8 +200,11 @@
 
 				if (fromGate != null)
 				{
-					fromGate.gpos += (uint) available;
-					fromGate.length -= (uint)available;
+					lock (fromGate)
+					{
+						fromGate.gpos += (uint)available;
+						fromGate.length -= (uint)available;
+					}
 				}
 				else
 				{
@@ -238,7 +254,7 @@
 			}
 		}
 
-		public Task Skip(int offset)
+		public Task<int> Skip(int offset)
 		{
 			int totalSkipped = 0;
 
@@ -263,7 +279,7 @@
 				_readLock.Set(); // signal - if someone is waiting
 			}
 
-			return Task.CompletedTask;
+			return Task.FromResult(totalSkipped);
 		}
 
 		public CancellationToken CancellationToken { get { return _cancellationToken; } }
