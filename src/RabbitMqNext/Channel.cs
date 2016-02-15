@@ -189,13 +189,11 @@
 			return _io.__BasicRecover(requeue);
 		}
 
-		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
+		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
 		{
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
-			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
-			await helper.Setup();
-			return helper;
+			return RpcHelper.Create(this, maxConcurrentCalls, mode);
 		}
 
 		public async Task Close()
@@ -210,14 +208,23 @@
 			this._io.Dispose();
 		}
 
-		internal async Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, bool redelivered, 
-			string exchange, string routingKey,	int bodySize, BasicProperties properties, Stream stream)
+//		internal async Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, bool redelivered,
+//			string exchange, string routingKey, int bodySize, BasicProperties properties, RingBufferStreamAdapter stream)
+//		{
+//			await DoDispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange, 
+//				routingKey, bodySize, properties, stream);
+//		}
+
+		internal async Task DispatchDeliveredMessage(
+			string consumerTag, ulong deliveryTag, bool redelivered,
+			string exchange, string routingKey, int bodySize, 
+			BasicProperties properties, RingBufferStreamAdapter ringBufferStream)
 		{
 			BasicConsumerSubscriptionInfo consumer;
 
 			if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
 			{
-				var delivery = new MessageDelivery()
+				var delivery = new MessageDelivery
 				{
 					bodySize = bodySize,
 					properties = properties,
@@ -234,9 +241,11 @@
 				{
 					// run with scissors, we're letting 
 					// the user code mess with the ring buffer in the name of performance
-					delivery.stream = stream;
+					delivery.stream = bodySize == 0 ? EmptyStream : ringBufferStream;
 
 					// upon return it's assumed the user has consumed from the stream and is done with it
+					var marker = new RingBufferPositionMarker(ringBufferStream._ringBuffer);
+
 					try
 					{
 						if (cb != null)
@@ -248,45 +257,56 @@
 					{
 						// fingers crossed the user cloned the buffer if she needs it later
 						this.Return(properties);
+
+						var totalRead = marker.LengthRead;
+						if (totalRead < bodySize)
+						{
+							checked
+							{
+								int offset = (int)(bodySize - totalRead);
+								ringBufferStream.Seek(offset, SeekOrigin.Current);
+							}
+						}
 					}
 				}
 				else 
 				{
 					// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
 
-					// since we dont have any control on how the user 
-					// will deal with the buffer we cant even re-use/use a pool, etc :-(
-
-					// Idea: split Ringbuffer consumers, create reader barrier. once they are all done, 
-					// move the read pos forward. Shouldnt be too hard to implement and 
-					// avoids the new buffer + GC and keeps the api Stream based consistently
-
 					if (mode == ConsumeMode.ParallelWithBufferCopy)
 					{
-						var bufferCopy = BufferUtil.Copy(stream as RingBufferStreamAdapter, (int)bodySize);
-						var memStream = new MemoryStream(bufferCopy, writable: false);
-						delivery.stream = memStream;
+						delivery.stream = delivery.bodySize == 0 ? 
+							EmptyStream :
+							new MemoryStream(BufferUtil.Copy(ringBufferStream, (int)bodySize), 0, bodySize, writable: false);
 					}
-//					else if (mode == ConsumeMode.ParallelWithReadBarrier)
-//					{
-//						var readBarrier = new RingBufferStreamReadBarrier(stream as RingBufferStreamAdapter, delivery.bodySize);
-//						delivery.stream = readBarrier;
-//					}
+					else if (mode == ConsumeMode.ParallelWithReadBarrier)
+					{
+						// create reader barrier. once they are all done, 
+						// move the read pos forward. Shouldnt be too hard to implement and 
+						// avoids the new buffer + GC and keeps the api Stream based consistently
 
-#pragma warning disable 4014
+						delivery.stream = delivery.bodySize == 0 ? 
+							EmptyStream : 
+							new RingBufferStreamReadBarrier(ringBufferStream, delivery.bodySize);
+
+						if (delivery.bodySize != 0)
+						{
+							var skipped = await ringBufferStream._ringBuffer.Skip(delivery.bodySize);
+							if (skipped != delivery.bodySize)
+							{
+								Console.Error.WriteLine("Skipped " + skipped + " but needed to skip " + delivery.bodySize);
+							}
+						}
+					}
+
 					Task.Factory.StartNew(async () =>
-					// ThreadPool.UnsafeQueueUserWorkItem((param) =>
-#pragma warning restore 4014
 					{
 						try
 						{
-							using (delivery.stream)
-							{
-								if (cb != null)
-									await cb(delivery);
-								else
-									await consumerInstance.Consume(delivery);
-							}
+							if (cb != null)
+								await cb(delivery);
+							else
+								await consumerInstance.Consume(delivery);
 						}
 						catch (Exception e)
 						{
@@ -295,14 +315,57 @@
 						finally
 						{
 							this.Return(properties);
-						}
-					}, TaskCreationOptions.PreferFairness);
 
+							if (delivery.bodySize != 0)
+								delivery.stream.Dispose();
+						}
+					}, TaskCreationOptions.PreferFairness)
+						.Unwrap()
+						.IntentionallyNotAwaited();
 				}
 			}
 			else
 			{
 				// received msg but nobody was subscribed to get it (?) TODO: log it at least
+			}
+		}
+
+		internal async Task DispatchBasicReturn(ushort replyCode, string replyText, 
+			string exchange, string routingKey, int bodySize, 
+			BasicProperties properties, RingBufferStreamAdapter ringBufferStream)
+		{
+			var ev = this.MessageUndeliveredHandler;
+			var marker = new RingBufferPositionMarker(ringBufferStream._ringBuffer);
+
+			try
+			{
+				if (ev != null)
+				{
+					var inst = new UndeliveredMessage
+					{
+						bodySize = bodySize,
+						stream = bodySize == 0 ? EmptyStream : ringBufferStream,
+						properties = properties,
+						routingKey = routingKey,
+						replyCode = replyCode,
+						replyText = replyText,
+						exchange = exchange
+					};
+
+					await ev(inst);
+				}
+			}
+			finally
+			{
+				var totalRead = marker.LengthRead;
+				if (totalRead < bodySize)
+				{
+					checked
+					{
+						int offset = (int)(bodySize - totalRead);
+						ringBufferStream.Seek(offset, SeekOrigin.Current); // may block!
+					}
+				}
 			}
 		}
 
@@ -334,30 +397,6 @@
 			}
 		}
 
-		internal async Task DispatchBasicReturn(ushort replyCode, string replyText, string exchange, string routingKey, 
-												int bodySize, BasicProperties properties, Stream stream)
-		{
-			var ev = this.MessageUndeliveredHandler;
-
-			// var consumed = 0;
-
-			if (ev != null)
-			{
-				var inst = new UndeliveredMessage()
-				{
-					bodySize = bodySize,
-					stream = stream,
-					properties = properties,
-					routingKey = routingKey,
-					replyCode = replyCode,
-					replyText = replyText,
-					exchange = exchange
-				};
-
-				await ev(inst);
-			}
-		}
-
 		internal Task EnableConfirmation(int maxunconfirmedMessages)
 		{
 			if (_confirmationKeeper != null) throw new Exception("Already set");
@@ -383,5 +422,7 @@
 			public Func<MessageDelivery, Task> Callback;
 			public QueueConsumer _consumer;
 		}
+
+		private static readonly Stream EmptyStream = new MemoryStream(new byte[0], writable: false);
 	}
 }

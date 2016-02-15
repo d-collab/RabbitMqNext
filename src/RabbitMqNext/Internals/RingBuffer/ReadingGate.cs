@@ -2,7 +2,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 {
 	internal class ReadingGate
 	{
-		public volatile bool inEffect = true;
+		public volatile bool inEffect;
 		public volatile uint gpos, length;
 		public int index;
 

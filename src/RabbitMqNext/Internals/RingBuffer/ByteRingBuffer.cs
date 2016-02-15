@@ -55,31 +55,32 @@
 	internal class ByteRingBuffer : BaseRingBuffer, IDisposable // Stream2
 	{
 		public const int MinBufferSize = 32;
-		public const int DefaultBufferSize = 0x100000;     //  1.048.576 1mb
-		// private const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
-		// private const int DefaultBufferSize = 0x20000;   //    131.072
-		// private const int DefaultBufferSize = 0x10000;   //     65.536
+		// public const int DefaultBufferSize = 0x100000;  //  1.048.576 1mb
+		// public const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
+		// public const int DefaultBufferSize = 0x20000;   //    131.072
+		// public const int DefaultBufferSize = 0x10000;   //     65.536
+		public const int DefaultBufferSize = 0x80000;     //     524.288
 
 		private readonly byte[] _buffer;
+		private const int _bufferPadding = 128;
 
 		/// <summary>
 		/// Creates with default buffer size and 
 		/// default locking strategy
 		/// </summary>
 		/// <param name="cancellationToken"></param>
-		public ByteRingBuffer(CancellationToken cancellationToken) : this(cancellationToken, DefaultBufferSize, new LockWaitingStrategy(cancellationToken))
+		public ByteRingBuffer(CancellationToken cancellationToken) : this(cancellationToken, DefaultBufferSize)
 		{
 		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		public ByteRingBuffer(CancellationToken cancellationToken, int bufferSize, WaitingStrategy waitingStrategy)
-			: base(cancellationToken, bufferSize, waitingStrategy)
+		public ByteRingBuffer(CancellationToken cancellationToken, int bufferSize) : base(cancellationToken, bufferSize)
 		{
 			if (bufferSize < MinBufferSize) throw new ArgumentException("buffer must be at least " + MinBufferSize, "bufferSize");
 
-			_buffer = new byte[bufferSize];
+			_buffer = new byte[bufferSize + (_bufferPadding * 2)];
 		}
 
 		// TODO: check better options: http://xoofx.com/blog/2010/10/23/high-performance-memcpy-gotchas-in-c/
@@ -93,9 +94,6 @@
 			int totalwritten = 0;
 			while (totalwritten < count)
 			{
-				// AvailableAndPos availPos = this.InternalGetReadyToWriteEntries(count - totalwritten);
-//				var available = (int) this.InternalGetReadyToWriteEntries(count - totalwritten);
-//				var available = (int) availPos.available;
 				int available;
 				var writePos = this.InternalGetReadyToWriteEntries(count - totalwritten, out available);
 
@@ -103,21 +101,22 @@
 				{
 					if (writeAll)
 					{
-						_waitingStrategy.WaitForRead();
+						_readLock.Wait();
 						continue;
 					}
 					break;
 				}
 
-				// int writePos = (int) availPos.position;
-
-				Buffer.BlockCopy(buffer, offset + totalwritten, _buffer, writePos, available);
+				Buffer.BlockCopy(buffer, offset + totalwritten, _buffer, writePos + _bufferPadding, available);
 
 				totalwritten += available;
 
-				_writeP._writePosition += (uint)available; // volative write
+				
+				var newWritePos = _state._writePosition + (uint) available;
+				_state._writePosition = newWritePos;      // volative write
+				_state._writePositionCopy = newWritePos;  // + read
 
-				_waitingStrategy.SignalWriteDone(); // signal - if someone is waiting
+				_writeLock.Set(); // signal - if someone is waiting
 			}
 
 			return totalwritten;
@@ -132,33 +131,29 @@
 
 		public void WriteBufferFromSocketRecv(Socket socket /*, bool asyncRecv = false*/)
 		{
-			// AvailableAndPos availPos;
 			int available = 0;
 			int writePos = 0;
 
 			while (true)
 			{
-//				availPos = this.InternalGetReadyToWriteEntries(BufferSize);
-//				available = availPos.available;
-
 				writePos = this.InternalGetReadyToWriteEntries(BufferSize, out available);
 
 				if (available == 0)
-					_waitingStrategy.WaitForRead();
+					_readLock.Wait();
 				else
 					break;
 			}
 
-//			int writePos = availPos.position;
-
 			int received = 0;
 			{
-				received = socket.Receive(_buffer, writePos, available, SocketFlags.None);
+				received = socket.Receive(_buffer, _bufferPadding + writePos, available, SocketFlags.None);
 			}
 
-			_writeP._writePosition += (uint)received; // volative write
+			var newWritePos = _state._writePosition + (uint)received;
+			_state._writePosition = newWritePos;   // volative write
+			_state._writePositionCopy = newWritePos;
 
-			_waitingStrategy.SignalWriteDone(); // signal - if someone is waiting
+			_writeLock.Set(); // signal - if someone is waiting
 		}
 
 		public int Read(byte[] buffer, int offset, int count, bool fillBuffer = false, ReadingGate fromGate = null)
@@ -172,24 +167,21 @@
 
 			while (totalRead < count)
 			{
-				// AvailableAndPos availPos = this.InternalGetReadyToReadEntries(count - totalRead, fromGate);
 				int available;
 				int readPos = this.InternalGetReadyToReadEntries(count - totalRead, out available, fromGate);
-//				var available = (int) availPos.available;
 				if (available == 0)
 				{
 					if (fillBuffer)
 					{
-						_waitingStrategy.WaitForWrite();
+						_writeLock.Wait();
 						continue;
 					} 
 					break;
 				}
 
-//				int readPos = (int) availPos.position;
 				int dstOffset = offset + totalRead;
 
-				Buffer.BlockCopy(_buffer, readPos, buffer, dstOffset, available);
+				Buffer.BlockCopy(_buffer, readPos + _bufferPadding, buffer, dstOffset, available);
 
 				totalRead += available;
 
@@ -201,10 +193,12 @@
 				else
 				{
 					// if (!fillBuffer) break;
-					_readP._readPosition += (uint)available; // volative write
+					var newReadPos = _state._readPosition + (uint) available;
+					_state._readPosition = newReadPos; // volative write
+					_state._readPositionCopy = newReadPos;
 				}
 
-				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
+				_readLock.Set(); // signal - if someone is waiting
 			}
 
 			return totalRead;
@@ -212,34 +206,31 @@
 
 		public void ReadBufferIntoSocketSend(Socket socket/*, bool asyncSend*/)
 		{
-//			int totalRead = 0;
-
-			// while (totalRead == 0)
 			while(true)
 			{
-				// AvailableAndPos availPos = this.InternalGetReadyToReadEntries(BufferSize);
-				// int available = availPos.available;
-
 				int totalRead;
 				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out totalRead, null);
 
 				// buffer is empty.. return and expect to be called again when something gets written
 				if (totalRead == 0) 
 				{
-					_waitingStrategy.WaitForWrite();
+					_writeLock.Wait();
 					continue;
 				}
 
 				var totalSent = 0;
 				while (totalSent < totalRead)
 				{
-					var sent = socket.Send(_buffer, readPos + totalSent, totalRead - totalSent, SocketFlags.None);
+					var sent = socket.Send(_buffer, _bufferPadding + readPos + totalSent, totalRead - totalSent, SocketFlags.None);
 
 					totalSent += sent;
 
 					// maybe better throughput if this goes inside the inner loop
-					_readP._readPosition += (uint)sent; // volative write
-					_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
+					var newReadPos = _state._readPosition + (uint)sent;
+					_state._readPosition = newReadPos; // volative write
+					_state._readPositionCopy = newReadPos;
+
+					_readLock.Set(); // signal - if someone is waiting
 				}
 
 				break;
@@ -253,24 +244,23 @@
 
 			while (totalSkipped < offset)
 			{
-//				AvailableAndPos availPos = this.InternalGetReadyToReadEntries(offset - totalSkipped);
-//				var available = availPos.available;
-
 				int available;
 				int readPos = this.InternalGetReadyToReadEntries(offset - totalSkipped, out available, null);
 
 				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
 				if (available == 0)
 				{
-					_waitingStrategy.WaitForWrite();
+					_writeLock.Wait();
 					continue;
 				}
 
 				totalSkipped += available;
 
-				_readP._readPosition += (uint)available; // volative write
+				var newReadPos = _state._readPosition + (uint)available;
+				_state._readPosition = newReadPos; // volative write
+				_state._readPositionCopy = newReadPos;
 
-				_waitingStrategy.SignalReadDone(); // signal - if someone is waiting
+				_readLock.Set(); // signal - if someone is waiting
 			}
 
 			return Task.CompletedTask;
@@ -280,7 +270,9 @@
 
 		public void Dispose()
 		{
-			_waitingStrategy.Dispose();
+			// _waitingStrategy.Dispose();
+			_readLock.Dispose();
+			_writeLock.Dispose();
 		}
 	}
 }

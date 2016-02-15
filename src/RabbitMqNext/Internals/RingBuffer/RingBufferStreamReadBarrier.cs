@@ -11,18 +11,23 @@ namespace RabbitMqNext.Internals.RingBuffer
 		private readonly ReadingGate _gate;
 		private readonly ByteRingBuffer _ringBuffer;
 		private volatile bool _released = false;
+		private int _length;
 
 		public RingBufferStreamReadBarrier(RingBufferStreamAdapter innerStream, int length)
 		{
 			_ringBuffer = innerStream._ringBuffer;
-			// _length = length;
-			_gate = _ringBuffer.AddReadingGate((uint)length);
+			if (!_ringBuffer.TryAddReadingGate((uint) length, out _gate))
+			{
+				Console.WriteLine("Could not add reading gate?");
+			}
+			_length = length;
 		}
 
 		public void Release()
 		{
 			if (_released) return;
 			_released = true;
+			Thread.MemoryBarrier();
 
 			_ringBuffer.RemoveReadingGate(_gate);
 		}
@@ -44,7 +49,6 @@ namespace RabbitMqNext.Internals.RingBuffer
 		public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
-//			return base.ReadAsync(buffer, offset, count, cancellationToken);
 		}
 
 		public override void Flush()
@@ -84,7 +88,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 
 		public override long Length
 		{
-			get { throw new NotImplementedException(); ; }
+			get { return _length; }
 		}
 
 		public override long Position

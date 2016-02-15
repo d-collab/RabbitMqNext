@@ -12,7 +12,7 @@ namespace RabbitMqNext.Internals
 			if (bodySize == 0) return Empty;
 
 			var buffer = new byte[bodySize]; // more allocations. sad!
-			var read = stream.Read(buffer, 0, (int)bodySize);
+			var read = stream.Read(buffer, 0, (int)bodySize, fillBuffer: true);
 			
 			if (read != bodySize) throw new Exception("Read less than body size");
 

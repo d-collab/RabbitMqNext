@@ -23,7 +23,7 @@ namespace RabbitMqNext
 		private readonly Timer _timeoutTimer;
 		private readonly SemaphoreSlim _semaphoreSlim;
 
-		public RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 6000)
+		private RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 6000)
 		{
 			if (maxConcurrentCalls <= 0) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
 
@@ -43,15 +43,23 @@ namespace RabbitMqNext
 				new TaskSlim<MessageDelivery>((inst) => _taskResultPool.PutObject(inst)), maxConcurrentCalls, true);
 		}
 
-		internal async Task Setup()
+	    public static Task<RpcHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode,
+	        int timeoutInMs = 6000)
+	    {
+	        return new RpcHelper(channel, maxConcurrentCalls, mode, timeoutInMs).Setup();
+	    }
+
+		private async Task<RpcHelper> Setup()
 		{
-			_replyQueueName = await _channel.QueueDeclare("", 
+			_replyQueueName = await _channel.QueueDeclare("", // temp
 				false, false, exclusive: true, autoDelete: true, 
 				waitConfirmation: true, arguments: null);
 
 			_subscription = await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name, 
-				consumerTag: "abc" + new Random().Next(100000), 
+				consumerTag: "", 
 				withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true);
+
+		    return this;
 		}
 
 		private Task OnReplyReceived(MessageDelivery delivery)
@@ -155,6 +163,16 @@ namespace RabbitMqNext
 			
 			DrainPendingCalls();
 		}
+
+		/*
+		private TaskSlim<MessageDelivery> ReleaseSpot(string correlationId, out uint correlationIndex)
+		{
+			correlationIndex = UInt32.Parse(correlationId);
+			var pos = correlationIndex % _maxConcurrentCalls;
+
+			return Interlocked.Exchange(ref _pendingCalls[pos], null);
+		}
+		*/
 
 		private void DrainPendingCalls()
 		{

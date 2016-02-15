@@ -4,7 +4,6 @@ namespace RabbitMqNext.Internals.RingBuffer
 	using System.Net.Sockets;
 	using System.Threading;
 
-
 	/// <summary>
 	/// Gets the available content from 
 	/// the ringbuffer and writes into the socket
