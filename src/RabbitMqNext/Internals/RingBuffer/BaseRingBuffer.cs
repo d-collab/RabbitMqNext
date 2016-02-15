@@ -33,44 +33,57 @@
 		
 		const int MaxGates = 64; 
 		private readonly ReadingGate[] _gates = new ReadingGate[MaxGates];
-		private long _gateState = 0L; // 11111111 11111111 11111111 11111111
+		internal long _gateState = 0L;
 
 		private readonly SemaphoreSlim _gateSemaphoreSlim = new SemaphoreSlim(MaxGates, MaxGates);
+
+		private object _gateLocker = new object();
 
 		// adds to the current position
 		internal bool TryAddReadingGate(uint length, out ReadingGate gate)
 		{
 			_gateSemaphoreSlim.Wait();
 
-			gate = null;
+			lock (_gateLocker)
+			{ 
+				gate = null;
 
-			if (Volatile.Read(ref _gateState) == -1L)
-			{
-				return false;
+				if (Volatile.Read(ref _gateState) == -1L)
+				{
+					return false;
+				}
+
+				gate = new ReadingGate
+				{
+					inEffect = true,
+					gpos = _state._readPosition,
+					length = length
+				};
+
+				AtomicSecureIndexPosAndStore(gate);
+
+				Console.WriteLine("gate added for " + gate.gpos + " len " + gate.length + " at index " + gate.index);
 			}
-
-			gate = new ReadingGate
-			{
-				inEffect = true,
-				gpos = _state._readPosition,
-				length = length
-			};
-
-			AtomicSecureIndexPosAndStore(gate);
-
 			return true;
 		}
 
 		internal void RemoveReadingGate(ReadingGate gate)
 		{
-			if (gate.inEffect == false) return;
-			gate.inEffect = false;
-			AtomicRemoveAtIndex(gate.index);
-			// if waiting for write coz of gate, given them another chance
-			// _waitingStrategy.SignalReadDone();
+			lock (_gateLocker)
+			{
+				lock (gate)
+				{
+					if (gate.inEffect == false) return;
 
+					gate.inEffect = false;
+					AtomicRemoveAtIndex(gate.index);
+				}
+			}
 			_gateSemaphoreSlim.Release();
 
+			Console.WriteLine("RemoveReadingGate for " + gate.gpos + " len " + gate.length + " at " + gate.index);
+
+			// if waiting for write coz of gate, given them another chance
 			_readLock.Set();
 		}
 
@@ -80,35 +93,46 @@
 		internal uint? GetMinReadingGate()
 		{
 			uint minGatePos = uint.MaxValue;
-
-			long oldGateState = 0;
 			bool hadSomeMin = false;
-			
-			do
-			{
-				oldGateState = Volatile.Read(ref _gateState);
-				if (oldGateState == 0L) return null;
 
-				for (int i = 0; i < MaxGates; i++)
+			lock (_gateLocker)
+			{
+				long oldGateState = 0;
+			
+				do
 				{
-					if ((oldGateState & (1L << i)) != 0L)
+					// Possibly ABA problem here!
+
+					oldGateState = Volatile.Read(ref _gateState);
+					if (oldGateState == 0L) return null;
+
+					for (int i = 0; i < MaxGates; i++)
 					{
-						var el = _gates[i];
-						if (el == null) // race
-							continue;
-						
-						if (el.inEffect) // otherwise ignored
+						if ((oldGateState & (1L << i)) != 0L)
 						{
-							if (minGatePos > el.gpos)
+							var el = _gates[i];
+							if (el == null) // race
+								continue;
+						
+							if (el.inEffect) // otherwise ignored
 							{
-								hadSomeMin = true;
-								minGatePos = el.gpos;
+								lock (el)
+								if (minGatePos > el.gpos)
+								{
+									hadSomeMin = true;
+									minGatePos = el.gpos;
+								}
 							}
 						}
 					}
-				}
-				// if it changed in the meantime, we need to recalculate
-			} while (oldGateState != Volatile.Read(ref _gateState));
+					// if it changed in the meantime, we need to recalculate
+				} while (oldGateState != Volatile.Read(ref _gateState));
+			}
+
+			if (hadSomeMin)
+				Console.WriteLine("[Min] Min reading gate is " + minGatePos);
+			else
+				Console.WriteLine("[Min] ---- ");
 
 			if (!hadSomeMin) return null;
 
@@ -139,7 +163,9 @@
 
 			if (fromGate != null)
 			{
-				// Console.WriteLine("Reading from gate. Real readCursor " + readCursor + " replaced by " + fromGate.gpos);
+				Console.WriteLine("Reading from gate " + fromGate.index + ". Real readCursor g: " + readCursor + " l: readPos " + readPos + 
+					" replaced by g: " + fromGate.gpos + " l: " + (fromGate.gpos & (bufferSize - 1)) +
+					" diff is " + (writeCursor - fromGate.gpos));
 				readPos = fromGate.gpos & (bufferSize - 1);
 				// entriesFree = fromGate.length;
 				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
@@ -213,7 +239,9 @@
 				// get min gate index, which becomes essentially the barrier to continue to write
 				// what we do is to hide from this operation the REAL readpos
 
-				// Console.WriteLine("Got gate in place. real readCursor " + readCursor + " becomes " + minGate.Value);
+				Console.WriteLine("Writing. gate in place. real g: " + readCursor + " l: " + readPos + 
+					" becomes g: " + minGate.Value + " l: " + (minGate.Value & (buffersize - 1)) +
+					" and diff " + (writeCursor - minGate.Value));
 
 				readPos = minGate.Value & (buffersize - 1); // now the write cannot move forward
 			} 
