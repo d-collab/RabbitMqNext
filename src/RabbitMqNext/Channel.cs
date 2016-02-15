@@ -189,13 +189,11 @@
 			return _io.__BasicRecover(requeue);
 		}
 
-		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
+		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int maxConcurrentCalls = 500)
 		{
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
-			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
-			await helper.Setup().ConfigureAwait(false);
-			return helper;
+			return RpcHelper.Create(this, maxConcurrentCalls, mode);
 		}
 
 		public async Task Close()
