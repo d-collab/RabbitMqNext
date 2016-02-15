@@ -202,14 +202,16 @@ namespace RabbitMqNext.Tests
 			read.Should().Be(31);
 		}
 
-		[Test]
-		public void StressTest1()
+		[TestCase(true, true)]
+		[TestCase(true, false)]
+		[TestCase(false, false)]
+		public void StressTest(bool writeInPieces, bool withWriteDelays)
 		{
-			var ringBuffer = new ByteRingBuffer(_cancellationTokenSrc.Token, 0x1000);
+			var ringBuffer = new ByteRingBuffer(_cancellationTokenSrc.Token, 0x4000);
 			var streamAdapter = new RingBufferStreamAdapter(ringBuffer);
+//			int concurrent = 0;
 			
-			const int loops = 100;
-			bool writeInPieces = true;
+			const int loops = 1000;
 
 			var writerTask = Task.Run(() =>
 			{
@@ -217,7 +219,6 @@ namespace RabbitMqNext.Tests
 				{
 					var payloadSize = _rnd.Next(0, SourceBuffer.Length) + 1;
 					var payloadBuffer = new byte[4];
-
 					payloadBuffer[0] = 0xFF;
 					payloadBuffer[2] = (byte)((payloadSize & 0xFF00) >> 8);
 					payloadBuffer[1] = (byte)(payloadSize & 0x00FF);
@@ -236,18 +237,21 @@ namespace RabbitMqNext.Tests
 						var totalWritten = 0; 
 						while (totalWritten < payloadSize)
 						{
-							// Thread.Sleep( _rnd.Next(0, 10) );
+							if (withWriteDelays) Thread.Sleep( _rnd.Next(0, 4) + 1 );
 							var toWrite = _rnd.Next(0, payloadSize - totalWritten) + 1;
 							totalWritten += ringBuffer.Write(SourceBuffer, totalWritten, toWrite);
 						}
 					}
 				}
+				// Console.WriteLine("Write completed");
 			});
 
 			var readerTask = Task.Run(() =>
 			{
 				for (int i = 0; i < loops; i++)
 				{
+					if (i % 10 == 0) Thread.Sleep(130); // simulate fake contention 
+
 					var payloadHeader = new byte[4];
 					streamAdapter.Read(payloadHeader, 0, 4, fillBuffer: true);
 
@@ -258,32 +262,38 @@ namespace RabbitMqNext.Tests
 					}
 					if (payloadHeader[3] != 0xFF)
 					{
-						Console.WriteLine("H1 expecting 0XFF but found " + payloadHeader[0]);
+						Console.WriteLine("H2 expecting 0XFF but found " + payloadHeader[0]);
 						break;
 					}
 					
 					var payloadSize = BitConverter.ToInt16(payloadHeader, 1);
-					// Console.WriteLine("Read " + payloadSize);
+//					Console.WriteLine("Read " + payloadSize);
 
 					var barriedStream = new RingBufferStreamReadBarrier(streamAdapter, payloadSize);
 
 					ringBuffer.Skip(payloadSize);
 
-					var t = Task.Factory.StartNew((stream) =>
+					ThreadPool.UnsafeQueueUserWorkItem((stream) =>
+//					Task.Factory.StartNew((stream) =>
 					{
 						var streamBarried = (RingBufferStreamReadBarrier) stream;
-
 						try
 						{
 							var payloadBuffer = new byte[2048];
+
+							// Console.WriteLine("Started " + streamBarried.Length + " concurrent " + Interlocked.Increment(ref concurrent));
 
 							var totalread = 0;
 							while (totalread < streamBarried.Length)
 							{
 								var read = streamBarried.Read(payloadBuffer, totalread, payloadBuffer.Length - totalread);
 								totalread += read;
-								Console.WriteLine("Read " + totalread + " of fixed " + streamBarried.Length);
 							}
+
+//							Interlocked.Decrement(ref concurrent);
+//							Console.WriteLine("Done " + streamBarried.Length + " concurrent " + Interlocked.Decrement(ref concurrent));
+
+							totalread.Should().Be((int)streamBarried.Length);
 
 							var hasErrors = false;
 							for (int j = 0; j < totalread; j++)
@@ -304,9 +314,7 @@ namespace RabbitMqNext.Tests
 						{
 							streamBarried.Dispose();
 						}
-					}, barriedStream, TaskCreationOptions.AttachedToParent);
-
-					// Task.WaitAll(t);
+					}, barriedStream);
 				}
 			});
 
