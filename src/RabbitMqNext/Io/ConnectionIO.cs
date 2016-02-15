@@ -110,7 +110,7 @@ namespace RabbitMqNext.Io
 
 			_conn.CloseAllChannels(initiatedByServer, error);
 
-			await base.InitiateCleanClose(initiatedByServer, error);
+			await base.InitiateCleanClose(initiatedByServer, error).ConfigureAwait(false);
 
 			CancelPendingCommands(error);
 
@@ -223,7 +223,7 @@ namespace RabbitMqNext.Io
 		{
 			var index = Interlocked.Increment(ref _counter);
 
-			await _socketHolder.Connect(hostname, port, OnSocketClosed, index);
+			await _socketHolder.Connect(hostname, port, OnSocketClosed, index).ConfigureAwait(false);
 
 			_amqpWriter = new AmqpPrimitivesWriter(_socketHolder.Writer, null, null);
 			_amqpReader = new AmqpPrimitivesReader(_socketHolder.Reader);
@@ -238,11 +238,11 @@ namespace RabbitMqNext.Io
 
 		internal async Task Handshake(string vhost, string username, string password)
 		{
-			await __SendGreeting();
-			await __SendConnectionStartOk(username, password);
-			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat: 0); // disabling heartbeats for now
+			await __SendGreeting().ConfigureAwait(false);
+			await __SendConnectionStartOk(username, password).ConfigureAwait(false);
+			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat: 0).ConfigureAwait(false); // disabling heartbeats for now
 			_amqpWriter.FrameMaxSize = _frameMax;
-			_knownHosts = await __SendConnectionOpen(vhost);
+			_knownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
 		}
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,

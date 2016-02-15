@@ -49,7 +49,7 @@ namespace RabbitMqNext.Internals
 			Console.WriteLine("< connection close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
 			// continuation(replyCode, replyText, classId, methodId);
-			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode });
+			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode }).ConfigureAwait(false);
 		}
 
 //		public void Read_ConnectionCloseOk(Action continuation)

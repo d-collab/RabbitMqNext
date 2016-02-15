@@ -194,13 +194,13 @@
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
 			var helper = new RpcHelper(this, maxConcurrentCalls, mode);
-			await helper.Setup();
+			await helper.Setup().ConfigureAwait(false);
 			return helper;
 		}
 
 		public async Task Close()
 		{
-			await this._io.InitiateCleanClose(false, null);
+			await this._io.InitiateCleanClose(false, null).ConfigureAwait(false);
 
 			this.Dispose();
 		}
@@ -251,9 +251,9 @@
 					try
 					{
 						if (cb != null)
-							await cb(delivery);
+							await cb(delivery).ConfigureAwait(false);
 						else
-							await consumerInstance.Consume(delivery);
+							await consumerInstance.Consume(delivery).ConfigureAwait(false);
 					}
 					finally
 					{
@@ -306,9 +306,9 @@
 						try
 						{
 							if (cb != null)
-								await cb(delivery);
+									await cb(delivery).ConfigureAwait(false);
 							else
-								await consumerInstance.Consume(delivery);
+									await consumerInstance.Consume(delivery).ConfigureAwait(false);
 						}
 						catch (Exception e)
 						{
@@ -354,7 +354,7 @@
 						exchange = exchange
 					};
 
-					await ev(inst);
+					await ev(inst).ConfigureAwait(false);
 				}
 			}
 			finally

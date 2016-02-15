@@ -15,7 +15,7 @@ namespace RabbitMqNext.Internals
 
 			Console.WriteLine("< QueueDeclareOk  " + queue);
 
-			await continuation(queue, messageCount, consumerCount);
+			await continuation(queue, messageCount, consumerCount).ConfigureAwait(false);
 		}
 
 		public async void Read_Channel_Close2(Func<AmqpError, Task<bool>> continuation)
@@ -28,7 +28,7 @@ namespace RabbitMqNext.Internals
 			Console.WriteLine("< channel close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
 
 			// continuation(replyCode, replyText, classId, methodId);
-			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode });
+			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode }).ConfigureAwait(false);
 		}
 
 		public async Task Read_BasicDelivery(
@@ -82,7 +82,7 @@ namespace RabbitMqNext.Internals
 					// _reader._ringBufferStream.EnsureAvailableToRead(bodySize);
 
 					await continuation(consumerTag, deliveryTag, redelivered, exchange,
-						routingKey, (int) length, properties, _reader._ringBufferStream);
+					    routingKey, (int) length, properties, _reader._ringBufferStream).ConfigureAwait(false);
 				}
 				else
 				{
@@ -94,7 +94,7 @@ namespace RabbitMqNext.Internals
 			{
 				// Empty body size
 
-				await continuation(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, null);
+				await continuation(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, null).ConfigureAwait(false);
 			}
 		}
 
@@ -172,14 +172,14 @@ namespace RabbitMqNext.Internals
 				frameHeaderStart = _reader.ReadByte();
 				if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
 
-				await _reader.SkipBy(2); // channel = _reader.ReadUInt16();
+				await _reader.SkipBy(2).ConfigureAwait(false); // channel = _reader.ReadUInt16();
 				uint length = _reader.ReadUInt32();
 
 				// must leave pending Frame end
 
 				if (length == bodySize)
 				{
-					await continuation(replyCode, replyText, exchange, routingKey, (int)length, properties, _reader._ringBufferStream);
+					await continuation(replyCode, replyText, exchange, routingKey, (int)length, properties, _reader._ringBufferStream).ConfigureAwait(false);
 				}
 				else
 				{
@@ -190,7 +190,7 @@ namespace RabbitMqNext.Internals
 			{
 				// no body
 
-				await continuation(replyCode, replyText, exchange, routingKey, 0, properties, null);
+				await continuation(replyCode, replyText, exchange, routingKey, 0, properties, null).ConfigureAwait(false);
 			}
 		}
 

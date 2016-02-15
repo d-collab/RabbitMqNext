@@ -14,7 +14,7 @@
 
 			try
 			{
-				await conn.Connect(hostname, vhost, username, password, port);
+				await conn.Connect(hostname, vhost, username, password, port).ConfigureAwait(false);
 			}
 			catch (Exception)
 			{

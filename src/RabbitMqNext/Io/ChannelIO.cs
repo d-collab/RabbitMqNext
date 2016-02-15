@@ -41,11 +41,11 @@ namespace RabbitMqNext.Io
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicDeliver:
-					await _connectionIo._frameReader.Read_BasicDelivery(_channel.DispatchDeliveredMessage, _channel.RentBasicProperties());
+					await _connectionIo._frameReader.Read_BasicDelivery(_channel.DispatchDeliveredMessage, _channel.RentBasicProperties()).ConfigureAwait(false);
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicReturn:
-					await _connectionIo._frameReader.Read_BasicReturn(_channel.DispatchBasicReturn, _channel.RentBasicProperties());
+					await _connectionIo._frameReader.Read_BasicReturn(_channel.DispatchBasicReturn, _channel.RentBasicProperties()).ConfigureAwait(false);
 					break;
 
 				// Basic Ack and NAck will be sent by the server if we enabled confirmation for this channel
@@ -62,7 +62,7 @@ namespace RabbitMqNext.Io
 					break;
 
 				default:
-					await base.HandReplyToAwaitingQueue(classMethodId);
+					await base.HandReplyToAwaitingQueue(classMethodId).ConfigureAwait(false);
 					break;
 			}
 		}
@@ -266,15 +266,15 @@ namespace RabbitMqNext.Io
 					{
 						await _connectionIo._frameReader.Read_QueueDeclareOk((queueName, messageCount, consumerCount) =>
 						{
-							tcs.SetResult(new AmqpQueueInfo()
-							{
-								Name = queueName,
-								Consumers = consumerCount,
-								Messages = messageCount
-							});
+						    tcs.SetResult(new AmqpQueueInfo()
+						    {
+						        Name = queueName,
+						        Consumers = consumerCount,
+						        Messages = messageCount
+						    });
 
-							return Task.CompletedTask;
-						});
+						    return Task.CompletedTask;
+						}).ConfigureAwait(false);
 					}
 					else if (!waitConfirmation)
 					{
