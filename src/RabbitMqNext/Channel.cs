@@ -290,22 +290,25 @@
 						delivery.stream = delivery.bodySize == 0 ? 
 							EmptyStream : 
 							new RingBufferStreamReadBarrier(ringBufferStream, delivery.bodySize);
+
+						if (delivery.bodySize != 0)
+						{
+							var skipped = await ringBufferStream._ringBuffer.Skip(delivery.bodySize);
+							if (skipped != delivery.bodySize)
+							{
+								Console.Error.WriteLine("Skipped " + skipped + " but needed to skip " + delivery.bodySize);
+							}
+						}
 					}
 
-#pragma warning disable 4014
 					Task.Factory.StartNew(async () =>
-					// ThreadPool.UnsafeQueueUserWorkItem((param) =>
-#pragma warning restore 4014
 					{
 						try
 						{
-							using (delivery.stream)
-							{
-								if (cb != null)
-									await cb(delivery);
-								else
-									await consumerInstance.Consume(delivery);
-							}
+							if (cb != null)
+								await cb(delivery);
+							else
+								await consumerInstance.Consume(delivery);
 						}
 						catch (Exception e)
 						{
@@ -318,7 +321,9 @@
 							if (delivery.bodySize != 0)
 								delivery.stream.Dispose();
 						}
-					}, TaskCreationOptions.PreferFairness);
+					}, TaskCreationOptions.PreferFairness)
+						.Unwrap()
+						.IntentionallyNotAwaited();
 				}
 			}
 			else
