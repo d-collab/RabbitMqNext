@@ -77,7 +77,7 @@ namespace RabbitMqNext.Internals
 					started = true;
 					try
 					{
-						await socket.ConnectTaskAsync(new IPEndPoint(ipAddress, port));
+						await socket.ConnectTaskAsync(new IPEndPoint(ipAddress, port)).ConfigureAwait(false);
 					}
 					catch (Exception)
 					{

@@ -53,7 +53,7 @@
 
 			if (this.ReplyAction != null)
 			{
-				await this.ReplyAction(channel, classMethodId, error);
+				await this.ReplyAction(channel, classMethodId, error).ConfigureAwait(false);
 			}
 			else
 			{

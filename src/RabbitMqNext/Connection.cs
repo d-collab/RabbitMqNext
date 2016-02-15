@@ -27,8 +27,8 @@
 
 		internal async Task Connect(string hostname, string vhost, string username, string password, int port = 5672)
 		{
-			await _io.InternalDoConnectSocket(hostname, port);
-			await _io.Handshake(vhost, username, password);
+			await _io.InternalDoConnectSocket(hostname, port).ConfigureAwait(false);
+			await _io.Handshake(vhost, username, password).ConfigureAwait(false);
 		}
 
 		public bool IsClosed { get { return _io.IsClosed; } }
@@ -102,10 +102,10 @@
 			try
 			{
 				_channels[channelNum] = channel;
-				await channel.Open();
+				await channel.Open().ConfigureAwait(false);
 				if (withPubConfirm)
 				{
-					await channel.EnableConfirmation(maxunconfirmedMessages);
+					await channel.EnableConfirmation(maxunconfirmedMessages).ConfigureAwait(false);
 				}
 				return channel;
 			}

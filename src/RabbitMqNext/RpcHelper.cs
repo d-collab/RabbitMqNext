@@ -46,12 +46,12 @@ namespace RabbitMqNext
 		internal async Task Setup()
 		{
 			_replyQueueName = await _channel.QueueDeclare("", // temp
-				false, false, exclusive: true, autoDelete: true, 
-				waitConfirmation: true, arguments: null);
+			    false, false, exclusive: true, autoDelete: true, 
+			    waitConfirmation: true, arguments: null).ConfigureAwait(false);
 
 			_subscription = await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name, 
-				consumerTag: "", 
-				withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true);
+			    consumerTag: "", 
+			    withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true).ConfigureAwait(false);
 		}
 
 		private Task OnReplyReceived(MessageDelivery delivery)

@@ -36,7 +36,7 @@
 			Thread.MemoryBarrier();
 			_isDisposed = true;
 
-			await InitiateCleanClose(false, null);
+			await InitiateCleanClose(false, null).ConfigureAwait(false);
 
 			InternalDispose();
 		}
@@ -72,9 +72,9 @@
 			_isClosed = true;
 
 			if (initiatedByServer)
-				await SendCloseConfirmation();
+				await SendCloseConfirmation().ConfigureAwait(false);
 			else
-				await SendStartClose();
+				await SendStartClose().ConfigureAwait(false);
 
 			DrainPending(error);
 
