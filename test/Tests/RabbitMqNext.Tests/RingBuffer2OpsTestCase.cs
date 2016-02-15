@@ -1,8 +1,8 @@
 namespace RabbitMqNext.Tests
 {
 	using System;
-	using System.Text;
 	using System.Threading;
+	using System.Threading.Tasks;
 	using FluentAssertions;
 	using Internals.RingBuffer;
 	using NUnit.Framework;
@@ -13,13 +13,16 @@ namespace RabbitMqNext.Tests
 		private CancellationTokenSource _cancellationTokenSrc;
 		private ByteRingBuffer _buffer;
 		private byte[] SomeBuffer;
+		private byte[] SourceBuffer;
 		private byte[] _temp;
+		private Random _rnd;
 
 		[SetUp]
 		public void Init()
 		{
+			_rnd = new Random();
 			_cancellationTokenSrc = new CancellationTokenSource();
-			_buffer = new ByteRingBuffer(_cancellationTokenSrc.Token, 32, new LockWaitingStrategy(_cancellationTokenSrc.Token));
+			_buffer = new ByteRingBuffer(_cancellationTokenSrc.Token, 32);
 
 			_temp = new byte[300];
 
@@ -27,6 +30,12 @@ namespace RabbitMqNext.Tests
 			for (int i = 0; i < SomeBuffer.Length; i++)
 			{
 				SomeBuffer[i] = (byte) (i % 256);
+			}
+
+			SourceBuffer = new byte[2048];
+			for (int i = 0; i < SourceBuffer.Length; i++)
+			{
+				SourceBuffer[i] = (byte)(i % 256);
 			}
 		}
 
@@ -39,28 +48,24 @@ namespace RabbitMqNext.Tests
 		[Test]
 		public void AddReadingGateMax()
 		{
-			for (int i = 0; i < 32; i++)
+			ReadingGate dummy;
+			for (int i = 0; i < 64; i++)
 			{
-				_buffer.AddReadingGate(1);
+				_buffer.TryAddReadingGate(1, out dummy).Should().BeTrue();
 			}
-			try
-			{
-				_buffer.AddReadingGate(1);
-				Assert.Fail("should have max'ed out");
-			}
-			catch
-			{
-				// expected
-			}
+
+			_buffer.TryAddReadingGate(1, out dummy).Should().BeFalse();
+			dummy.Should().BeNull();
 		}
 
 		[Test]
 		public void GetMinGate()
 		{
-			for (int i = 31; i >= 0; i--)
+			ReadingGate dummy;
+			for (int i = 63; i >= 0; i--)
 			{
-				_buffer._readPosition = (uint) i;
-				_buffer.AddReadingGate(1);
+				_buffer._state._readPosition = (uint) i;
+				_buffer.TryAddReadingGate(1, out dummy);
 			}
 			var min = (int?)  _buffer.GetMinReadingGate();
 			min.Should().Be(0);
@@ -72,8 +77,8 @@ namespace RabbitMqNext.Tests
 			ReadingGate last = null;
 			for (int i = 31; i >= 0; i--)
 			{
-				_buffer._readPosition = (uint)i;
-				last = _buffer.AddReadingGate(1);
+				_buffer._state._readPosition = (uint)i;
+				_buffer.TryAddReadingGate(1, out last);
 			}
 			var min = (int)_buffer.GetMinReadingGate();
 			min.Should().Be(0);
@@ -94,7 +99,8 @@ namespace RabbitMqNext.Tests
 			read.Should().Be(2);
 			_temp.ShouldBeTo(new byte[] { 0, 1 });
 
-			var gate = _buffer.AddReadingGate(10);
+			ReadingGate gate;
+			_buffer.TryAddReadingGate(10, out gate);
 			gate.gpos.Should().Be(2);
 
 			read = _buffer.Read(_temp, 0, 10); // readpos = 12 but gate is at 2
@@ -194,6 +200,119 @@ namespace RabbitMqNext.Tests
 
 			read = _buffer.Read(_temp, 0, _temp.Length);
 			read.Should().Be(31);
+		}
+
+		[Test]
+		public void StressTest1()
+		{
+			var ringBuffer = new ByteRingBuffer(_cancellationTokenSrc.Token, 0x1000);
+			var streamAdapter = new RingBufferStreamAdapter(ringBuffer);
+			
+			const int loops = 100;
+			bool writeInPieces = true;
+
+			var writerTask = Task.Run(() =>
+			{
+				for (int i = 0; i < loops; i++)
+				{
+					var payloadSize = _rnd.Next(0, SourceBuffer.Length) + 1;
+					var payloadBuffer = new byte[4];
+
+					payloadBuffer[0] = 0xFF;
+					payloadBuffer[2] = (byte)((payloadSize & 0xFF00) >> 8);
+					payloadBuffer[1] = (byte)(payloadSize & 0x00FF);
+					payloadBuffer[3] = 0xFF;
+
+					// Console.WriteLine("Wrote " + payloadSize);
+
+					ringBuffer.Write(payloadBuffer, 0, payloadBuffer.Length);
+
+					if (!writeInPieces) // single batch write
+					{
+						ringBuffer.Write(SourceBuffer, 0, payloadSize);
+					}
+					else // in pieces
+					{
+						var totalWritten = 0; 
+						while (totalWritten < payloadSize)
+						{
+							// Thread.Sleep( _rnd.Next(0, 10) );
+							var toWrite = _rnd.Next(0, payloadSize - totalWritten) + 1;
+							totalWritten += ringBuffer.Write(SourceBuffer, totalWritten, toWrite);
+						}
+					}
+				}
+			});
+
+			var readerTask = Task.Run(() =>
+			{
+				for (int i = 0; i < loops; i++)
+				{
+					var payloadHeader = new byte[4];
+					streamAdapter.Read(payloadHeader, 0, 4, fillBuffer: true);
+
+					if (payloadHeader[0] != 0xFF)
+					{
+						Console.WriteLine("H1 expecting 0XFF but found " + payloadHeader[0]);
+						break;
+					}
+					if (payloadHeader[3] != 0xFF)
+					{
+						Console.WriteLine("H1 expecting 0XFF but found " + payloadHeader[0]);
+						break;
+					}
+					
+					var payloadSize = BitConverter.ToInt16(payloadHeader, 1);
+					// Console.WriteLine("Read " + payloadSize);
+
+					var barriedStream = new RingBufferStreamReadBarrier(streamAdapter, payloadSize);
+
+					ringBuffer.Skip(payloadSize);
+
+					var t = Task.Factory.StartNew((stream) =>
+					{
+						var streamBarried = (RingBufferStreamReadBarrier) stream;
+
+						try
+						{
+							var payloadBuffer = new byte[2048];
+
+							var totalread = 0;
+							while (totalread < streamBarried.Length)
+							{
+								var read = streamBarried.Read(payloadBuffer, totalread, payloadBuffer.Length - totalread);
+								totalread += read;
+								Console.WriteLine("Read " + totalread + " of fixed " + streamBarried.Length);
+							}
+
+							var hasErrors = false;
+							for (int j = 0; j < totalread; j++)
+							{
+								var exp = (j%256);
+								if (payloadBuffer[j] != exp)
+								{
+									Console.WriteLine("Expecting " + exp + " but got " + payloadBuffer[j]);
+									hasErrors = true;
+									break;
+								}
+							}
+
+//							var output = hasErrors ? Console.Error : Console.Out;
+//							output.WriteLine("Done " + (hasErrors ? " with errors " : " successfully "));
+						}
+						finally
+						{
+							streamBarried.Dispose();
+						}
+					}, barriedStream, TaskCreationOptions.AttachedToParent);
+
+					// Task.WaitAll(t);
+				}
+			});
+
+			Task.WaitAll(writerTask, readerTask);
+
+//			Thread.CurrentThread.Join();
 		}
 	}
 

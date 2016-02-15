@@ -30,6 +30,10 @@
 			// Note: fills up the buffer or hangs
 			// return _consumer.Read(buffer, offset, count, fillBuffer: true);
 			var read = _ringBuffer.Read(buffer, offset, count, fillBuffer: false);
+			if (read == 0)
+			{
+				return _ringBuffer.Read(buffer, offset, count, fillBuffer: true);	
+			}
 			return read;
 		}
 		
@@ -52,12 +56,9 @@
 		{
 			if (origin != SeekOrigin.Current) throw new NotSupportedException("Only from current is supported");
 
-			// checked
-			{
-				var offsetAsInt = (int)offset;
-				_ringBuffer.Skip(offsetAsInt);
-				return offset;
-			}
+			var offsetAsInt = (int)offset;
+			_ringBuffer.Skip(offsetAsInt); // this may block waiting for buffer available. 
+			return offset;
 		}
 
 		public override void SetLength(long value)

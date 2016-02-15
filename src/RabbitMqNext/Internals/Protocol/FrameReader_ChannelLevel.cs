@@ -7,8 +7,6 @@ namespace RabbitMqNext.Internals
 
 	internal partial class FrameReader
 	{
-		private static readonly MemoryStream EmptyStream = new MemoryStream(new byte[0], writable: false);
-
 		public async Task Read_QueueDeclareOk(Func<string, uint, uint, Task> continuation)
 		{
 			string queue = _amqpReader.ReadShortStr();
@@ -33,7 +31,8 @@ namespace RabbitMqNext.Internals
 			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode });
 		}
 
-		public async Task Read_BasicDelivery(Func<string, ulong, bool, string, string, int, BasicProperties, Stream, Task> continuation, 
+		public async Task Read_BasicDelivery(
+			Func<string, ulong, bool, string, string, int, BasicProperties, RingBufferStreamAdapter, Task> continuation, 
 			BasicProperties properties)
 		{
 			string consumerTag = _amqpReader.ReadShortStr();
@@ -77,19 +76,13 @@ namespace RabbitMqNext.Internals
 
 				if (length == bodySize)
 				{
-					var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+					// TODO: Experimenting in making sure the body is available ...
+					// TODO: ... before invoking the callback so we block this IO thread only
+
+					// _reader._ringBufferStream.EnsureAvailableToRead(bodySize);
 
 					await continuation(consumerTag, deliveryTag, redelivered, exchange,
-						routingKey, (int) length, properties, (Stream) _reader._ringBufferStream);
-
-					if (marker.LengthRead < length)
-					{
-						checked
-						{
-							int offset = (int) (length - marker.LengthRead);
-							await _reader.SkipBy(offset);
-						}
-					}
+						routingKey, (int) length, properties, _reader._ringBufferStream);
 				}
 				else
 				{
@@ -99,13 +92,11 @@ namespace RabbitMqNext.Internals
 			}
 			else
 			{
-				// Empty body size, which is OK
+				// Empty body size
 
-				await continuation(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, EmptyStream);
-
+				await continuation(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, null);
 			}
 		}
-
 
 		private void ReadRestOfContentHeader(BasicProperties properties, bool skipFrameEnd)
 		{
@@ -149,7 +140,7 @@ namespace RabbitMqNext.Internals
 			continuation(consumerTag);
 		}
 
-		public async Task Read_BasicReturn(Func<ushort, string, string, string, int, BasicProperties, Stream, Task> continuation, 
+		public async Task Read_BasicReturn(Func<ushort, string, string, string, int, BasicProperties, RingBufferStreamAdapter, Task> continuation, 
 										   BasicProperties properties)
 		{
 			ushort replyCode = _amqpReader.ReadShort();
@@ -188,20 +179,7 @@ namespace RabbitMqNext.Internals
 
 				if (length == bodySize)
 				{
-					// continuation(replyCode, replyText, exchange, routingKey);
-
-					var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
-
 					await continuation(replyCode, replyText, exchange, routingKey, (int)length, properties, _reader._ringBufferStream);
-
-					if (marker.LengthRead < length)
-					{
-						checked
-						{
-							int offset = (int)(length - marker.LengthRead);
-							await _reader.SkipBy(offset);
-						}
-					}
 				}
 				else
 				{
@@ -212,7 +190,7 @@ namespace RabbitMqNext.Internals
 			{
 				// no body
 
-				await continuation(replyCode, replyText, exchange, routingKey, 0, properties, EmptyStream);
+				await continuation(replyCode, replyText, exchange, routingKey, 0, properties, null);
 			}
 		}
 
