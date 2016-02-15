@@ -19,8 +19,14 @@ namespace RabbitMqNext.Internals.RingBuffer
 			if (!_ringBuffer.TryAddReadingGate((uint) length, out _gate))
 			{
 				Console.WriteLine("Could not add reading gate?");
+				throw new InvalidOperationException("Could not add reading gate?");
 			}
 			_length = length;
+		}
+
+		public override string ToString()
+		{
+			return "stream barrier at index " + _gate.index;
 		}
 
 		public void Release()
