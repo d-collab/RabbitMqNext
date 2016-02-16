@@ -37,7 +37,9 @@
 
 		private readonly SemaphoreSlim _gateSemaphoreSlim = new SemaphoreSlim(MaxGates, MaxGates);
 
-		private object _gateLocker = new object();
+		private volatile uint _abaPrevention;
+
+		private readonly object _gateLocker = new object();
 
 		// adds to the current position
 		internal bool TryAddReadingGate(uint length, out ReadingGate gate)
@@ -62,7 +64,9 @@
 
 				AtomicSecureIndexPosAndStore(gate);
 
-				Console.WriteLine("gate added for " + gate.gpos + " len " + gate.length + " at index " + gate.index);
+				_abaPrevention++;
+
+//				Console.WriteLine("gate added for " + gate.gpos + " len " + gate.length + " at index " + gate.index);
 			}
 			return true;
 		}
@@ -78,10 +82,12 @@
 					gate.inEffect = false;
 					AtomicRemoveAtIndex(gate.index);
 				}
+
+				_abaPrevention++;
 			}
 			_gateSemaphoreSlim.Release();
 
-			Console.WriteLine("RemoveReadingGate for " + gate.gpos + " len " + gate.length + " at " + gate.index);
+//			Console.WriteLine("RemoveReadingGate for " + gate.gpos + " len " + gate.length + " at " + gate.index);
 
 			// if waiting for write coz of gate, given them another chance
 			_readLock.Set();
@@ -98,25 +104,27 @@
 			lock (_gateLocker)
 			{
 				long oldGateState = 0;
+				uint oldAbaPrevention = 0;
 			
 				do
 				{
-					// Possibly ABA problem here!
-
 					oldGateState = Volatile.Read(ref _gateState);
 					if (oldGateState == 0L) return null;
 
+					// Possibly ABA problem here! so.. 
+					oldAbaPrevention = _abaPrevention;
+
 					for (int i = 0; i < MaxGates; i++)
 					{
-						if ((oldGateState & (1L << i)) != 0L)
+						// if ((oldGateState & (1L << i)) != 0L)
 						{
 							var el = _gates[i];
-							if (el == null) // race
+							if (el == null || !el.inEffect) // race
 								continue;
 						
-							if (el.inEffect) // otherwise ignored
+							// if (el.inEffect) // otherwise ignored
 							{
-								lock (el)
+//								lock (el)
 								if (minGatePos > el.gpos)
 								{
 									hadSomeMin = true;
@@ -126,13 +134,13 @@
 						}
 					}
 					// if it changed in the meantime, we need to recalculate
-				} while (oldGateState != Volatile.Read(ref _gateState));
+				} while (oldGateState != Volatile.Read(ref _gateState) || oldAbaPrevention != _abaPrevention);
 			}
 
-			if (hadSomeMin)
-				Console.WriteLine("[Min] Min reading gate is " + minGatePos);
-			else
-				Console.WriteLine("[Min] ---- ");
+//			if (hadSomeMin)
+//				Console.WriteLine("\t[Min] Min reading gate is " + minGatePos);
+//			else
+//				Console.WriteLine("\t[Min] ---- ");
 
 			if (!hadSomeMin) return null;
 
@@ -163,9 +171,9 @@
 
 			if (fromGate != null)
 			{
-				Console.WriteLine("Reading from gate " + fromGate.index + ". Real readCursor g: " + readCursor + " l: readPos " + readPos + 
-					" replaced by g: " + fromGate.gpos + " l: " + (fromGate.gpos & (bufferSize - 1)) +
-					" diff is " + (writeCursor - fromGate.gpos));
+//				Console.WriteLine("Reading from gate " + fromGate.index + ". Real readCursor g: " + readCursor + " l: readPos " + readPos + 
+//					" replaced by g: " + fromGate.gpos + " l: " + (fromGate.gpos & (bufferSize - 1)) +
+//					" diff is " + (writeCursor - fromGate.gpos));
 				readPos = fromGate.gpos & (bufferSize - 1);
 				// entriesFree = fromGate.length;
 				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
@@ -239,9 +247,10 @@
 				// get min gate index, which becomes essentially the barrier to continue to write
 				// what we do is to hide from this operation the REAL readpos
 
-				Console.WriteLine("Writing. gate in place. real g: " + readCursor + " l: " + readPos + 
-					" becomes g: " + minGate.Value + " l: " + (minGate.Value & (buffersize - 1)) +
-					" and diff " + (writeCursor - minGate.Value));
+//				Console.WriteLine("Writing. gate in place. W_g: " + writeCursor + " W_l: " + writePos + 
+//					" real g: " + readCursor + " l: " + readPos + 
+//					" becomes g: " + minGate.Value + " l: " + (minGate.Value & (buffersize - 1)) +
+//					" and diff " + (writeCursor - minGate.Value) + " wrapped? " + (readPos > writePos));
 
 				readPos = minGate.Value & (buffersize - 1); // now the write cannot move forward
 			} 

@@ -70,13 +70,19 @@
 						ProtoBuf.Meta.RuntimeTypeModel.Default.Deserialize(new MemoryStream(buffer), 
 							null, typeof (Messages1), buffer.Length);
 
-					Console.WriteLine("OK Received " + ToStr(buffer) + 
-						" Count " + Interlocked.Increment(ref count) + " seq " + msg.Seq);
+//					Console.WriteLine("   OK Received " + ToStr(buffer) +
+//						" Count " + Interlocked.Increment(ref count) + " seq " + msg.Seq + " __ " + delivery.stream);
 				}
 				catch (Exception e)
 				{
-					Console.WriteLine("   Received " + ToStr(buffer) + " __ " + delivery.stream);
-					Console.Error.WriteLine(e);
+					lock (Console.Out)
+					{
+						var prev = Console.ForegroundColor;
+						Console.ForegroundColor = ConsoleColor.Red;
+						Console.WriteLine("!! ER Received " + ToStr(buffer) + " __ " + delivery.stream);
+//						Console.WriteLine(e.Message);
+						Console.ForegroundColor = prev;
+					}
 				}
 
 				return Task.CompletedTask;
