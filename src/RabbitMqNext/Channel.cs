@@ -279,25 +279,25 @@
 							EmptyStream :
 							new MemoryStream(BufferUtil.Copy(ringBufferStream, (int)bodySize), 0, bodySize, writable: false);
 					}
-					else if (mode == ConsumeMode.ParallelWithReadBarrier)
-					{
-						// create reader barrier. once they are all done, 
-						// move the read pos forward. Shouldnt be too hard to implement and 
-						// avoids the new buffer + GC and keeps the api Stream based consistently
-
-						delivery.stream = delivery.bodySize == 0 ? 
-							EmptyStream : 
-							new RingBufferStreamReadBarrier(ringBufferStream, delivery.bodySize);
-
-						if (delivery.bodySize != 0)
-						{
-							var skipped = await ringBufferStream._ringBuffer.Skip(delivery.bodySize);
-							if (skipped != delivery.bodySize)
-							{
-								Console.Error.WriteLine("Skipped " + skipped + " but needed to skip " + delivery.bodySize);
-							}
-						}
-					}
+//					else if (mode == ConsumeMode.ParallelWithReadBarrier)
+//					{
+//						// create reader barrier. once they are all done, 
+//						// move the read pos forward. Shouldnt be too hard to implement and 
+//						// avoids the new buffer + GC and keeps the api Stream based consistently
+//
+//						delivery.stream = delivery.bodySize == 0 ? 
+//							EmptyStream : 
+//							new RingBufferStreamReadBarrier(ringBufferStream, delivery.bodySize);
+//
+//						if (delivery.bodySize != 0)
+//						{
+//							var skipped = await ringBufferStream._ringBuffer.Skip(delivery.bodySize);
+//							if (skipped != delivery.bodySize)
+//							{
+//								Console.Error.WriteLine("Skipped " + skipped + " but needed to skip " + delivery.bodySize);
+//							}
+//						}
+//					}
 
 					Task.Factory.StartNew(async () =>
 					{

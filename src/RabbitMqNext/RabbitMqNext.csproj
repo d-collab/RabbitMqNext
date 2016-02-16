@@ -59,7 +59,6 @@
     <Compile Include="Internals\RingBuffer\RingBufferPositionMarker.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Internals\RingBuffer\RingBufferStreamReadBarrier.cs" />
     <Compile Include="Internals\RingBuffer\SocketStreamWriterAdapter.cs" />
     <Compile Include="Io\AmqpIOBase.cs" />
     <Compile Include="Channel.cs" />

@@ -59,7 +59,7 @@
 
 			int count = 0;
 
-			await newChannel.BasicConsume(ConsumeMode.ParallelWithReadBarrier, (delivery) =>
+			await newChannel.BasicConsume(ConsumeMode.ParallelWithBufferCopy, (delivery) =>
 			{
 				var buffer = new byte[delivery.bodySize];
 				try
