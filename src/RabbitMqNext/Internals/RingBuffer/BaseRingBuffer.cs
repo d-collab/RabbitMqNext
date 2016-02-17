@@ -76,9 +76,7 @@
 				{
 					if (gate.inEffect == false)
 					{
-
-						Console.WriteLine("uaaaaaiiiii " + gate.index);
-
+						//Console.WriteLine("uaaaaaiiiii " + gate.index);
 						_gateSemaphoreSlim.Release();
 						return;
 					}
@@ -138,10 +136,10 @@
 				} while (oldGateState != Volatile.Read(ref _gateState));
 			}
 
-			if (hadSomeMin)
-				Console.WriteLine("[Min] Min reading gate is " + minGatePos);
-			else
-				Console.WriteLine("[Min] ---- ");
+			//if (hadSomeMin)
+			//	Console.WriteLine("[Min] Min reading gate is " + minGatePos);
+			//else
+			//	Console.WriteLine("[Min] ---- ");
 
 			if (!hadSomeMin) return null;
 
@@ -172,9 +170,9 @@
 
 			if (fromGate != null)
 			{
-				Console.WriteLine("Reading gate index " + fromGate.index + ". ReadCursor g: " + readCursor + " l: readPos " + readPos + 
-					" replaced by g: " + fromGate.gpos + " l: " + (fromGate.gpos & (bufferSize - 1)) +
-					" diff " + (writeCursor - fromGate.gpos));
+				//Console.WriteLine("Reading gate index " + fromGate.index + ". ReadCursor g: " + readCursor + " l: readPos " + readPos + 
+				//	" replaced by g: " + fromGate.gpos + " l: " + (fromGate.gpos & (bufferSize - 1)) +
+				//	" diff " + (writeCursor - fromGate.gpos));
 				readPos = fromGate.gpos & (bufferSize - 1);
 				// entriesFree = fromGate.length;
 				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
@@ -248,9 +246,9 @@
 				// get min gate index, which becomes essentially the barrier to continue to write
 				// what we do is to hide from this operation the REAL readpos
 
-				Console.WriteLine("Writing. gate in place. real g: " + readCursor + " l: " + readPos + 
-					" becomes g: " + minGate.Value + " l: " + (minGate.Value & (buffersize - 1)) +
-					" and diff " + (writeCursor - minGate.Value));
+				//Console.WriteLine("Writing. gate in place. real g: " + readCursor + " l: " + readPos + 
+				//	" becomes g: " + minGate.Value + " l: " + (minGate.Value & (buffersize - 1)) +
+				//	" and diff " + (writeCursor - minGate.Value));
 
 				readPos = minGate.Value & (buffersize - 1); // now the write cannot move forward
 			} 
@@ -334,7 +332,6 @@
 			while (true)
 			{
 				long curState = Volatile.Read(ref _gateState); 
-
 				var emptyIndex = -1;
 
 				// find empty spot
@@ -343,16 +340,19 @@
 					long mask = 1L << i;
 					if ((curState & mask) == 0)
 					{
-						emptyIndex = i; 
+						if (_gates[i] != null && _gates[i].inEffect) // double check
+							continue;
+						
+						emptyIndex = i;
 						break;
 					}
 				}
 
 				if (emptyIndex == -1) continue; // try again from the beginning
 
-				long newState = curState | (1L << emptyIndex);
-
 				gate.index = emptyIndex;
+
+				long newState = curState | (1L << emptyIndex);
 
 #pragma warning disable 420
 				if (Interlocked.CompareExchange(ref _gateState, newState, curState) != curState)
