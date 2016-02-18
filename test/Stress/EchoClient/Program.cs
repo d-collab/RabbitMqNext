@@ -10,7 +10,7 @@
 	class Program
 	{
 		private static AutoResetEvent _event = new AutoResetEvent(false);
-		private static SocketRingBuffers _socket2Streams;
+		private static SocketHolder _socket2Streams;
 		private static CancellationTokenSource cancellationToken = new CancellationTokenSource();
 //		private static AmqpPrimitivesWriter _amqpWriter;
 //		private static AmqpPrimitivesReader _amqpReader;
@@ -49,11 +49,12 @@
 
 			Console.WriteLine("Client started");
 
-			_socket2Streams = new SocketRingBuffers(socket, cancellationToken.Token, delegate
-			{
-				cancellationToken.Cancel();
-				Console.WriteLine("closed...");
-			});
+			_socket2Streams = new SocketHolder(cancellationToken.Token);
+//				delegate
+//			{
+//				cancellationToken.Cancel();
+//				Console.WriteLine("closed...");
+//			});
 //			_amqpWriter = new AmqpPrimitivesWriter(_socket2Streams.Writer, null, null);
 //			_amqpReader = new AmqpPrimitivesReader(_socket2Streams.Reader);
 
@@ -150,7 +151,7 @@
 
 					for (uint i = 0; i < TotalBytesToWrite; i++)
 					{
-						byte b = await _socket2Streams.Reader.ReadByte();
+						byte b = _socket2Streams.Reader.ReadByte();
 						// var read = _socket2Streams._inputRingBufferStream.Read(temp, 0, 1);
 						// byte b = temp[0];
 						var exp = (byte) i % 256;
