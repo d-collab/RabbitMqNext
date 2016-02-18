@@ -208,13 +208,6 @@
 			this._io.Dispose();
 		}
 
-//		internal async Task DispatchDeliveredMessage(string consumerTag, ulong deliveryTag, bool redelivered,
-//			string exchange, string routingKey, int bodySize, BasicProperties properties, RingBufferStreamAdapter stream)
-//		{
-//			await DoDispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange, 
-//				routingKey, bodySize, properties, stream);
-//		}
-
 		internal async Task DispatchDeliveredMessage(
 			string consumerTag, ulong deliveryTag, bool redelivered,
 			string exchange, string routingKey, int bodySize, 
