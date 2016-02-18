@@ -72,6 +72,7 @@
     </Compile>
     <Compile Include="Internals\SocketHolder.cs" />
     <Compile Include="QueueConsumer.cs" />
+    <Compile Include="Recovery.cs" />
     <Compile Include="RpcHelper.cs" />
     <Compile Include="TplExtensions\TaskExtensions.cs" />
     <Compile Include="UndeliveredMessage.cs" />
