@@ -14,16 +14,15 @@ namespace RabbitMqNext
 		private volatile bool _disposed;
 		private AmqpQueueInfo _replyQueueName;
 		private string _subscription;
-		// private readonly int _timeoutInMs;
 
 		private readonly ObjectPool<TaskSlim<MessageDelivery>> _taskResultPool;
 		private readonly TaskSlim<MessageDelivery>[] _pendingCalls;
-		private readonly int _timeoutInMs;
-		private readonly long _timeoutInTicks;
 		private readonly Timer _timeoutTimer;
 		private readonly SemaphoreSlim _semaphoreSlim;
+		private readonly int? _timeoutInMs;
+		private readonly long? _timeoutInTicks;
 
-		private RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int timeoutInMs = 6000)
+		private RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs = 6000)
 		{
 			if (maxConcurrentCalls <= 0) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
 
@@ -31,12 +30,15 @@ namespace RabbitMqNext
 			_maxConcurrentCalls = maxConcurrentCalls;
 			_mode = mode;
 			_timeoutInMs = timeoutInMs;
-			_timeoutInTicks = timeoutInMs * TimeSpan.TicksPerMillisecond;
 
 			_semaphoreSlim = new SemaphoreSlim(maxConcurrentCalls, maxConcurrentCalls);
 
 			// the impl keeps a timer pool so this is light and efficient
-			// _timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs, timeoutInMs);
+			if (timeoutInMs.HasValue)
+			{
+				_timeoutInTicks = timeoutInMs * TimeSpan.TicksPerMillisecond;
+				_timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs.Value, timeoutInMs.Value);
+			}
 
 			_pendingCalls = new TaskSlim<MessageDelivery>[maxConcurrentCalls];
 			_taskResultPool = new ObjectPool<TaskSlim<MessageDelivery>>(() =>
@@ -44,7 +46,7 @@ namespace RabbitMqNext
 		}
 
 	    public static Task<RpcHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode,
-	        int timeoutInMs = 6000)
+	        int? timeoutInMs = 6000)
 	    {
 	        return new RpcHelper(channel, maxConcurrentCalls, mode, timeoutInMs).Setup();
 	    }
@@ -111,7 +113,10 @@ namespace RabbitMqNext
 				prop.CorrelationId = correlationId.ToString();
 				prop.ReplyTo = _replyQueueName.Name;
 				// TODO: confirm this doesnt cause more overhead to rabbitmq
-				prop.Expiration = _timeoutInMs.ToString();
+				if (_timeoutInMs.HasValue)
+				{
+					prop.Expiration = _timeoutInMs.ToString();
+				}
 
 				_channel.BasicPublishFast(exchange, routing, true, false, properties, buffer);
 			}
