@@ -12,12 +12,14 @@
 
 	public class Channel : IDisposable
 	{
+		private static readonly Stream EmptyStream = new MemoryStream(new byte[0], writable: false);
+
 		private readonly CancellationToken _cancellationToken;
+
 		internal readonly ChannelIO _io;
 		internal MessagesPendingConfirmationKeeper _confirmationKeeper;
 
 		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
-
 		private readonly ObjectPool<BasicProperties> _propertiesPool;
 
 		public Channel(ushort channelNumber, ConnectionIO connectionIo, CancellationToken cancellationToken)
@@ -87,6 +89,23 @@
 			return _io.__ExchangeDeclare(exchange, type, durable, autoDelete, arguments, waitConfirmation);
 		}
 
+		public Task ExchangeBind(string source, string destination, string routingKey, 
+			IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			return _io.__ExchangeBind(source, destination, routingKey, arguments, waitConfirmation);
+		}
+
+		public Task ExchangeUnbind(string source, string destination, string routingKey,
+			IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			return _io.__ExchangeUnbind(source, destination, routingKey, arguments, waitConfirmation);
+		}
+
+		public Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			return _io.__ExchangeDelete(exchange, arguments, waitConfirmation);
+		}
+
 		public Task<AmqpQueueInfo> QueueDeclare(string queue, bool passive, bool durable, bool exclusive, bool autoDelete,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
@@ -99,28 +118,43 @@
 			return _io.__QueueBind(queue, exchange, routingKey, arguments, waitConfirmation);
 		}
 
-		public TaskSlim BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory, bool immediate,
+		public Task QueueUnbind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments)
+		{
+			return _io.__QueueUnbind(queue, exchange, routingKey, arguments);
+		}
+
+		public Task QueueDelete(string queue /*, bool ifUnused, bool ifEmpty*/, bool waitConfirmation)
+		{
+			return _io.__QueueDelete(queue, waitConfirmation);
+		}
+
+		public Task QueuePurge(string queue, bool waitConfirmation)
+		{
+			return _io.__QueuePurge(queue, waitConfirmation);
+		}
+
+		public TaskSlim BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (_confirmationKeeper == null) throw new Exception("This channel is not set up for confirmations");
 
-			return _io.__BasicPublishConfirm(exchange, routingKey, mandatory, immediate, properties, buffer);
+			return _io.__BasicPublishConfirm(exchange, routingKey, mandatory, properties, buffer);
 		}
 
-		public TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
+		public TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
+			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
 
-			return _io.__BasicPublishTask(exchange, routingKey, mandatory, immediate, properties, buffer);
+			return _io.__BasicPublishTask(exchange, routingKey, mandatory, properties, buffer);
 		}
 
-		public void BasicPublishFast(string exchange, string routingKey, bool mandatory, bool immediate,
+		public void BasicPublishFast(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
+			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
 
-			_io.__BasicPublish(exchange, routingKey, mandatory, immediate, properties, buffer);
+			_io.__BasicPublish(exchange, routingKey, mandatory, properties, buffer);
 		}
 
 		public Task<string> BasicConsume(ConsumeMode mode, QueueConsumer consumer,
@@ -415,7 +449,5 @@
 			public Func<MessageDelivery, Task> Callback;
 			public QueueConsumer _consumer;
 		}
-
-		private static readonly Stream EmptyStream = new MemoryStream(new byte[0], writable: false);
 	}
 }

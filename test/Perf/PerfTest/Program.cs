@@ -194,7 +194,7 @@
 					replyProp.CorrelationId = delivery.properties.CorrelationId;
 
 					newChannel.BasicPublishFast("", 
-						delivery.properties.ReplyTo, false, false, 
+						delivery.properties.ReplyTo, false, 
 						replyProp, new ArraySegment<byte>(temp, 0, 4));
 
 					return Task.CompletedTask;
@@ -299,7 +299,7 @@
 				{
 					prop.Headers["serialization"] = i;
 					// var buffer = Encoding.ASCII.GetBytes("The " + i + " " + Message);
-					await newChannel.BasicPublish("test_ex", "routing1", true, false, prop, new ArraySegment<byte>(MessageContent));
+					await newChannel.BasicPublish("test_ex", "routing1", true, prop, new ArraySegment<byte>(MessageContent));
 
 					// await Task.Delay(TimeSpan.FromMilliseconds(100));
 				}

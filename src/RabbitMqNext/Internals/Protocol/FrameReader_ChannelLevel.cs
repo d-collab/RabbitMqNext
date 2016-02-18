@@ -233,5 +233,14 @@ namespace RabbitMqNext.Internals
 
 			continuation(consumerTag);
 		}
+
+		public Task Read_GenericMessageCount(Func<uint, Task> continuation)
+		{
+			uint messageCount = _amqpReader.ReadLong();
+
+			Console.WriteLine("< GenericMessageCount (): " + messageCount);
+
+			return continuation(messageCount);
+		}
 	}
 }

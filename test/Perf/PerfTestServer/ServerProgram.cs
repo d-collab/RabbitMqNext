@@ -106,7 +106,7 @@
 
 					// send reply
 					newChannel.BasicPublish("",
-						delivery.properties.ReplyTo, true, false,
+						delivery.properties.ReplyTo, true,
 						replyProp, new ArraySegment<byte>(temp, 0, 4));
 
 					return Task.CompletedTask;

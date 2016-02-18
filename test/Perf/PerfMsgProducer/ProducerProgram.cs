@@ -70,7 +70,7 @@
 				var buffer = stream.GetBuffer();
 				var len = (int) stream.Position;
 
-				newChannel.BasicPublishFast("test_ex", "perf1", false, false, 
+				newChannel.BasicPublishFast("test_ex", "perf1", false, 
 					new BasicProperties { Type = typeof(Messages1).FullName }, 
 					new ArraySegment<byte>(buffer, 0, len));
 			}

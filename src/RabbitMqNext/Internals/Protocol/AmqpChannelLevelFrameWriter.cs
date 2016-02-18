@@ -49,8 +49,27 @@ namespace RabbitMqNext.Internals
 			};
 		}
 
+		public static WriterDelegate ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("ExchangeDelete " + exchange);
+
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteUShort(0); // reserved
+					w.WriteShortstr(exchange);
+					w.WriteBits(false, !waitConfirmation);
+					w.WriteTable(arguments);
+				});
+			};
+		}
+
 		public static WriterDelegate QueueDeclare(string queue, bool passive, bool durable, bool exclusive,
-										  bool autoDelete, IDictionary<string, object> arguments, bool waitConfirmation)
+			bool autoDelete, IDictionary<string, object> arguments, bool waitConfirmation)
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
@@ -179,14 +198,10 @@ namespace RabbitMqNext.Internals
 		{
 			var b_args = args as FrameParameters.BasicAckArgs;
 
-			// return (writer, channel, classId, methodId, args) =>
 			{
 				uint payloadSize = (uint)(8 + 5);
 
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
-
-//				writer.WriteUShort(classId);
-//				writer.WriteUShort(methodId);
 
 				writer.WriteULong(b_args.deliveryTag);
 				writer.WriteBit(b_args.multiple);
@@ -202,8 +217,6 @@ namespace RabbitMqNext.Internals
 			uint payloadSize = (uint)(8 + 5);
 
 			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
-//			writer.WriteUShort(classId);
-//			writer.WriteUShort(methodId);
 			writer.WriteULong(b_args.deliveryTag);
 			writer.WriteBits(b_args.multiple, b_args.requeue);
 
@@ -244,7 +257,7 @@ namespace RabbitMqNext.Internals
 					w.WriteUShort(0); // reserved1
 					w.WriteShortstr(basicPub.exchange);
 					w.WriteShortstr(basicPub.routingKey);
-					w.WriteBits(basicPub.mandatory, basicPub.immediate);
+					w.WriteBits(basicPub.mandatory, false /* immediate*/ );
 				}
 				writer.WriteOctet(AmqpConstants.FrameEnd);
 				// First frame completed
@@ -300,8 +313,6 @@ namespace RabbitMqNext.Internals
 			};
 		}
 
-		// BasicCancel
-
 		public static WriterDelegate BasicCancel(string consumerTag, bool waitConfirmation)
 		{
 			return (writer, channel, classId, methodId, args) =>
@@ -344,5 +355,108 @@ namespace RabbitMqNext.Internals
 				writer.WriteOctet(AmqpConstants.FrameEnd);
 			};
 		}
+
+		public static WriterDelegate ExchangeBind(string source, string destination, string routingKey, 
+			IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("ExchangeBind " + source);
+
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteUShort(0); // reserved
+					w.WriteShortstr(destination);
+					w.WriteShortstr(source);
+					w.WriteShortstr(routingKey);
+					w.WriteBit(!waitConfirmation);
+					w.WriteTable(arguments);
+				});
+			};
+		}
+
+		public static WriterDelegate ExchangeUnbind(string source, string destination, string routingKey, 
+			IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("ExchangeUnbind " + source);
+
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteUShort(0); // reserved
+					w.WriteShortstr(destination);
+					w.WriteShortstr(source);
+					w.WriteShortstr(routingKey);
+					w.WriteBit(!waitConfirmation);
+					w.WriteTable(arguments);
+				});
+			};
+		}
+
+		public static WriterDelegate QueuePurge(string queue, bool waitConfirmation)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("QueuePurge " + queue);
+
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteUShort(0); // reserved
+					w.WriteShortstr(queue);
+					w.WriteBit(!waitConfirmation);
+				});
+			};
+		}
+
+		public static WriterDelegate QueueDelete(string queue, bool waitConfirmation)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("QueueDelete " + queue);
+
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteUShort(0); // reserved
+					w.WriteShortstr(queue);
+					w.WriteBits(false /*ifUnused*/, false /*ifEmpty*/, !waitConfirmation);
+				});
+			};
+		}
+
+		public static WriterDelegate QueueUnbind(string queue, string exchange, string routingKey, 
+			IDictionary<string, object> arguments)
+		{
+			return (writer, channel, classId, methodId, args) =>
+			{
+				Console.WriteLine("QueueUnbind " + queue);
+
+				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
+				{
+					w.WriteUShort(classId);
+					w.WriteUShort(methodId);
+
+					w.WriteUShort(0); // reserved
+					w.WriteShortstr(queue);
+					w.WriteShortstr(exchange);
+					w.WriteShortstr(routingKey);
+					w.WriteTable(arguments);
+				});
+			};
+		}
+
+		
 	}
 }

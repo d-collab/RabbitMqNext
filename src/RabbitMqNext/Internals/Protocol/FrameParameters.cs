@@ -50,7 +50,6 @@ namespace RabbitMqNext.Internals
 			public string exchange;
 			public string routingKey;
 			public bool mandatory;
-			public bool immediate;
 			public BasicProperties properties;
 			public ArraySegment<byte> buffer;
 

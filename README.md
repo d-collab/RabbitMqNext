@@ -15,6 +15,7 @@ The way this is accomplished is two fold:
   big allocation and that's it. The read/write loop happen in two dedicated threads.
 
 **Not ready for production use.**
+* master branch is stable, but still being tested/stressed heavily
 
 
 ### Current stage: 
@@ -32,15 +33,21 @@ The way this is accomplished is two fold:
 - Queue Consume / Basic Deliver [Done]
 - BasicReturn [Done]
 - Publish confirm [Done] - _will wait the Task on BasicPublish until Ack from server, so it's slow and should be judiciously used_
+- Exchange bind
+- Exchange unbind
+- Queue unbind
+- Queue delete 
+- Queue purge
+- Exchange delete
 
 - ChannelFlow 
-- Heartbeats 
+- Heartbeats
 
 - Connection/channels recovery / Programming model friendly
-  Upon disconnection, try to reconnect and when successfull restore the channels and consumers
+  ** Upon disconnection, try to reconnect and when successfull restore the channels and consumers
 
 Not planning to support:
-- Any authentication method besides plain/SSL
+- Any authentication method besides plain
 - multi body send (limit to framemax)
 - multi body receive  (limit to framemax)
 

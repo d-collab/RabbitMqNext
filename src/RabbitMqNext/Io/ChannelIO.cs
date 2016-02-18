@@ -112,7 +112,7 @@ namespace RabbitMqNext.Io
 
 		#region Commands writing methods
 
-		private Task __SendChannelClose(ushort replyCode, string message)
+		internal Task __SendChannelClose(ushort replyCode, string message)
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -140,7 +140,7 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
-		private Task __SendChannelCloseOk()
+		internal Task __SendChannelCloseOk()
 		{
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -314,7 +314,7 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
-		public Task<string> __BasicConsume(ConsumeMode mode, string queue, string consumerTag, bool withoutAcks, 
+		internal Task<string> __BasicConsume(ConsumeMode mode, string queue, string consumerTag, bool withoutAcks, 
 			bool exclusive, IDictionary<string, object> arguments, bool waitConfirmation, Action<string> confirmConsumerTag)
 		{
 			var tcs = new TaskCompletionSource<string>( // TaskCreationOptions.AttachedToParent | 
@@ -357,7 +357,7 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
-		internal TaskSlim __BasicPublishTask(string exchange, string routingKey, bool mandatory, bool immediate,
+		internal TaskSlim __BasicPublishTask(string exchange, string routingKey, bool mandatory,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (properties == null)
@@ -368,7 +368,6 @@ namespace RabbitMqNext.Io
 			TaskSlim tcs = _taskLightPool.GetObject();
 			var args = _basicPubArgsPool.GetObject();
 			args.exchange = exchange;
-			args.immediate = immediate;
 			args.routingKey = routingKey;
 			args.mandatory = mandatory;
 			args.properties = properties;
@@ -392,7 +391,7 @@ namespace RabbitMqNext.Io
 			return tcs;
 		}
 
-		internal TaskSlim __BasicPublishConfirm(string exchange, string routingKey, bool mandatory, bool immediate,
+		internal TaskSlim __BasicPublishConfirm(string exchange, string routingKey, bool mandatory, 
 												BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (properties == null)
@@ -407,7 +406,6 @@ namespace RabbitMqNext.Io
 			
 			var args = _basicPubArgsPool.GetObject();
 			args.exchange = exchange;
-			args.immediate = immediate;
 			args.routingKey = routingKey;
 			args.mandatory = mandatory;
 			args.properties = properties;
@@ -431,7 +429,7 @@ namespace RabbitMqNext.Io
 			return tcs;
 		}
 
-		internal void __BasicPublish(string exchange, string routingKey, bool mandatory, bool immediate,
+		internal void __BasicPublish(string exchange, string routingKey, bool mandatory, 
 									BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (properties == null)
@@ -441,7 +439,6 @@ namespace RabbitMqNext.Io
 
 			var args = _basicPubArgsPool.GetObject();
 			args.exchange = exchange;
-			args.immediate = immediate;
 			args.routingKey = routingKey;
 			args.mandatory = mandatory;
 			args.properties = properties;
@@ -461,7 +458,7 @@ namespace RabbitMqNext.Io
 				optArg: args);
 		}
 
-		public Task __BasicCancel(string consumerTag, bool waitConfirmation)
+		internal Task __BasicCancel(string consumerTag, bool waitConfirmation)
 		{
 			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -491,7 +488,7 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
-		public Task __BasicRecover(bool requeue)
+		internal Task __BasicRecover(bool requeue)
 		{
 			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -511,6 +508,186 @@ namespace RabbitMqNext.Io
 				},
 				expectsReply: true,
 				tcs: tcs);
+
+			return tcs.Task;
+		}
+
+		internal Task __ExchangeBind(string source, string destination, string routingKey, 
+			IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+			var writer = AmqpChannelLevelFrameWriter.ExchangeBind(source, destination, routingKey, arguments, waitConfirmation);
+
+			_connectionIo.SendCommand(_channelNum, 
+				Amqp.Channel.Exchange.ClassId, Amqp.Channel.Exchange.Methods.ExchangeBind,
+				writer,
+				reply: (channel, classMethodId, error) =>
+				{
+					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeBindOk)
+					{
+						Console.WriteLine("< ExchangeBindOk " + source);
+
+						tcs.SetResult(true);
+					}
+					else
+					{
+						AmqpIOBase.SetException(tcs, error, classMethodId);
+					}
+					return Task.CompletedTask;
+				},
+				expectsReply: waitConfirmation);
+
+			return tcs.Task;
+		}
+
+		internal Task __ExchangeUnbind(string source, string destination, string routingKey, IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+			var writer = AmqpChannelLevelFrameWriter.ExchangeUnbind(source, destination, routingKey, arguments, waitConfirmation);
+
+			_connectionIo.SendCommand(_channelNum,
+				Amqp.Channel.Exchange.ClassId, Amqp.Channel.Exchange.Methods.ExchangeUnBind,
+				writer,
+				reply: (channel, classMethodId, error) =>
+				{
+					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeUnbindOk)
+					{
+						Console.WriteLine("< ExchangeUnbindOk " + source);
+
+						tcs.SetResult(true);
+					}
+					else
+					{
+						AmqpIOBase.SetException(tcs, error, classMethodId);
+					}
+					return Task.CompletedTask;
+				},
+				expectsReply: waitConfirmation);
+
+			return tcs.Task;
+		}
+
+		internal Task __ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
+		{
+			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+			var writer = AmqpChannelLevelFrameWriter.ExchangeDelete(exchange, arguments, waitConfirmation);
+
+			_connectionIo.SendCommand(_channelNum, Amqp.Channel.Exchange.ClassId, Amqp.Channel.Exchange.Methods.ExchangeDelete,
+				writer,
+				reply: (channel, classMethodId, error) =>
+				{
+					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeDeleteOk)
+					{
+						Console.WriteLine("< ExchangeDeleteOk " + exchange);
+
+						tcs.SetResult(true);
+					}
+					else
+					{
+						AmqpIOBase.SetException(tcs, error, classMethodId);
+					}
+					return Task.CompletedTask;
+				},
+				expectsReply: waitConfirmation);
+
+			return tcs.Task;
+		}
+
+		internal Task __QueueUnbind(string queue, string exchange, string routingKey, 
+			IDictionary<string, object> arguments)
+		{
+			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+			var writer = AmqpChannelLevelFrameWriter.QueueUnbind(queue, exchange, routingKey, arguments);
+
+			_connectionIo.SendCommand(_channelNum,
+				Amqp.Channel.Queue.ClassId, Amqp.Channel.Queue.Methods.QueueUnbind,
+				writer,
+				reply: (channel, classMethodId, error) =>
+				{
+					if (classMethodId == AmqpClassMethodChannelLevelConstants.QueueUnbindOk)
+					{
+						Console.WriteLine("< QueueUnbindOk " + queue);
+						tcs.SetResult(true);
+					}
+					else
+					{
+						AmqpIOBase.SetException(tcs, error, classMethodId);
+					}
+					return Task.CompletedTask;
+				},
+				expectsReply: true);
+
+			return tcs.Task;
+		}
+
+		internal Task<uint> __QueueDelete(string queue, bool waitConfirmation)
+		{
+			var tcs = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+			var writer = AmqpChannelLevelFrameWriter.QueueDelete(queue, waitConfirmation);
+
+			_connectionIo.SendCommand(_channelNum,
+				Amqp.Channel.Queue.ClassId, Amqp.Channel.Queue.Methods.QueueDelete,
+				writer,
+				reply: async (channel, classMethodId, error) =>
+				{
+					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueuePurgeOk)
+					{
+						await _connectionIo._frameReader.Read_GenericMessageCount(count =>
+						{
+							Console.WriteLine("< QueueDeleteOk " + queue);
+							tcs.SetResult(count);
+							return Task.CompletedTask;
+						}).ConfigureAwait(false);
+					}
+					else if (!waitConfirmation)
+					{
+						tcs.SetResult(0);
+					}
+					else
+					{
+						AmqpIOBase.SetException(tcs, error, classMethodId);
+					}
+				},
+				expectsReply: waitConfirmation);
+
+			return tcs.Task;
+		}
+
+		internal Task<uint> __QueuePurge(string queue, bool waitConfirmation)
+		{
+			var tcs = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+			var writer = AmqpChannelLevelFrameWriter.QueuePurge(queue, waitConfirmation);
+
+			_connectionIo.SendCommand(_channelNum,
+				Amqp.Channel.Queue.ClassId, Amqp.Channel.Queue.Methods.QueuePurge,
+				writer,
+				reply: async (channel, classMethodId, error) =>
+				{
+					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueuePurgeOk)
+					{
+						await _connectionIo._frameReader.Read_GenericMessageCount(count =>
+						{
+							Console.WriteLine("< QueuePurgeOk " + queue);
+							tcs.SetResult(count);
+							return Task.CompletedTask;
+						}).ConfigureAwait(false);
+					}
+					else if (!waitConfirmation)
+					{
+						tcs.SetResult(0);
+					}
+					else
+					{
+						AmqpIOBase.SetException(tcs, error, classMethodId);
+					}
+				},
+				expectsReply: waitConfirmation);
 
 			return tcs.Task;
 		}

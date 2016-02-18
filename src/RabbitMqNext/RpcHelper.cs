@@ -118,7 +118,7 @@ namespace RabbitMqNext
 					prop.Expiration = _timeoutInMs.ToString();
 				}
 
-				_channel.BasicPublishFast(exchange, routing, true, false, properties, buffer);
+				_channel.BasicPublishFast(exchange, routing, true, properties, buffer);
 			}
 			catch (Exception ex)
 			{
