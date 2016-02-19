@@ -33,12 +33,14 @@ The way this is accomplished is two fold:
 - Queue Consume / Basic Deliver [Done]
 - BasicReturn [Done]
 - Publish confirm [Done] - _will wait the Task on BasicPublish until Ack from server, so it's slow and should be judiciously used_
-- Exchange bind
-- Exchange unbind
-- Queue unbind
-- Queue delete 
-- Queue purge
-- Exchange delete
+- Exchange bind [Done]
+- Exchange unbind [Done]
+- Queue unbind [Done]
+- Queue delete  [Done]
+- Queue purge [Done]
+- Exchange delete [Done]
+
+- RabbitConsole from [Castle.RabbitMq](https://github.com/castleproject/Castle.RabbitMq). Very useful to set up integration tests
 
 - ChannelFlow 
 - Heartbeats
