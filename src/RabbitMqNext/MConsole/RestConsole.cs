@@ -64,7 +64,7 @@
 		}
 
 		// /api/users/name
-		public async Task AddUser(string name, string password, string[] tags)
+		public async Task AddUser(string name, string password, params string[] tags)
 		{
 			// PUT {"password":"secret","tags":"administrator"}
 
@@ -72,7 +72,7 @@
 
 			var payload = "{ \"password\": \"" + password + "\", \"tags\": \"" + string.Join(",", tags) + "\"  }";
 
-			var response = await _client.PutAsync(url, new StringContent(payload)).ConfigureAwait(false);
+			var response = await _client.PutAsync(url, new StringContent(payload, Encoding.UTF8, "application/json")).ConfigureAwait(false);
 
 			if (!response.IsSuccessStatusCode)
 				throw new Exception(response.ReasonPhrase);
@@ -83,7 +83,7 @@
 		{
 			// PUT /api/vhosts/name
 			var url = string.Format("vhosts/{0}", WebUtility.UrlEncode(name));
-			var response = await _client.PutAsync(url, new StringContent("{\"tracing\": false}")).ConfigureAwait(false);
+			var response = await _client.PutAsync(url, new StringContent("{\"tracing\": false}", Encoding.UTF8, "application/json")).ConfigureAwait(false);
 
 			if (!response.IsSuccessStatusCode)
 				throw new Exception(response.ReasonPhrase);
@@ -117,16 +117,16 @@
 		}
 
 		// /api/permissions/vhost/user
-		public async Task SetUserVHostPermission(string name, string configure = ".*", string write = ".*", string read = ".*")
+		public async Task SetUserVHostPermission(string name, string vhost, string configure = ".*", string write = ".*", string read = ".*")
 		{
 			// PUT /api/permissions/vhost/user
 			// body {"configure":".*","write":".*","read":".*"}
 
-			var url = string.Format("permissions/vhost/{0}", WebUtility.UrlEncode(name));
+			var url = string.Format("permissions/{0}/{1}", WebUtility.UrlEncode(vhost), WebUtility.UrlEncode(name));
 
 			var payload = "{ \"configure\": \"" + configure + "\", \"write\": \"" + write + "\", \"read\": \"" + read + "\" }";
 
-			var response = await _client.PutAsync(url, new StringContent(payload)).ConfigureAwait(false);
+			var response = await _client.PutAsync(url, new StringContent(payload, Encoding.UTF8, "application/json")).ConfigureAwait(false);
 
 			if (!response.IsSuccessStatusCode)
 				throw new Exception(response.ReasonPhrase);
@@ -215,14 +215,14 @@
 		}
 
 		// /api/vhosts
-		public async Task<IEnumerable<UserInfo>> GetVHosts()
+		public async Task<IEnumerable<VHostInfo>> GetVHosts()
 		{
 			// "name": "clear_int_test", "tracing": false  - ignoring message_stats
 
 			var url = "vhosts";
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
 
-			return JsonConvert.DeserializeObject<IEnumerable<UserInfo>>(json);
+			return JsonConvert.DeserializeObject<IEnumerable<VHostInfo>>(json);
 		}
 
 		public void Dispose()
