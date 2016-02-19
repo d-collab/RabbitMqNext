@@ -43,9 +43,8 @@
 		// /api/permissions
 		public async Task<IEnumerable<UserVHostPermissionsInfo>> GetPermissions()
 		{
-			// [
-			// {"user":"guest","vhost":"/",				"configure":".*","write":".*","read":".*"}
-			//]
+			// {"user":"guest","vhost":"/", "configure":".*","write":".*","read":".*"} ]
+
 			var url = "permissions";
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
 
@@ -55,8 +54,8 @@
 		// /api/users
 		public async Task<IEnumerable<UserInfo>> GetUsers()
 		{
-			// [{"name":"clear","password_hash":"QsZFnQwc+7iURLd2SNz/kji6xkg=","tags":""},
-			// {"name":"guest","password_hash":"jACWlZf7UiEHZXhHdGcz8rrpXak=","tags":"administrator"}]
+			// [ {"name":"clear","password_hash":"QsZFnQwc+7iURLd2SNz/kji6xkg=","tags":""},
+			//   {"name":"guest","password_hash":"jACWlZf7UiEHZXhHdGcz8rrpXak=","tags":"administrator"} ]
 
 			var url = "users";
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
@@ -83,7 +82,6 @@
 		public async Task CreateVHost(string name)
 		{
 			// PUT /api/vhosts/name
-
 			var url = string.Format("vhosts/{0}", WebUtility.UrlEncode(name));
 			var response = await _client.PutAsync(url, new StringContent("{\"tracing\": false}")).ConfigureAwait(false);
 
@@ -134,9 +132,9 @@
 				throw new Exception(response.ReasonPhrase);
 		}
 
-		// /api/bindings/vhost	
+		// /api/bindings/vhost
 		// A list of all bindings in a given virtual host.
-		public async Task<IEnumerable<BindingInfo>> GetBindingsAsync(string vhost = "/")
+		public async Task<IEnumerable<BindingInfo>> GetBindings(string vhost = "/")
 		{
 			var url = string.Format("bindings/{0}", WebUtility.UrlEncode(vhost));
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
@@ -146,7 +144,7 @@
 
 		// /api/bindings/vhost/e/exchange/q/queue
 		// A list of all bindings between an exchange and a	queue. Remember, an	exchange and a queue can be	bound together many	times 
-		public async Task<IEnumerable<BindingInfo>> GetBindingsAsync(string exchange, string queue, string vhost = "/")
+		public async Task<IEnumerable<BindingInfo>> GetBindings(string exchange, string queue, string vhost = "/")
 		{
 			var url = string.Format("bindings/{0}/e/{1}/q/{2}",
 				WebUtility.UrlEncode(vhost),
@@ -159,7 +157,7 @@
 
 		// /api/exchanges/vhost/exchange/bindings/source
 		// A list of all bindings between an exchange and a	queue. Remember, an	exchange and a queue can be	bound together many	times 
-		public async Task<IEnumerable<BindingInfo>> GetExchangeBindingsAsync(string exchange, string vhost = "/")
+		public async Task<IEnumerable<BindingInfo>> GetExchangeBindings(string exchange, string vhost = "/")
 		{
 			//var url =	string.Format("http://{0}:15672/api/exchanges/{2}/{1}/bindings/source",	config.Host	?? "localhost",	exchange, config.VHost ?? "%2F");
 			var url = string.Format("exchanges/{0}/{1}/bindings/source",
@@ -171,7 +169,7 @@
 		}
 
 		// /api/exchanges/vhost
-		public async Task<IEnumerable<ExchangeInfo>> GetExchangesAsync(string vhost = "/")
+		public async Task<IEnumerable<ExchangeInfo>> GetExchanges(string vhost = "/")
 		{
 			var url = string.Format("exchanges/{0}", WebUtility.UrlEncode(vhost));
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
@@ -180,12 +178,51 @@
 		}
 
 		// /api/queues/vhost
-		public async Task<IEnumerable<QueueInfo>> GetQueuesAsync(string vhost = "/")
+		public async Task<IEnumerable<QueueInfo>> GetQueues(string vhost = "/")
 		{
 			var url = string.Format("queues/{0}", WebUtility.UrlEncode(vhost));
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
 
 			return JsonConvert.DeserializeObject<IEnumerable<QueueInfo>>(json);
+		}
+
+		// /api/exchanges/vhost/name
+		public async Task DeleteExchange(string name, string vhost)
+		{
+			var url = string.Format("exchanges/{0}/{1}", WebUtility.UrlEncode(vhost), WebUtility.UrlEncode(name));
+			var response = await _client.DeleteAsync(url).ConfigureAwait(false);
+
+			if (!response.IsSuccessStatusCode)
+				throw new Exception(response.ReasonPhrase);
+		}
+
+		public async Task DeleteQueue(string name, string vhost)
+		{
+			var url = string.Format("queues/{0}/{1}", WebUtility.UrlEncode(vhost), WebUtility.UrlEncode(name));
+			var response = await _client.DeleteAsync(url).ConfigureAwait(false);
+
+			if (!response.IsSuccessStatusCode)
+				throw new Exception(response.ReasonPhrase);
+		}
+
+		public async Task PurgeQueue(string name, string vhost)
+		{
+			var url = string.Format("queues/{0}/{1}/contents", WebUtility.UrlEncode(vhost), WebUtility.UrlEncode(name));
+			var response = await _client.DeleteAsync(url).ConfigureAwait(false);
+
+			if (!response.IsSuccessStatusCode)
+				throw new Exception(response.ReasonPhrase);
+		}
+
+		// /api/vhosts
+		public async Task<IEnumerable<UserInfo>> GetVHosts()
+		{
+			// "name": "clear_int_test", "tracing": false  - ignoring message_stats
+
+			var url = "vhosts";
+			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
+
+			return JsonConvert.DeserializeObject<IEnumerable<UserInfo>>(json);
 		}
 
 		public void Dispose()
