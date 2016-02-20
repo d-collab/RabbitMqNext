@@ -157,7 +157,7 @@
 
 		// /api/exchanges/vhost/exchange/bindings/source
 		// A list of all bindings between an exchange and a	queue. Remember, an	exchange and a queue can be	bound together many	times 
-		public async Task<IEnumerable<BindingInfo>> GetExchangeBindings(string exchange, string vhost = "/")
+		public async Task<IList<BindingInfo>> GetExchangeBindings(string exchange, string vhost = "/")
 		{
 			//var url =	string.Format("http://{0}:15672/api/exchanges/{2}/{1}/bindings/source",	config.Host	?? "localhost",	exchange, config.VHost ?? "%2F");
 			var url = string.Format("exchanges/{0}/{1}/bindings/source",
@@ -165,25 +165,25 @@
 				WebUtility.UrlEncode(exchange));
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
 
-			return JsonConvert.DeserializeObject<IEnumerable<BindingInfo>>(json);
+			return JsonConvert.DeserializeObject<IList<BindingInfo>>(json);
 		}
 
 		// /api/exchanges/vhost
-		public async Task<IEnumerable<ExchangeInfo>> GetExchanges(string vhost = "/")
+		public async Task<IList<ExchangeInfo>> GetExchanges(string vhost = "/")
 		{
 			var url = string.Format("exchanges/{0}", WebUtility.UrlEncode(vhost));
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
 
-			return JsonConvert.DeserializeObject<IEnumerable<ExchangeInfo>>(json);
+			return JsonConvert.DeserializeObject<IList<ExchangeInfo>>(json);
 		}
 
 		// /api/queues/vhost
-		public async Task<IEnumerable<QueueInfo>> GetQueues(string vhost = "/")
+		public async Task<IList<QueueInfo>> GetQueues(string vhost = "/")
 		{
 			var url = string.Format("queues/{0}", WebUtility.UrlEncode(vhost));
 			var json = await _client.GetStringAsync(url).ConfigureAwait(false);
 
-			return JsonConvert.DeserializeObject<IEnumerable<QueueInfo>>(json);
+			return JsonConvert.DeserializeObject<IList<QueueInfo>>(json);
 		}
 
 		// /api/exchanges/vhost/name
