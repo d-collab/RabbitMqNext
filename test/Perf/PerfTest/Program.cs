@@ -207,7 +207,7 @@
 				Console.WriteLine("[channel created] " + newChannel2.ChannelNumber);
 				await newChannel2.BasicQos(0, Prefetch, false);
 
-				var rpcHelper = await newChannel2.CreateRpcHelper(ConsumeMode.SingleThreaded);
+				var rpcHelper = await newChannel2.CreateRpcHelper(ConsumeMode.SingleThreaded, timeoutInMs: null);
 
 				var watch = new Stopwatch();
 				watch.Start();
