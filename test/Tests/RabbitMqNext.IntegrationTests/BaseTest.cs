@@ -24,7 +24,7 @@ namespace RabbitMqNext.IntegrationTests
 			Console.WriteLine("vhosts: " + vhosts.Aggregate(" ", (agg, vhst) => agg + " " + vhst.Name));
 			Console.WriteLine("users: " + users.Aggregate(" ", (agg, u) => agg + " " + u.Name + "[" + u.Tags + "]"));
 
-			if (vhosts.Any(v => v.Name == vhost))
+			if (!vhosts.Any(v => v.Name == vhost))
 			{
 				await console.CreateVHost(vhost);
 				await console.SetUserVHostPermission(username, vhost);
