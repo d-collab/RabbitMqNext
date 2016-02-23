@@ -98,7 +98,7 @@ namespace RabbitMqNext.IntegrationTests
 			await channel.QueueBind("queue_direct", "test_direct", "routing", null, waitConfirmation: true);
 		}
 
-		[Test, ExpectedException(ExpectedMessage = "Error: Server returned error: COMMAND_INVALID - unknown exchange type 'SOMETHING' [code: 503 class: 40 method: 10]")]
+		[Explicit, Test, ExpectedException(ExpectedMessage = "Error: Server returned error: COMMAND_INVALID - unknown exchange type 'SOMETHING' [code: 503 class: 40 method: 10]")]
 		public async Task InvalidCommand_Should_SignalExceptionOnTask()
 		{
 			using (var conn = await base.StartConnection())
