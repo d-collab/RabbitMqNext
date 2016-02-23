@@ -2,26 +2,29 @@ version: "1.0.0.{build}"
 
 platform: Any CPU
 configuration: Release
+
 skip_tags: true
+
+assembly_info:
+  patch: true
+  file: '**\AssemblyInfo.*'
+  assembly_version: '{version}'
+  assembly_file_version: '{version}'
+  assembly_informational_version: '{version}'
 
 init:
   - echo %APPVEYOR_BUILD_VERSION%
   - cinst rabbitmq
 
-  
 before_build:
   - nuget restore -DisableParallelProcessing
-  
   
 build:
   parallel: false
   project: RabbitMqNext.sln
   verbosity: minimal
 
-
 deploy: off
 
 matrix:
   fast_finish: true
-  
-  
