@@ -18,16 +18,18 @@ namespace RabbitMqNext.IntegrationTests
 			var username = ConfigurationManager.AppSettings["username"];
 			var password = ConfigurationManager.AppSettings["password"];
 
-			var console = new RestConsole(host, username, password);
-			var vhosts = await console.GetVHosts();
-			var users = await console.GetUsers();
-			Console.WriteLine("vhosts: " + vhosts.Aggregate(" ", (agg, vhst) => agg + " " + vhst.Name));
-			Console.WriteLine("users: " + users.Aggregate(" ", (agg, u) => agg + " " + u.Name + "[" + u.Tags + "]"));
-
-			if (!vhosts.Any(v => v.Name == vhost))
+			using (var console = new RestConsole(host, username, password))
 			{
-				await console.CreateVHost(vhost);
-				await console.SetUserVHostPermission(username, vhost);
+				var vhosts = await console.GetVHosts();
+				var users = await console.GetUsers();
+				Console.WriteLine("vhosts: " + vhosts.Aggregate(" ", (agg, vhst) => agg + " " + vhst.Name));
+				Console.WriteLine("users: " + users.Aggregate(" ", (agg, u) => agg + " " + u.Name + "[" + u.Tags + "]"));
+
+				if (!vhosts.Any(v => v.Name == vhost))
+				{
+					await console.CreateVHost(vhost);
+					await console.SetUserVHostPermission(username, vhost);
+				}
 			}
 
 			var conn = await new ConnectionFactory().Connect(host, vhost, username, password);
