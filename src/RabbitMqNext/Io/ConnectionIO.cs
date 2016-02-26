@@ -143,7 +143,7 @@ namespace RabbitMqNext.Io
 			{
 				while (!this._cancellationToken.IsCancellationRequested)
 				{
-					_commandOutboxEvent.WaitOne(1000);
+					_commandOutboxEvent.WaitOne(1000); // maybe it's better to _cancellationToken.Register(action) ?
 //					_commandOutboxEvent.Wait();
 
 					CommandToSend cmdToSend;
@@ -176,9 +176,7 @@ namespace RabbitMqNext.Io
 						// if writing to socket is enough, set as complete
 						if (!cmdToSend.ExpectsReply)
 						{
-#pragma warning disable 4014
-							cmdToSend.RunReplyAction(0, 0, null);
-#pragma warning restore 4014
+							cmdToSend.RunReplyAction(0, 0, null).IntentionallyNotAwaited();
 						}
 					}
 				}
