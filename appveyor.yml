@@ -30,7 +30,7 @@ matrix:
   fast_finish: true
 
 artifacts:
-  - path: '**\*.nupkg'
+  - path: '*.nupkg'
 
 after_build:
   - ps: |
