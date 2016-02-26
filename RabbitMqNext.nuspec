@@ -15,7 +15,7 @@
 	with the goal of reduced GC pauses, increased throughput and no contention.
 	Check the project website before using it.
 	</summary>
-    <copyright>Copyright 2015-$CurrentYear$ Clear CTVM - http://www.clear.com.br/</copyright>
+    <copyright>Copyright 2015-2016 Clear CTVM - (http://www.clear.com.br) </copyright>
     <tags>amqp rabbitmq messaging broker rabbitclient</tags>
   </metadata>
   <files>
