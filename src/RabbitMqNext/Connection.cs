@@ -33,12 +33,12 @@
 
 		public bool IsClosed { get { return _io.IsClosed; } }
 
-		public Task<Channel> CreateChannel()
+		public Task<IChannel> CreateChannel()
 		{
 			return InternalCreateChannel(withPubConfirm: false);
 		}
 
-		public Task<Channel> CreateChannelWithPublishConfirmation(int maxunconfirmedMessages = 100)
+		public Task<IChannel> CreateChannelWithPublishConfirmation(int maxunconfirmedMessages = 100)
 		{
 			return InternalCreateChannel(maxunconfirmedMessages, withPubConfirm: true);
 		}
@@ -90,7 +90,7 @@
 			}
 		}
 
-		private async Task<Channel> InternalCreateChannel(int maxunconfirmedMessages = 0, bool withPubConfirm = false)
+		private async Task<IChannel> InternalCreateChannel(int maxunconfirmedMessages = 0, bool withPubConfirm = false)
 		{
 			var channelNum = (ushort)Interlocked.Increment(ref _channelNumbers);
 

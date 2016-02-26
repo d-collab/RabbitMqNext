@@ -10,7 +10,7 @@
 	using RabbitMqNext.Internals.RingBuffer;
 	using RabbitMqNext.Io;
 
-	public class Channel : IDisposable
+	public class Channel : IChannel
 	{
 		private static readonly Stream EmptyStream = new MemoryStream(new byte[0], writable: false);
 
@@ -53,7 +53,7 @@
 
 		public bool IsClosed { get { return _io.IsClosed; } }
 
-		public Func<UndeliveredMessage, Task> MessageUndeliveredHandler;
+		public Func<UndeliveredMessage, Task> MessageUndeliveredHandler { get; set; }
 
 		public BasicProperties RentBasicProperties()
 		{

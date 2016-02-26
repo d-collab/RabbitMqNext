@@ -32,6 +32,20 @@ namespace RabbitMqNext.Internals
 	{
 		public static class Channel
 		{
+			public const ushort ClassId = 20;
+
+			public static class Methods
+			{
+				public const ushort ChannelOpen = 10;
+				public const ushort ChannelOpenOk = 11;
+
+				public const ushort ChannelClose = 40;
+			}
+
+
+
+
+
 			public static class Exchange
 			{
 				public const ushort ClassId = 40;

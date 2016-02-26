@@ -72,6 +72,7 @@
     <Compile Include="Buffers\Utilities.cs" />
     <Compile Include="ChannelApiExtensions.cs" />
     <Compile Include="ConnectionFactory.cs" />
+    <Compile Include="IChannel.cs" />
     <Compile Include="Internals\RingBuffer\Padding.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferPositionMarker.cs">
       <SubType>Code</SubType>
