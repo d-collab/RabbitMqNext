@@ -28,3 +28,10 @@ deploy: off
 
 matrix:
   fast_finish: true
+
+artifacts:
+  - path: '**\*.nupkg'
+
+after_build:
+  - ps: |
+      nuget pack RabbitMqNext.nuspec -version %APPVEYOR_BUILD_VERSION% -symbols
