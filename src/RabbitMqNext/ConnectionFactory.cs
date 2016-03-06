@@ -9,10 +9,8 @@
 	{
 		public ConnectionFactory()
 		{
-			this.ConnectionRecoveryStrategy = new DefaultConnectionRecoveryStrategy();
 		}
 
-		public IConnectionRecoveryStrategy ConnectionRecoveryStrategy { get; set; }
 
 		public async Task<Connection> Connect(IEnumerable<string> hostnames,
 			string vhost = "/", string username = "guest",
@@ -21,7 +19,8 @@
 		{
 			var conn = new Connection();
 
-			if (autoRecovery) conn.ConnectionRecoveryStrategy = this.ConnectionRecoveryStrategy;
+			if (autoRecovery) 
+				conn.ConnectionRecoveryStrategy = new ConnectionRecoveryStrategy(hostnames, vhost, username, password, port);
 
 			try
 			{
@@ -56,7 +55,7 @@
 		{
 			var conn = new Connection();
 
-			if (autoRecovery) conn.ConnectionRecoveryStrategy = this.ConnectionRecoveryStrategy;
+			if (autoRecovery) conn.ConnectionRecoveryStrategy = new ConnectionRecoveryStrategy(hostname, vhost, username, password, port);
 
 			try
 			{

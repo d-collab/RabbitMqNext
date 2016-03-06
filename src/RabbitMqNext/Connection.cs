@@ -23,7 +23,7 @@
 			};
 		}
 
-		public IConnectionRecoveryStrategy ConnectionRecoveryStrategy { get; internal set; }
+		public ConnectionRecoveryStrategy ConnectionRecoveryStrategy { get; internal set; }
 
 		public event Action<AmqpError> OnError;
 

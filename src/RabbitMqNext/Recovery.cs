@@ -1,18 +1,24 @@
 ﻿namespace RabbitMqNext
 {
-	public interface IConnectionRecoveryStrategy
+	using System.Collections.Generic;
+
+	public class ConnectionRecoveryStrategy 
 	{
+		public ConnectionRecoveryStrategy(string hostname, string vhost, string username, string password, int port)
+		{
+		}
+
+		public ConnectionRecoveryStrategy(IEnumerable<string> hostnames, string vhost, string username, string password, int port)
+		{
+		}
+
 		// void RegisterChannel()
 		// void UnregisterChannel()
 	}
 
-	public interface IChannelRecoveryStrategy
+	public class ChannelRecoveryStrategy
 	{
 		// void RegisterResource()
-	}
 
-	public class DefaultConnectionRecoveryStrategy : IConnectionRecoveryStrategy
-	{
-		
 	}
 }

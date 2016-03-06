@@ -39,7 +39,7 @@
 			_propertiesPool = new ObjectPool<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
 		}
 
-		public IChannelRecoveryStrategy ChannelRecoveryStrategy { get; internal set; }
+		public ChannelRecoveryStrategy ChannelRecoveryStrategy { get; internal set; }
 
 		public event Action<AmqpError> OnError;
 
