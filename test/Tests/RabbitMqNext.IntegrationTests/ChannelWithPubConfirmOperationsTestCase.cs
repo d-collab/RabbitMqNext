@@ -12,6 +12,8 @@
 		[Test]
 		public async Task Parallel_Consumer_Publish()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
 			var conn = await base.StartConnection();
 			
 			// !!!

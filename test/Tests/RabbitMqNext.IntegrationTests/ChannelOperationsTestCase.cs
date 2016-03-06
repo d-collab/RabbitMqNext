@@ -14,6 +14,9 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task BasicQos()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			using (var conn = await base.StartConnection())
 			using (var channel = await conn.CreateChannel())
 			{
@@ -27,6 +30,9 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task BasicAck()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
@@ -41,6 +47,9 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task BasicNAck()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
@@ -55,6 +64,9 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task QueueDeclare_with_wait_Should_return_queueInfo()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
@@ -70,6 +82,8 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task ExchangeDeclare_with_wait_Should_waitconfirmation()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
@@ -85,6 +99,8 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task QueueBind_should_await_confirmation()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
@@ -101,6 +117,8 @@ namespace RabbitMqNext.IntegrationTests
 		[Explicit, Test, ExpectedException(ExpectedMessage = "Error: Server returned error: COMMAND_INVALID - unknown exchange type 'SOMETHING' [code: 503 class: 40 method: 10]")]
 		public async Task InvalidCommand_Should_SignalExceptionOnTask()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
 			using (var conn = await base.StartConnection())
 			{
 				var channel = await conn.CreateChannel();

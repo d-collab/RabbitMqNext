@@ -33,6 +33,7 @@
 										   throwOnError: false).ConfigureAwait(false);
 					if (successful)
 					{
+						LogAdapter.LogWarn("ConnectionFactory", "Selected " + hostname);
 						return conn;
 					}
 				}

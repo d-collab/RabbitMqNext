@@ -13,7 +13,8 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task Parallel_Consumer_FastPublish()
 		{
-			Console.WriteLine("Parallel_Consumer_FastPublish");
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
 
 			var conn = await base.StartConnection();
 			var channel1 = await conn.CreateChannel();
@@ -61,7 +62,8 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task SingleThreaded_Consumer_AwaitedPublish()
 		{
-			Console.WriteLine("SingleThreaded_Consumer_AwaitedPublish");
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
 
 			var conn = await base.StartConnection();
 			var channel1 = await conn.CreateChannel();

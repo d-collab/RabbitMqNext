@@ -22,7 +22,7 @@
 		{
 			LogDebugFn = (c, m, ex) =>
 			{
-				var msg = string.Format("Debug [{0}]: {1}", c, m);
+				var msg = string.Format("Debug [{0}]: {1} {2}", c, m, ex);
 				Console.Out.WriteLine(msg);
 				if (Debugger.IsLogging())
 				{
@@ -32,7 +32,7 @@
 
 			LogErrorFn = (c, m, ex) =>
 			{
-				var msg = string.Format("Error [{0}]: {1}", c, m);
+				var msg = string.Format("Error [{0}]: {1} {2}", c, m, ex);
 				Console.Error.WriteLine(msg);
 				if (Debugger.IsLogging())
 				{
@@ -42,7 +42,7 @@
 
 			LogWarnFn = (c, m, ex) =>
 			{
-				var msg = string.Format("Warn  [{0}]: {1}", c, m);
+				var msg = string.Format("Warn  [{0}]: {1} {2}", c, m, ex);
 				Console.Out.WriteLine(msg);
 				if (Debugger.IsLogging())
 				{

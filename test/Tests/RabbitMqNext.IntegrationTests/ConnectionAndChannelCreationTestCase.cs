@@ -1,5 +1,6 @@
 ﻿namespace RabbitMqNext.IntegrationTests
 {
+	using System;
 	using System.Threading.Tasks;
 	using FluentAssertions;
 	using NUnit.Framework;
@@ -10,6 +11,9 @@
 		[Test, Explicit("Takes too long")]
 		public async Task ConnectWithListOfHosts()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			var listsOfFakeHostsWithGoodAsLast = new []
 			{
 				"192.168.0.23",
@@ -24,6 +28,9 @@
 		[Test]
 		public async Task OpenAndCloseCleanlyUponDispose()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			Connection conn = null;
 			using (conn = await base.StartConnection())
 			{
@@ -35,6 +42,9 @@
 		[Test]
 		public async Task OpenAndCloseChannelsCleanly()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			using (var conn = await base.StartConnection())
 			{
 				var newChannel1 = await conn.CreateChannel();
@@ -58,6 +68,9 @@
 		[Test]
 		public async Task ClosingConnection_Should_CloseAllChannels()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			var conn = await base.StartConnection();
 
 			var newChannel1 = await conn.CreateChannel();
@@ -77,6 +90,9 @@
 		[Test]
 		public async Task Opens_PubConfirm_Channel()
 		{
+			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+
+
 			using (var conn = await base.StartConnection())
 			{
 				var newChannel1 = await conn.CreateChannelWithPublishConfirmation();
