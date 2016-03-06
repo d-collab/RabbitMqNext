@@ -165,7 +165,8 @@
 				var classId = classMethodId >> 16;
 				var methodId = classMethodId & 0x0000FFFF;
 
-				Console.WriteLine("Unexpected situation: classId = " + classId + " method " + methodId + " and error = null");
+				LogAdapter.LogError("AmqpIOBase", "Unexpected situation: classId " + classId + " method " + methodId + " and error = null");
+
 				tcs.SetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
 			}
 		}
@@ -186,7 +187,8 @@
 				var classId = classMethodId >> 16;
 				var methodId = classMethodId & 0x0000FFFF;
 
-				Console.WriteLine("Unexpected situation: classId = " + classId + " method " + methodId + " and error = null");
+				LogAdapter.LogError("AmqpIOBase", "Unexpected situation: classId " + classId + " method " + methodId + " and error = null");
+
 				tcs.SetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
 			}
 		}

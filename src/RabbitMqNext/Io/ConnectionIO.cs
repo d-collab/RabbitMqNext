@@ -71,7 +71,7 @@ namespace RabbitMqNext.Io
 			switch (classMethodId)
 			{
 				case AmqpClassMethodConnectionLevelConstants.ConnectionClose:
-					_frameReader.Read_ConnectionClose2(base.HandleCloseMethodFromServer);
+					_frameReader.Read_ConnectionClose(base.HandleCloseMethodFromServer);
 					break;
 
 				// TODO: support block/unblock connection msgs
@@ -181,9 +181,14 @@ namespace RabbitMqNext.Io
 					}
 				}
 			}
+			catch (ThreadAbortException)
+			{
+				// no-op
+			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("WriteCommandsToSocket error " + ex);
+				LogAdapter.LogError("ConnectionIO", "WriteFramesLoop error", ex);
+
 				this.InitiateAbruptClose(ex);
 			}
 		}
@@ -198,15 +203,13 @@ namespace RabbitMqNext.Io
 					_frameReader.ReadAndDispatch();
 				}
 			}
-//			catch (ThreadAbortException ex)
-//			{
-//				// no-op
-//
-//				base.InitiateAbruptClose(ex);
-//			}
+			catch (ThreadAbortException)
+			{
+				// no-op
+			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("ReadFramesLoop error " + ex.Message);
+				LogAdapter.LogError("ConnectionIO", "ReadFramesLoop error", ex);
 
 				this.InitiateAbruptClose(ex);
 			}
@@ -247,9 +250,7 @@ namespace RabbitMqNext.Io
 			KnownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
 
 			if (LogAdapter.ExtendedLogEnabled)
-			{
 				LogAdapter.LogDebug("ConnectionIO", "Known Hosts: " + KnownHosts);
-			}
 
 			return true;
 		}

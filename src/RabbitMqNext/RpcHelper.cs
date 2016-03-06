@@ -99,7 +99,8 @@ namespace RabbitMqNext
 			{
 				_semaphoreSlim.Release();
 
-				Console.WriteLine("max calls reached!");
+				// NOTE: If our use of semaphore is correct, this should never happen:
+				LogAdapter.LogError("RpcHelper", "Maxed calls: " + _maxConcurrentCalls);
 				task.SetException(new Exception("reached max calls"));
 				return task;
 			}

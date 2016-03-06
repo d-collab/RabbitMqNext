@@ -14,7 +14,8 @@ namespace RabbitMqNext.Internals
 			string mechanisms = _amqpReader.ReadLongstr();
 			string locales = _amqpReader.ReadLongstr();
 
-			Console.WriteLine("< con_start " + mechanisms + " locales " + locales);
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug(LogSource, "< ConnectionStart " + mechanisms + " " + locales);
 
 			continuation(versionMajor, versionMinor, serverProperties, mechanisms, locales);
 		}
@@ -23,7 +24,8 @@ namespace RabbitMqNext.Internals
 		{
 			string reserved = _amqpReader.ReadShortStr();
 
-			Console.WriteLine("< conn open ok " + reserved);
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug(LogSource, "< ConnectionOpenOk " + reserved);
 
 			continuation(reserved);
 		}
@@ -34,36 +36,31 @@ namespace RabbitMqNext.Internals
 			uint frameMax = _amqpReader.ReadLong();
 			ushort heartbeat = _amqpReader.ReadShort();
 
-			Console.WriteLine("< channelMax " + channelMax + " framemax " + frameMax + " hb " + heartbeat);
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug(LogSource, "< ConnectionTune: ChannelMax " + channelMax + " FrameMax " + frameMax + " Heartbeat " + heartbeat);
 
 			continuation(channelMax, frameMax, heartbeat);
 		}
 
-		public async void Read_ConnectionClose2(Func<AmqpError, Task<bool>> continuation)
+		public async void Read_ConnectionClose(Func<AmqpError, Task<bool>> continuation)
 		{
 			ushort replyCode = _amqpReader.ReadShort();
 			string replyText = _amqpReader.ReadShortStr();
 			ushort classId = _amqpReader.ReadShort();
 			ushort methodId = _amqpReader.ReadShort();
 
-			Console.WriteLine("< connection close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug(LogSource, "< ConnectionClose " + replyText + " in class  " + classId + " method " + methodId);
 
-			// continuation(replyCode, replyText, classId, methodId);
-			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode }).ConfigureAwait(false);
+			await continuation(new AmqpError { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode }).ConfigureAwait(false);
 		}
-
-//		public void Read_ConnectionCloseOk(Action continuation)
-//		{
-//			Console.WriteLine("< ConnectionCloseOk  ");
-//
-//			continuation();
-//		}
 
 		public void Read_ChannelOpenOk(Action<string> continuation)
 		{
 			string reserved = _amqpReader.ReadLongstr();
 
-			Console.WriteLine("< ChannelOpenOk  " + reserved);
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug(LogSource, "< ChannelOpenOk " + reserved);
 
 			continuation(reserved);
 		}

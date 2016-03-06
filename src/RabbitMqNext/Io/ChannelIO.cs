@@ -235,7 +235,8 @@ namespace RabbitMqNext.Io
 				{
 					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeDeclareOk)
 					{
-						Console.WriteLine("< ExchangeDeclareOk " + exchange);
+						if (LogAdapter.ProtocolLevelLogEnabled)
+							LogAdapter.LogDebug("ChannelIO", "< ExchangeDeclareOk " + exchange);
 
 						tcs.SetResult(true);
 					}
@@ -327,7 +328,8 @@ namespace RabbitMqNext.Io
 				writer,
 				reply: (channel, classMethodId, error) =>
 				{
-					Console.WriteLine("< BasicConsumeOk  " + queue);
+					if (LogAdapter.ProtocolLevelLogEnabled)
+						LogAdapter.LogDebug("ChannelIO", "< BasicConsumeOk for queue " + queue);
 
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.BasicConsumeOk)
 					{
@@ -335,6 +337,9 @@ namespace RabbitMqNext.Io
 						{
 							if (string.IsNullOrEmpty(consumerTag))
 							{
+								if (LogAdapter.ProtocolLevelLogEnabled)
+									LogAdapter.LogDebug("ChannelIO", "< BasicConsumeOk consumerTag " + consumerTag);
+
 								confirmConsumerTag(consumerTag2);
 							}
 
@@ -526,7 +531,8 @@ namespace RabbitMqNext.Io
 				{
 					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeBindOk)
 					{
-						Console.WriteLine("< ExchangeBindOk " + source);
+						if (LogAdapter.ProtocolLevelLogEnabled)
+							LogAdapter.LogDebug("ChannelIO", "< ExchangeBindOk " + source);
 
 						tcs.SetResult(true);
 					}
@@ -554,7 +560,8 @@ namespace RabbitMqNext.Io
 				{
 					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeUnbindOk)
 					{
-						Console.WriteLine("< ExchangeUnbindOk " + source);
+						if (LogAdapter.ProtocolLevelLogEnabled)
+							LogAdapter.LogDebug("ChannelIO", "< ExchangeUnbindOk " + source);
 
 						tcs.SetResult(true);
 					}
@@ -581,7 +588,8 @@ namespace RabbitMqNext.Io
 				{
 					if (!waitConfirmation || classMethodId == AmqpClassMethodChannelLevelConstants.ExchangeDeleteOk)
 					{
-						Console.WriteLine("< ExchangeDeleteOk " + exchange);
+						if (LogAdapter.ProtocolLevelLogEnabled)
+							LogAdapter.LogDebug("ChannelIO", "< ExchangeDeleteOk " + exchange);
 
 						tcs.SetResult(true);
 					}
@@ -610,7 +618,9 @@ namespace RabbitMqNext.Io
 				{
 					if (classMethodId == AmqpClassMethodChannelLevelConstants.QueueUnbindOk)
 					{
-						Console.WriteLine("< QueueUnbindOk " + queue);
+						if (LogAdapter.ProtocolLevelLogEnabled)
+							LogAdapter.LogDebug("ChannelIO", "< QueueUnbindOk " + queue);
+
 						tcs.SetResult(true);
 					}
 					else
@@ -639,7 +649,9 @@ namespace RabbitMqNext.Io
 					{
 						await _connectionIo._frameReader.Read_GenericMessageCount(count =>
 						{
-							Console.WriteLine("< QueueDeleteOk " + queue);
+							if (LogAdapter.ProtocolLevelLogEnabled)
+								LogAdapter.LogDebug("ChannelIO", "< QueueDeleteOk " + queue);
+
 							tcs.SetResult(count);
 							return Task.CompletedTask;
 						}).ConfigureAwait(false);
@@ -673,7 +685,9 @@ namespace RabbitMqNext.Io
 					{
 						await _connectionIo._frameReader.Read_GenericMessageCount(count =>
 						{
-							Console.WriteLine("< QueuePurgeOk " + queue);
+							if (LogAdapter.ProtocolLevelLogEnabled)
+								LogAdapter.LogDebug("ChannelIO", "< QueuePurgeOk " + queue);
+
 							tcs.SetResult(count);
 							return Task.CompletedTask;
 						}).ConfigureAwait(false);
