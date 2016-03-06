@@ -26,12 +26,11 @@
 
 		internal State _state;
 
-		protected readonly CancellationToken _cancellationToken;
+//		protected readonly CancellationToken _cancellationToken;
 
 		protected readonly AutoResetSuperSlimLock _readLock = new AutoResetSuperSlimLock();
 		protected readonly AutoResetSuperSlimLock _writeLock = new AutoResetSuperSlimLock();
 		
-
 //		const int MaxGates = 64; 
 //		private readonly ReadingGate[] _gates = new ReadingGate[MaxGates];
 //		internal long _gateState = 0L;
@@ -297,12 +296,11 @@
 			return (int) writePos;
 		}
 
-		protected BaseRingBuffer(CancellationToken cancellationToken, int bufferSize)
+		protected BaseRingBuffer(int bufferSize)
 		{
 			if (bufferSize <= 0) throw new ArgumentOutOfRangeException("bufferSize");
 			if (!Utils.IsPowerOfTwo(bufferSize)) throw new ArgumentException("bufferSize must be multiple of 2", "bufferSize");
 
-			_cancellationToken = cancellationToken;
 			_state._bufferSize = (uint)bufferSize;
 		}
 

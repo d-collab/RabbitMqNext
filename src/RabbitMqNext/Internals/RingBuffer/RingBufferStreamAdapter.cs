@@ -15,11 +15,6 @@
 			_ringBuffer = ringBuffer;
 		}
 
-		public CancellationToken CancellationToken
-		{
-			get { return _ringBuffer.CancellationToken; }
-		}
-
 		public int Read(byte[] buffer, int offset, int count, bool fillBuffer)
 		{
 			return _ringBuffer.Read(buffer, offset, count, fillBuffer);

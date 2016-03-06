@@ -39,6 +39,8 @@
 			_propertiesPool = new ObjectPool<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
 		}
 
+		public IChannelRecoveryStrategy ChannelRecoveryStrategy { get; internal set; }
+
 		public event Action<AmqpError> OnError;
 
 		public bool IsConfirmationEnabled
@@ -331,9 +333,9 @@
 						try
 						{
 							if (cb != null)
-									await cb(delivery).ConfigureAwait(false);
+								await cb(delivery).ConfigureAwait(false);
 							else
-									await consumerInstance.Consume(delivery).ConfigureAwait(false);
+								await consumerInstance.Consume(delivery).ConfigureAwait(false);
 						}
 						catch (Exception e)
 						{

@@ -11,28 +11,53 @@ namespace RabbitMqNext.IntegrationTests
 	{
 		private Connection _conn;
 
+		protected string _host, _vhost, _username, _password;
+
+		public BaseTest()
+		{
+			_host = ConfigurationManager.AppSettings["rabbitmqserver"];
+			_vhost = ConfigurationManager.AppSettings["vhost"];
+			_username = ConfigurationManager.AppSettings["username"];
+			_password = ConfigurationManager.AppSettings["password"];
+		}
+
 		public async Task<Connection> StartConnection()
 		{
-			var host = ConfigurationManager.AppSettings["rabbitmqserver"];
-			var vhost = ConfigurationManager.AppSettings["vhost"];
-			var username = ConfigurationManager.AppSettings["username"];
-			var password = ConfigurationManager.AppSettings["password"];
-
-			using (var console = new RestConsole(host, username, password))
+			using (var console = new RestConsole(_host, _username, _password))
 			{
 				var vhosts = await console.GetVHosts();
 				var users = await console.GetUsers();
 				Console.WriteLine("vhosts: " + vhosts.Aggregate(" ", (agg, vhst) => agg + " " + vhst.Name));
 				Console.WriteLine("users: " + users.Aggregate(" ", (agg, u) => agg + " " + u.Name + "[" + u.Tags + "]"));
 
-				if (!vhosts.Any(v => v.Name == vhost))
+				if (!vhosts.Any(v => v.Name == _vhost))
 				{
-					await console.CreateVHost(vhost);
-					await console.SetUserVHostPermission(username, vhost);
+					await console.CreateVHost(_vhost);
+					await console.SetUserVHostPermission(_username, _vhost);
 				}
 			}
 
-			var conn = await new ConnectionFactory().Connect(host, vhost, username, password);
+			LogAdapter.ExtendedLogEnabled = true;
+//			LogAdapter.LogDebugFn = (cat, msg, exc) =>
+//			{
+//				Console.WriteLine("[{0}] DEBUG : {1} - {2}", cat, msg, exc);
+//			};
+//			LogAdapter.LogErrorFn = (cat, msg, exc) =>
+//			{
+//				var color = Console.ForegroundColor;
+//				Console.ForegroundColor = ConsoleColor.Red;
+//				Console.WriteLine("[{0}] ERROR : {1} - {2}", cat, msg, exc);
+//				Console.ForegroundColor = color;
+//			};
+//			LogAdapter.LogWarnFn = (cat, msg, exc) =>
+//			{
+//				var color = Console.ForegroundColor;
+//				Console.ForegroundColor = ConsoleColor.Magenta;
+//				Console.WriteLine("[{0}] WARN  : {1} - {2}", cat, msg, exc);
+//				Console.ForegroundColor = color;
+//			};
+
+			var conn = await new ConnectionFactory().Connect(_host, _vhost, _username, _password);
 			_conn = conn;
 			return conn;
 		}

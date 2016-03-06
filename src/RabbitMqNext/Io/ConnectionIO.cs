@@ -26,10 +26,10 @@ namespace RabbitMqNext.Io
 		internal FrameReader _frameReader; // interpreter of input
 
 		#region populated by server replies
-		private IDictionary<string, object> _serverProperties;
-		private string _mechanisms;
-		private ushort _heartbeat;
-		private string _knownHosts;
+		public IDictionary<string, object> ServerProperties { get; private set; }
+		public string AuthMechanisms { get; private set; }
+		public ushort Heartbeat { get; private set; }
+		public string KnownHosts { get; private set; }
 		private ushort _channelMax;
 		private uint _frameMax;
 		#endregion
@@ -217,11 +217,13 @@ namespace RabbitMqNext.Io
 			base.HandleDisconnect(); // either a consequence of a close method, or unexpected disconnect
 		}
 
-		internal async Task InternalDoConnectSocket(string hostname, int port)
+		internal async Task<bool> InternalDoConnectSocket(string hostname, int port, bool throwOnError)
 		{
 			var index = Interlocked.Increment(ref _counter);
 
-			await _socketHolder.Connect(hostname, port, OnSocketClosed, index).ConfigureAwait(false);
+			var result = await _socketHolder.Connect(hostname, port, OnSocketClosed, index, throwOnError).ConfigureAwait(false);
+
+			if (!throwOnError && !result) return false;
 
 			_amqpWriter = new AmqpPrimitivesWriter(_socketHolder.Writer, null, null);
 			_amqpReader = new AmqpPrimitivesReader(_socketHolder.Reader);
@@ -232,15 +234,24 @@ namespace RabbitMqNext.Io
 			t1.Start();
 			var t2 = new Thread(ReadFramesLoop) { IsBackground = true, Name = "ReadFramesLoop_" + index };
 			t2.Start();
+
+			return true;
 		}
 
-		internal async Task Handshake(string vhost, string username, string password)
+		internal async Task<bool> Handshake(string vhost, string username, string password, bool throwOnError)
 		{
 			await __SendGreeting().ConfigureAwait(false);
 			await __SendConnectionStartOk(username, password).ConfigureAwait(false);
 			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat: 0).ConfigureAwait(false); // disabling heartbeats for now
 			_amqpWriter.FrameMaxSize = _frameMax;
-			_knownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
+			KnownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
+
+			if (LogAdapter.ExtendedLogEnabled)
+			{
+				LogAdapter.LogDebug("ConnectionIO", "Known Hosts: " + KnownHosts);
+			}
+
+			return true;
 		}
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
@@ -324,8 +335,8 @@ namespace RabbitMqNext.Io
 					{
 						_frameReader.Read_ConnectionStart((versionMajor, versionMinor, serverProperties, mechanisms, locales) =>
 						{
-							this._serverProperties = serverProperties;
-							this._mechanisms = mechanisms;
+							this.ServerProperties = serverProperties;
+							this.AuthMechanisms = mechanisms;
 
 							tcs.SetResult(true);
 						});
@@ -396,8 +407,8 @@ namespace RabbitMqNext.Io
 						_frameReader.Read_ConnectionTune((channelMax, frameMax, heartbeat) =>
 						{
 							this._channelMax = channelMax;
-							this._heartbeat = heartbeat;
 							this._frameMax = frameMax;
+							this.Heartbeat = heartbeat;
 
 							tcs.SetResult(true);
 						});

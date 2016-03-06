@@ -10,19 +10,16 @@ namespace RabbitMqNext.Tests
 	[TestFixture]
 	public class RingBuffer2OpsTestCase
 	{
-		private CancellationTokenSource _cancellationTokenSrc;
 		private ByteRingBuffer _buffer;
 		private byte[] SomeBuffer;
 		private byte[] SourceBuffer;
 		private byte[] _temp;
-		private Random _rnd;
+		private Random _rnd = new Random();
 
 		[SetUp]
 		public void Init()
 		{
-			_rnd = new Random();
-			_cancellationTokenSrc = new CancellationTokenSource();
-			_buffer = new ByteRingBuffer(_cancellationTokenSrc.Token, 32);
+			_buffer = new ByteRingBuffer(32);
 
 			_temp = new byte[300];
 
@@ -42,7 +39,7 @@ namespace RabbitMqNext.Tests
 		[TearDown]
 		public void TearDown()
 		{
-			_cancellationTokenSrc.Dispose();	
+
 		}
 
 //		[Test]

@@ -11,4 +11,8 @@
 		// void RegisterResource()
 	}
 
+	public class DefaultConnectionRecoveryStrategy : IConnectionRecoveryStrategy
+	{
+		
+	}
 }

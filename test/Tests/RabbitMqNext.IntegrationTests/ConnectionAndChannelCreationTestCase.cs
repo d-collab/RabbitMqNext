@@ -8,6 +8,20 @@
 	public class ConnectionAndChannelCreationTestCase : BaseTest
     {
 		[Test]
+		public async Task ConnectWithListOfHosts()
+		{
+			var listsOfFakeHostsWithGoodAsLast = new string[]
+			{
+				"192.168.0.23",
+				_host
+			};
+
+			var conn = await new ConnectionFactory().Connect(listsOfFakeHostsWithGoodAsLast, _vhost, _username, _password);
+
+			conn.Dispose();
+		}
+
+		[Test]
 		public async Task OpenAndCloseCleanlyUponDispose()
 		{
 			Connection conn = null;

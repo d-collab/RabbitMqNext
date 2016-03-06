@@ -23,12 +23,19 @@
 			};
 		}
 
+		public IConnectionRecoveryStrategy ConnectionRecoveryStrategy { get; internal set; }
+
 		public event Action<AmqpError> OnError;
 
-		internal async Task Connect(string hostname, string vhost, string username, string password, int port = 5672)
+		internal async Task<bool> Connect(string hostname, string vhost, 
+										  string username, string password, 
+										  int port, bool throwOnError = true)
 		{
-			await _io.InternalDoConnectSocket(hostname, port).ConfigureAwait(false);
-			await _io.Handshake(vhost, username, password).ConfigureAwait(false);
+			var result = await _io.InternalDoConnectSocket(hostname, port, throwOnError).ConfigureAwait(false);
+			
+			if (!result) return false;
+			
+			return await _io.Handshake(vhost, username, password, throwOnError).ConfigureAwait(false);
 		}
 
 		public bool IsClosed { get { return _io.IsClosed; } }

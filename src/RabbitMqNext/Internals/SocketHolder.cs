@@ -10,17 +10,15 @@ namespace RabbitMqNext.Internals
 	using Sockets;
 
 
-	//
 	// TODO: Needs lots of unit testing
 	// The idea here is to be able to replace the sockets and re-use the ringbuffers. we dont want 
 	// to allocate new ones. that said, the cancellation tokens are one time one. and we need to break
 	// the consumer loops before reutilizing the ring buffers.
-	// 
 	public class SocketHolder
 	{
 		private readonly CancellationToken _token;
-		private readonly ByteRingBuffer _inputBuffer; //, _outputBuffer;
-		private readonly RingBufferStreamAdapter _inputRingBufferStream; //_outputRingBufferStream;
+		private readonly ByteRingBuffer _inputBuffer;
+		private readonly RingBufferStreamAdapter _inputRingBufferStream; 
 
 		private Socket _socket;
 
@@ -38,11 +36,9 @@ namespace RabbitMqNext.Internals
 		{
 			_token = token;
 
-			_inputBuffer = new ByteRingBuffer(token);
-//			_outputBuffer = new ByteRingBuffer(token);
+			_inputBuffer = new ByteRingBuffer();
 
 			_inputRingBufferStream = new RingBufferStreamAdapter(_inputBuffer);
-//			_outputRingBufferStream = new RingBufferStreamAdapter(_outputBuffer);
 		}
 
 		public bool IsClosed
@@ -54,7 +50,6 @@ namespace RabbitMqNext.Internals
 		public void Dispose()
 		{
 			_inputRingBufferStream.Dispose();
-			// _outputRingBufferStream.Dispose();
 
 			if (_socket != null)
 			{
@@ -63,7 +58,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task Connect(string hostname, int port, Action notifyWhenClosed, int index)
+		public async Task<bool> Connect(string hostname, int port, Action notifyWhenClosed, int index, bool throwOnError)
 		{
 			_index = index;
 			var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
@@ -82,15 +77,27 @@ namespace RabbitMqNext.Internals
 					catch (Exception)
 					{
 						socket.Dispose();
-						throw;
+
+						if (throwOnError) throw;
+
+						return false;
 					}
 					break;
 				}
 			}
 
-			if (!started) throw new Exception("Invalid hostname " + hostname); // ipv6 not supported yet
+			if (!started)
+			{
+				if (throwOnError)
+				{	
+					throw new Exception("Invalid hostname " + hostname); // ipv6 not supported yet
+				}
+				return false;
+			}
 
 			WireStreams(socket, notifyWhenClosed);
+
+			return true;
 		}
 
 		public void Close()
@@ -110,6 +117,9 @@ namespace RabbitMqNext.Internals
 
 				// TODO: replace cancellation token in ringbuffers
 
+				// Writer / Reader.Dipose()
+				// _socketConsumer.Dispose();
+				// _socketProducer.Dispose();
 				// _inputBuffer.Reset();
 				// _outputBuffer.Reset();
 			}
@@ -118,7 +128,7 @@ namespace RabbitMqNext.Internals
 			_notifyWhenClosed = notifyWhenClosed;
 
 			// WriteLoop
-			_socketConsumer = new SocketStreamWriterAdapter(_socket, _token);
+			_socketConsumer = new SocketStreamWriterAdapter(_socket);
 			_socketConsumer.OnNotifyClosed += OnSocketClosed;
 
 			// ReadLoop
@@ -127,8 +137,6 @@ namespace RabbitMqNext.Internals
 
 			Writer = new InternalBigEndianWriter(_socketConsumer);
 			Reader = new InternalBigEndianReader(_inputRingBufferStream);
-//
-//			_socketConsumer.Start();
 		}
 
 		private void OnSocketClosed(Socket sender, Exception ex)

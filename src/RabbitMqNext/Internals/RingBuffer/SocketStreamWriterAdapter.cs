@@ -8,12 +8,10 @@ namespace RabbitMqNext.Internals.RingBuffer
 	internal class SocketStreamWriterAdapter : Stream
 	{
 		private readonly Socket _socket;
-		private readonly CancellationToken _cancellationToken;
 
-		public SocketStreamWriterAdapter(Socket socket, CancellationToken cancellationToken)
+		public SocketStreamWriterAdapter(Socket socket)
 		{
 			_socket = socket;
-			_cancellationToken = cancellationToken;
 		}
 
 		public event Action<Socket, Exception> OnNotifyClosed;

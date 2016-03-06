@@ -9,8 +9,6 @@
 
 	class RingBufferPerfTestProgram
 	{
-		private static CancellationTokenSource _cancellationTokenSrc = new CancellationTokenSource();
-		private static CancellationToken _token;
 
 		static void Main(string[] args)
 		{
@@ -22,9 +20,8 @@
 			Console.WriteLine("New Latency mode: " + GCSettings.LatencyMode);
 
 
-			_token = _cancellationTokenSrc.Token;
 
-			var ringBuffer = new ByteRingBuffer(_token);
+			var ringBuffer = new ByteRingBuffer();
 
 			const int mod = 37;
 			var producerBuffer = new byte[256];

@@ -74,14 +74,14 @@
 		/// default locking strategy
 		/// </summary>
 		/// <param name="cancellationToken"></param>
-		public ByteRingBuffer(CancellationToken cancellationToken) : this(cancellationToken, DefaultBufferSize)
+		public ByteRingBuffer() : this(DefaultBufferSize)
 		{
 		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		public ByteRingBuffer(CancellationToken cancellationToken, int bufferSize) : base(cancellationToken, bufferSize)
+		public ByteRingBuffer(int bufferSize) : base(bufferSize)
 		{
 			if (bufferSize < MinBufferSize) throw new ArgumentException("buffer must be at least " + MinBufferSize, "bufferSize");
 
@@ -282,7 +282,7 @@
 			return Task.FromResult(totalSkipped);
 		}
 
-		public CancellationToken CancellationToken { get { return _cancellationToken; } }
+//		public CancellationToken CancellationToken { get { return _cancellationToken; } }
 
 		public void Dispose()
 		{
