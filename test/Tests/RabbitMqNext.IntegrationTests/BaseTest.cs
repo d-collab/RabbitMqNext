@@ -15,6 +15,8 @@ namespace RabbitMqNext.IntegrationTests
 
 		public BaseTest()
 		{
+			LogAdapter.ExtendedLogEnabled = true;
+
 			_host = ConfigurationManager.AppSettings["rabbitmqserver"];
 			_vhost = ConfigurationManager.AppSettings["vhost"];
 			_username = ConfigurationManager.AppSettings["username"];
@@ -37,7 +39,6 @@ namespace RabbitMqNext.IntegrationTests
 				}
 			}
 
-			LogAdapter.ExtendedLogEnabled = true;
 //			LogAdapter.LogDebugFn = (cat, msg, exc) =>
 //			{
 //				Console.WriteLine("[{0}] DEBUG : {1} - {2}", cat, msg, exc);

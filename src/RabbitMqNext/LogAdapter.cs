@@ -11,6 +11,7 @@
 	public static class LogAdapter
 	{
 		public static bool ExtendedLogEnabled;
+		public static bool ProtocolLevelLogEnabled;
 
 		// signature: class, message, [exception]
 		public static Action<string, string, Exception> LogDebugFn { get; set; }
@@ -59,6 +60,11 @@
 		public static void LogDebug(string context, string message, Exception ex)
 		{
 			LogDebugFn(context, message, ex);
+		}
+
+		public static void LogError(string context, string message)
+		{
+			LogErrorFn(context, message, null);
 		}
 
 		public static void LogError(string context, string message, Exception ex)

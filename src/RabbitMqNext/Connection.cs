@@ -60,15 +60,14 @@
 		{
 			if (channel > MaxChannels)
 			{
-				// TODO: Log
-				Console.WriteLine("wtf??? " + channel);
-				throw new Exception("Unexpecte channel number " + channel);
+				LogAdapter.LogError("Connection", "ResolveChannel for invalid channel " + channel);
+				throw new Exception("Unexpected channel number " + channel);
 			}
 
 			var channelInst = _channels[channel];
 			if (channelInst == null)
 			{
-				// TODO: Log
+				LogAdapter.LogError("Connection", "ResolveChannel for non-initialized channel " + channel);
 				throw new Exception("Channel not initialized " + channel);
 			}
 

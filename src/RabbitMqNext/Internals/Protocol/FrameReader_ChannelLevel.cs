@@ -7,13 +7,16 @@ namespace RabbitMqNext.Internals
 
 	internal partial class FrameReader
 	{
+		private const string LogSource = "FrameReader";
+
 		public async Task Read_QueueDeclareOk(Func<string, uint, uint, Task> continuation)
 		{
 			string queue = _amqpReader.ReadShortStr();
 			uint messageCount = _amqpReader.ReadLong();
 			uint consumerCount = _amqpReader.ReadLong();
 
-			Console.WriteLine("< QueueDeclareOk  " + queue);
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug(LogSource, "< QueueDeclareOk " + queue);
 
 			await continuation(queue, messageCount, consumerCount).ConfigureAwait(false);
 		}
@@ -25,9 +28,9 @@ namespace RabbitMqNext.Internals
 			ushort classId = _amqpReader.ReadShort();
 			ushort methodId = _amqpReader.ReadShort();
 
-			Console.WriteLine("< channel close coz  " + replyText + " in class  " + classId + " methodif " + methodId);
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug(LogSource, "< ChannelClose " + replyText + " in class  " + classId + " method " + methodId);
 
-			// continuation(replyCode, replyText, classId, methodId);
 			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode }).ConfigureAwait(false);
 		}
 
@@ -66,7 +69,12 @@ namespace RabbitMqNext.Internals
 				// Support just single body at this moment.
 
 				frameHeaderStart = _reader.ReadByte();
-				if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
+				if (frameHeaderStart != AmqpConstants.FrameBody)
+				{
+					LogAdapter.LogError(LogSource, "Expecting FrameBody but got " + frameHeaderStart);
+
+					throw new Exception("Expecting Frame Body");
+				}
 
 				// await _reader.SkipBy(2);
 				channel = _reader.ReadUInt16();
@@ -127,7 +135,12 @@ namespace RabbitMqNext.Internals
 			if (!skipFrameEnd)
 			{
 				byte frameEndMarker = _reader.ReadByte();
-				if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
+				if (frameEndMarker != AmqpConstants.FrameEnd)
+				{
+					LogAdapter.LogError(LogSource, "Expecting FrameEnd but got " + frameEndMarker);
+
+					throw new Exception("Expecting frameend");
+				}
 			}
 		}
 
@@ -149,12 +162,22 @@ namespace RabbitMqNext.Internals
 			string routingKey = _amqpReader.ReadShortStr();
 
 			byte frameEndMarker = _amqpReader.ReadOctet();
-			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
+			if (frameEndMarker != AmqpConstants.FrameEnd)
+			{
+				LogAdapter.LogError(LogSource, "Expecting FrameEnd but got " + frameEndMarker);
+
+				throw new Exception("Expecting frameend!");
+			}
 
 			// Frame Header / Content header
 
 			byte frameHeaderStart = _amqpReader.ReadOctet();
-			if (frameHeaderStart != AmqpConstants.FrameHeader) throw new Exception("Expecting Frame Header");
+			if (frameHeaderStart != AmqpConstants.FrameHeader)
+			{
+				LogAdapter.LogError(LogSource, "Expecting FrameHeader but got " + frameHeaderStart);
+
+				throw new Exception("Expecting Frame Header");
+			}
 
 			// await _reader.SkipBy(4 + 2 + 2 + 2);
 			ushort channel = _reader.ReadUInt16();
@@ -170,7 +193,11 @@ namespace RabbitMqNext.Internals
 			if (bodySize != 0)
 			{
 				frameHeaderStart = _reader.ReadByte();
-				if (frameHeaderStart != AmqpConstants.FrameBody) throw new Exception("Expecting Frame Body");
+				if (frameHeaderStart != AmqpConstants.FrameBody)
+				{
+					LogAdapter.LogError(LogSource, "Expecting FrameBody but got " + frameHeaderStart);
+					throw new Exception("Expecting Frame Body");
+				}
 
 				await _reader.SkipBy(2).ConfigureAwait(false); // channel = _reader.ReadUInt16();
 				uint length = _reader.ReadUInt32();
@@ -199,7 +226,8 @@ namespace RabbitMqNext.Internals
 			ulong deliveryTags = _amqpReader.ReadULong();
 			bool multiple = _amqpReader.ReadBits() != 0;
 
-			Console.WriteLine("< BasicAck from server for  " + deliveryTags + " multiple:  " + multiple);
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogError(LogSource, "< BasicAck : " + deliveryTags + " multiple " + multiple);
 
 			continuation(deliveryTags, multiple);
 		}
@@ -211,7 +239,8 @@ namespace RabbitMqNext.Internals
 			bool multiple = (bits & 1) != 0;
 			bool requeue = (bits & 2) != 0;
 
-			Console.WriteLine("< BasicNAck from server for  " + deliveryTags + " multiple:  " + multiple + " requeue " + requeue);
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogError(LogSource, "< BasicNAck from server for  " + deliveryTags + " multiple:  " + multiple + " requeue " + requeue);
 
 			continuation(deliveryTags, multiple, requeue);
 		}
@@ -220,7 +249,7 @@ namespace RabbitMqNext.Internals
 		{
 			bool isActive = _amqpReader.ReadBits() != 0;
 
-			Console.WriteLine("< ChannelFlow from server for  " + isActive);
+			LogAdapter.LogWarn(LogSource, "< ChannelFlow " + isActive);
 
 			continuation(isActive);
 		}
@@ -229,7 +258,8 @@ namespace RabbitMqNext.Internals
 		{
 			var consumerTag = _amqpReader.ReadShortStr();
 
-			Console.WriteLine("< CancelOk: " + consumerTag);
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogError(LogSource, "< CancelOk " + consumerTag);
 
 			continuation(consumerTag);
 		}
@@ -238,7 +268,8 @@ namespace RabbitMqNext.Internals
 		{
 			uint messageCount = _amqpReader.ReadLong();
 
-			Console.WriteLine("< GenericMessageCount (): " + messageCount);
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogError(LogSource, "< GenericMessageCount : " + messageCount);
 
 			return continuation(messageCount);
 		}

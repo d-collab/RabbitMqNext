@@ -39,15 +39,16 @@ namespace RabbitMqNext.Internals.RingBuffer
 			}
 			catch (SocketException ex)
 			{
-				Console.WriteLine("SocketProducer Socket Error " + ex);
+				if (LogAdapter.ExtendedLogEnabled)
+					LogAdapter.LogError("SocketProducer", "Socket error", ex);
+
 				FireClosed(ex);
-//				throw;
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("SocketProducer Error " + ex);
+				LogAdapter.LogError("SocketProducer", "Error", ex);
+
 				FireClosed(ex);
-//				throw;
 			}
 		}
 

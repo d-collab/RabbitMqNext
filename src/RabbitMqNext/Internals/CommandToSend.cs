@@ -46,7 +46,8 @@
 
 				if (!matchesClass || !matchesMethod)
 				{
-					Console.WriteLine("[channel " + channel + "] Command for " + ClassId + "|" + MethodId + " did not match reply " + classId + "|" + methodId);
+					if (LogAdapter.ExtendedLogEnabled)
+						LogAdapter.LogDebug("CommandToSend", "[channel " + channel + "] Command for " + ClassId + "|" + MethodId + " did not match reply " + classId + "|" + methodId);
 				}
 			}
 #endif

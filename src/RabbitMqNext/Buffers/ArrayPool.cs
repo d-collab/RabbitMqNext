@@ -42,7 +42,6 @@ namespace System.Buffers
 		/// <summary>
 		/// Creates a new ArrayPool instance of the given type using the default configuration options.
 		/// </summary>
-		/// <returns>Returns a new ArrayPool<T> instance with the specified configuration options</return>
 		public static ArrayPool<T> Create()
 		{
 			return Create(DefaultArrayLength, DefaultNumberOfArraysPerBucket);
@@ -52,8 +51,7 @@ namespace System.Buffers
 		/// Creates a new ArrayPool instance of the given type.
 		/// </summary>
 		/// <param name="maxArrayLength">The maximum length of any Rent request.</param>
-		/// <param name-"numberOfArrays">The maximum number of arrays that will be rented.</param>
-		/// <returns>Returns a new ArrayPool<T> instance with the specified configuration options</return>
+		/// <param name="numberOfArrays">The maximum number of arrays that will be rented.</param>
 		public static ArrayPool<T> Create(int maxArrayLength, int numberOfArrays)
 		{
 			return new DefaultArrayPool<T>(maxArrayLength, numberOfArrays);
@@ -63,7 +61,7 @@ namespace System.Buffers
 		/// Retrieves a buffer from the pool that is at least the requested length. This buffer is loaned
 		/// to the caller and the caller must call Return when finished with the buffer.
 		/// </summary>
-		/// <param name="length">The number of elements in the desired buffer</param>
+		/// <param name="minimumLength">The number of elements in the desired buffer</param>
 		/// <returns>Returns an array of type T that is at least 'length' in size</returns>
 		public abstract T[] Rent(int minimumLength);
 

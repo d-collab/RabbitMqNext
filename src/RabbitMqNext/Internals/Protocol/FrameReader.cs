@@ -24,29 +24,29 @@ namespace RabbitMqNext.Internals
 			try
 			{
 				byte frameType = _reader.ReadByte();
-//				Console.WriteLine("Frame type " + frameType);
 
 				if (frameType == 'A')
 				{
-					// wtf
-					Console.WriteLine("Meh, protocol header received for some reason. darn it!");
+					var msg = "Invalid frame received " + frameType;
+
+					LogAdapter.LogError("FrameReader", msg);
+					throw new Exception(msg);
 				}
 
 				ushort channel = _reader.ReadUInt16();
 				int payloadLength = _reader.ReadInt32();
 
-//				Console.WriteLine("> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug("FrameReader", "> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
 
 				// needs special case for heartbeat, flow, etc.. 
 				// since they are not replies to methods we sent and alter the client's behavior
 
-				ushort classId = 0;
-				ushort methodId = 0;
 
 				if (frameType == AmqpConstants.FrameMethod)
 				{
-					classId = _reader.ReadUInt16();
-					methodId = _reader.ReadUInt16();
+					ushort classId = _reader.ReadUInt16();
+					ushort methodId = _reader.ReadUInt16();
 
 					var classMethodId = classId << 16 | methodId;
 
@@ -56,13 +56,17 @@ namespace RabbitMqNext.Internals
 				}
 				else if (frameType == AmqpConstants.FrameHeartbeat)
 				{
-					Console.WriteLine("received FrameHeartbeat");
+					if (LogAdapter.ProtocolLevelLogEnabled)
+						LogAdapter.LogDebug("FrameReader", "Received FrameHeartbeat");
 				}
 
 				byte frameEndMarker = _reader.ReadByte();
 				if (frameEndMarker != AmqpConstants.FrameEnd)
 				{
-					throw new Exception("Expecting frame end, but found " + frameEndMarker);
+					var msg = "Expecting frame end, but found " + frameEndMarker;
+
+					LogAdapter.LogError("FrameReader", msg);
+					throw new Exception(msg);
 				}
 			}
 			catch (ThreadAbortException)

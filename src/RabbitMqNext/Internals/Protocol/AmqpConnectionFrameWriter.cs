@@ -7,6 +7,8 @@
 
 	static class AmqpConnectionFrameWriter
 	{
+		private const string LogSource = "AmqpConnectionFrameWriter";
+
 		private static readonly byte[] GreetingPayload;
 
 		static AmqpConnectionFrameWriter()
@@ -34,12 +36,11 @@
 
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ConnectionTuneOk");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ConnectionTuneOk");
 
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, 0, payloadSize, 10, 31);
 
-//				writer.WriteUShort((ushort)10);
-//				writer.WriteUShort((ushort)31);
 				writer.WriteUShort(channelMax);
 				writer.WriteLong(frameMax);
 				writer.WriteUShort(heartbeat);
@@ -54,7 +55,8 @@
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ConnectionStartOk");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ConnectionStartOk");
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, 0, (w) =>
 				{
@@ -74,7 +76,8 @@
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ConnectionOpen");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ConnectionOpen");
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, (w) =>
 				{
@@ -94,6 +97,9 @@
 
 			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, (w) =>
 			{
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ConnectionClose");
+
 				w.WriteUShort(classId);
 				w.WriteUShort(methodId);
 
@@ -106,12 +112,16 @@
 
 		public static void ConnectionCloseOk(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
 		{
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug(LogSource, "> ConnectionCloseOk");
+
 			WriteEmptyMethodFrame(writer, channel, classId, methodId);
 		}
 
 		public static void WriteEmptyMethodFrame(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId)
 		{
-			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, 4, classId, methodId);
+			const uint payloadSize = 4;
+			writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
 			writer.WriteOctet(AmqpConstants.FrameEnd);
 		}
 	}

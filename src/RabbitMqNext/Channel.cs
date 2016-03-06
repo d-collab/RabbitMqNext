@@ -339,7 +339,7 @@
 						}
 						catch (Exception e)
 						{
-							Console.WriteLine("From threadpool " + e);
+							LogAdapter.LogError("Channel", "Error processing message (user code)", e);
 						}
 						finally
 						{

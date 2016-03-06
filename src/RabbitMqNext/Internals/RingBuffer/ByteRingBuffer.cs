@@ -73,7 +73,6 @@
 		/// Creates with default buffer size and 
 		/// default locking strategy
 		/// </summary>
-		/// <param name="cancellationToken"></param>
 		public ByteRingBuffer() : this(DefaultBufferSize)
 		{
 		}

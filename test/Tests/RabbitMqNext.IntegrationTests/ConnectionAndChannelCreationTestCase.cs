@@ -7,10 +7,10 @@
 	[TestFixture]
 	public class ConnectionAndChannelCreationTestCase : BaseTest
     {
-		[Test]
+		[Test, Explicit("Takes too long")]
 		public async Task ConnectWithListOfHosts()
 		{
-			var listsOfFakeHostsWithGoodAsLast = new string[]
+			var listsOfFakeHostsWithGoodAsLast = new []
 			{
 				"192.168.0.23",
 				_host

@@ -7,6 +7,8 @@ namespace RabbitMqNext.Internals
 
 	static class AmqpChannelLevelFrameWriter
 	{
+		private const string LogSource = "AmqpChannelLevelFrameWriter";
+
 		private const int EmptyFrameSize = 8;
 
 		public static WriterDelegate ChannelOpen()
@@ -15,12 +17,11 @@ namespace RabbitMqNext.Internals
 
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ChannelOpen");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug("AmqpChannelLevelFrameWriter", "> ChannelOpen");
 
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
 
-//				writer.WriteUShort(classId);
-//				writer.WriteUShort(methodId);
 				writer.WriteShortstr("");
 
 				writer.WriteOctet(AmqpConstants.FrameEnd);
@@ -33,7 +34,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ExchangeDeclare " + exchange);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ExchangeDeclare " + exchange);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -53,7 +55,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ExchangeDelete " + exchange);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ExchangeDelete " + exchange);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -73,7 +76,9 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("QueueDeclare " + queue);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> QueueDeclare " + queue);
+
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -94,6 +99,9 @@ namespace RabbitMqNext.Internals
 
 			writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, (w) =>
 			{
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ChannelClose " + channel);
+
 				w.WriteUShort(classId);
 				w.WriteUShort(methodId);
 
@@ -106,6 +114,9 @@ namespace RabbitMqNext.Internals
 
 		public static void ChannelCloseOk(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
 		{
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug(LogSource, "> ChannelCloseOk " + channel);
+
 			AmqpConnectionFrameWriter.WriteEmptyMethodFrame(writer, channel, classId, methodId);
 		}
 
@@ -114,7 +125,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("BasicConsume  " + queue);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> BasicConsume " + queue);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -136,12 +148,10 @@ namespace RabbitMqNext.Internals
 
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("BasicQos");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> BasicQos : prefetch " + prefetchCount);
 
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
-
-//				writer.WriteUShort(classId);
-//				writer.WriteUShort(methodId);
 
 				writer.WriteLong(prefetchSize);
 				writer.WriteUShort(prefetchCount);
@@ -157,7 +167,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				// Console.WriteLine("QueueBind " + queue + " | " + exchange + " | " + routingKey);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> QueueBind : " + queue + "|" + exchange + "|" + routingKey);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -198,6 +209,9 @@ namespace RabbitMqNext.Internals
 		{
 			var b_args = args as FrameParameters.BasicAckArgs;
 
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug(LogSource, "> BasicAck : " + b_args.deliveryTag);
+
 			{
 				uint payloadSize = (uint)(8 + 5);
 
@@ -213,6 +227,9 @@ namespace RabbitMqNext.Internals
 		internal static void InternalBasicNAck(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object args)
 		{
 			var b_args = args as FrameParameters.BasicNAckArgs;
+
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug(LogSource, "> BasicNAck : " + b_args.deliveryTag);
 
 			uint payloadSize = (uint)(8 + 5);
 
@@ -272,9 +289,8 @@ namespace RabbitMqNext.Internals
 
 				// Frame body
 
-				var maxSubFrameSize =
-					writer.FrameMaxSize == 0 ? (int)buffer.Count :
-												(int)writer.FrameMaxSize.Value - EmptyFrameSize;
+				int maxSubFrameSize =
+					writer.FrameMaxSize == 0 ? buffer.Count : (int)writer.FrameMaxSize.Value - EmptyFrameSize;
 
 				// write frames limited by the max size
 				int written = 0;
@@ -304,7 +320,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ConfirmSelect");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ConfirmSelect");
 
 				ushort payloadSize = 1 + 4;
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
@@ -317,7 +334,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("BasicCancel");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> BasicCancel");
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -334,7 +352,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("Recover");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> Recover");
 
 				ushort payloadSize = 1 + 4;
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
@@ -347,7 +366,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ChannelFlowOk");
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ChannelFlowOk " + isActive);
 
 				ushort payloadSize = 1 + 4;
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
@@ -361,7 +381,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ExchangeBind " + source);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ExchangeBind " + source);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -383,7 +404,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("ExchangeUnbind " + source);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> ExchangeUnbind " + source);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -404,7 +426,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("QueuePurge " + queue);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> QueuePurge " + queue);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -422,7 +445,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("QueueDelete " + queue);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> QueueDelete " + queue);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -441,7 +465,8 @@ namespace RabbitMqNext.Internals
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
-				Console.WriteLine("QueueUnbind " + queue);
+				if (LogAdapter.ProtocolLevelLogEnabled)
+					LogAdapter.LogDebug(LogSource, "> QueueUnbind " + queue);
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
@@ -456,7 +481,5 @@ namespace RabbitMqNext.Internals
 				});
 			};
 		}
-
-		
 	}
 }

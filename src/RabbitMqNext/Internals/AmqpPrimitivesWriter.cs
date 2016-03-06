@@ -28,7 +28,9 @@ namespace RabbitMqNext.Internals
 			{
 				memStreamPool = new ObjectPool<ReusableTempWriter>(() => 
 				{
-					Console.WriteLine("Creating new writer...");
+					if (LogAdapter.ExtendedLogEnabled)
+						LogAdapter.LogDebug("AmqpPrimitivesWriter", "Creating new writer");
+
 					return new ReusableTempWriter(new DefaultArrayPool<byte>(BufferSize, 5), _memStreamPool);
 				}, 6);
 			}
