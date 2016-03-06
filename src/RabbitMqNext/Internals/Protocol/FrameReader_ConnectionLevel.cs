@@ -14,7 +14,7 @@ namespace RabbitMqNext.Internals
 			string mechanisms = _amqpReader.ReadLongstr();
 			string locales = _amqpReader.ReadLongstr();
 
-			if (LogAdapter.ExtendedLogEnabled)
+			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug(LogSource, "< ConnectionStart " + mechanisms + " " + locales);
 
 			continuation(versionMajor, versionMinor, serverProperties, mechanisms, locales);
@@ -24,7 +24,7 @@ namespace RabbitMqNext.Internals
 		{
 			string reserved = _amqpReader.ReadShortStr();
 
-			if (LogAdapter.ExtendedLogEnabled)
+			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug(LogSource, "< ConnectionOpenOk " + reserved);
 
 			continuation(reserved);
@@ -36,7 +36,7 @@ namespace RabbitMqNext.Internals
 			uint frameMax = _amqpReader.ReadLong();
 			ushort heartbeat = _amqpReader.ReadShort();
 
-			if (LogAdapter.ExtendedLogEnabled)
+			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug(LogSource, "< ConnectionTune: ChannelMax " + channelMax + " FrameMax " + frameMax + " Heartbeat " + heartbeat);
 
 			continuation(channelMax, frameMax, heartbeat);
@@ -49,7 +49,7 @@ namespace RabbitMqNext.Internals
 			ushort classId = _amqpReader.ReadShort();
 			ushort methodId = _amqpReader.ReadShort();
 
-			if (LogAdapter.ExtendedLogEnabled)
+			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug(LogSource, "< ConnectionClose " + replyText + " in class  " + classId + " method " + methodId);
 
 			await continuation(new AmqpError { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode }).ConfigureAwait(false);
@@ -59,7 +59,7 @@ namespace RabbitMqNext.Internals
 		{
 			string reserved = _amqpReader.ReadLongstr();
 
-			if (LogAdapter.ExtendedLogEnabled)
+			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug(LogSource, "< ChannelOpenOk " + reserved);
 
 			continuation(reserved);

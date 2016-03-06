@@ -16,6 +16,7 @@ namespace RabbitMqNext.IntegrationTests
 		public BaseTest()
 		{
 			LogAdapter.ExtendedLogEnabled = true;
+//			LogAdapter.ProtocolLevelLogEnabled = true;
 
 			_host = ConfigurationManager.AppSettings["rabbitmqserver"];
 			_vhost = ConfigurationManager.AppSettings["vhost"];
