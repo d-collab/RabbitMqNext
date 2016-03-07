@@ -54,7 +54,21 @@
 
 			if (this.ReplyAction != null)
 			{
-				await this.ReplyAction(channel, classMethodId, error).ConfigureAwait(false);
+				try
+				{
+					await this.ReplyAction(channel, classMethodId, error).ConfigureAwait(false);
+				}
+				catch (Exception ex)
+				{
+					error = new AmqpError
+					{
+						ReplyText = ex.Message
+					};
+					AmqpIOBase.SetException(Tcs, error, classMethodId);
+					AmqpIOBase.SetException(TcsSlim, error, classMethodId);
+
+					throw;
+				}
 			}
 			else
 			{
@@ -86,6 +100,16 @@
 			PrepareAction = null;
 			Tcs = null;
 			TcsSlim = null;
+		}
+	}
+
+	internal static class CommandToSendExtensions
+	{
+		internal static string ToDebugInfo(this CommandToSend source)
+		{
+			if (source == null) return string.Empty;
+
+			return "[Channel_" + source.Channel + "] Class " + source.ClassId + " Method " + source.MethodId + " Opt: " + source.OptionalArg + "";
 		}
 	}
 }
