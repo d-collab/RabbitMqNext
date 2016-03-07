@@ -10,7 +10,7 @@
 	using RabbitMqNext.Internals.RingBuffer;
 	using RabbitMqNext.Io;
 
-	public class Channel : IChannel
+	public sealed class Channel : IChannel
 	{
 		private static readonly Stream EmptyStream = new MemoryStream(new byte[0], writable: false);
 
@@ -38,8 +38,6 @@
 
 			_propertiesPool = new ObjectPool<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
 		}
-
-		public ChannelRecoveryStrategy ChannelRecoveryStrategy { get; internal set; }
 
 		public event Action<AmqpError> OnError;
 

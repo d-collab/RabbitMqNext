@@ -7,7 +7,7 @@ namespace RabbitMqNext.Io
 	using RabbitMqNext.Internals;
 
 
-	public class ChannelIO : AmqpIOBase
+	public sealed class ChannelIO : AmqpIOBase
 	{
 		private readonly Channel _channel;
 		internal readonly ConnectionIO _connectionIo;

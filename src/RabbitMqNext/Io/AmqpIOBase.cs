@@ -123,21 +123,19 @@
 		{
 			// releases every task awaiting
 			CommandToSend sent;
-#pragma warning disable 4014
 			while (_awaitingReplyQueue.TryDequeue(out sent))
 			{
 				if (error != null && sent.ClassId == error.ClassId && sent.MethodId == error.MethodId)
 				{
 					// if we find the "offending" command, then it gets a better error message
-					sent.RunReplyAction(0, 0, error);
+					sent.RunReplyAction(0, 0, error).IntentionallyNotAwaited();
 				}
 				else
 				{
 					// any other task dies with a generic error.
-					sent.RunReplyAction(0, 0, null);
+					sent.RunReplyAction(0, 0, null).IntentionallyNotAwaited();
 				}
 			}
-#pragma warning restore 4014
 		}
 
 		private void FireErrorEvent(AmqpError error)

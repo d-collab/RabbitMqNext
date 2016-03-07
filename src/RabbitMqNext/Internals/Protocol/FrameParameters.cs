@@ -13,6 +13,11 @@ namespace RabbitMqNext.Internals
 		{
 			public ushort replyCode;
 			public string replyText;
+
+			public override string ToString()
+			{
+				return "CloseParams [" + replyCode + " | " + replyText + "]";
+			}
 		}
 
 		internal class BasicAckArgs : IFrameContentWriter
@@ -23,6 +28,11 @@ namespace RabbitMqNext.Internals
 			public void Write(AmqpPrimitivesWriter amqpWriter, ushort channel, ushort classId, ushort methodId, object optionalArg)
 			{
 				AmqpChannelLevelFrameWriter.InternalBasicAck(amqpWriter, channel, classId, methodId, optionalArg);
+			}
+
+			public override string ToString()
+			{
+				return "BasicAckArgs [delivery " + deliveryTag + " | " + multiple + "]";
 			}
 		}
 
@@ -36,6 +46,11 @@ namespace RabbitMqNext.Internals
 			{
 				AmqpChannelLevelFrameWriter.InternalBasicNAck(amqpWriter, channel, classId, methodId, optionalArg);
 			}
+
+			public override string ToString()
+			{
+				return "BasicNAckArgs [" + deliveryTag + " | " + multiple + " | " + requeue + "]";
+			}
 		}
 
 		internal class BasicPublishArgs : IFrameContentWriter
@@ -45,6 +60,11 @@ namespace RabbitMqNext.Internals
 			public BasicPublishArgs(Action<BasicPublishArgs> recycler)
 			{
 				_recycler = recycler;
+			}
+
+			public override string ToString()
+			{
+				return "BasicPublishArgs [" + exchange + " | " + routingKey + " | " + mandatory + " | " + properties + "]";
 			}
 
 			public string exchange;

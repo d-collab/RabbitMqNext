@@ -7,20 +7,12 @@
 
 	public class ConnectionFactory
 	{
-		public ConnectionFactory()
-		{
-		}
-
-
-		public async Task<Connection> Connect(IEnumerable<string> hostnames,
+		public async Task<IConnection> Connect(IEnumerable<string> hostnames,
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672, 
 			bool autoRecovery = true)
 		{
 			var conn = new Connection();
-
-			if (autoRecovery) 
-				conn.ConnectionRecoveryStrategy = new ConnectionRecoveryStrategy(hostnames, vhost, username, password, port);
 
 			try
 			{
@@ -33,7 +25,10 @@
 					if (successful)
 					{
 						LogAdapter.LogWarn("ConnectionFactory", "Selected " + hostname);
-						return conn;
+
+						return autoRecovery ? 
+							(IConnection) new AutoRecoveryEnabledConnection(hostnames, conn) : 
+							conn;
 					}
 				}
 
@@ -48,14 +43,12 @@
 			}
 		}
 
-		public async Task<Connection> Connect(string hostname, 
+		public async Task<IConnection> Connect(string hostname, 
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672, 
 			bool autoRecovery = true)
 		{
 			var conn = new Connection();
-
-			if (autoRecovery) conn.ConnectionRecoveryStrategy = new ConnectionRecoveryStrategy(hostname, vhost, username, password, port);
 
 			try
 			{
@@ -63,6 +56,8 @@
 
 				if (LogAdapter.ExtendedLogEnabled)
 					LogAdapter.LogDebug("ConnectionFactory", "Connected to " + hostname + ":" + port);
+
+				return autoRecovery ? (IConnection)new AutoRecoveryEnabledConnection(hostname, conn) : conn;
 			}
 			catch (Exception e)
 			{
@@ -71,8 +66,6 @@
 				conn.Dispose();
 				throw;
 			}
-			
-			return conn;
 		}
 	}
 }

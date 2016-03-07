@@ -5,6 +5,7 @@
 	using FluentAssertions;
 	using NUnit.Framework;
 
+
 	[TestFixture]
 	public class ConnectionAndChannelCreationTestCase : BaseTest
     {
@@ -13,14 +14,13 @@
 		{
 			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
-
-			var listsOfFakeHostsWithGoodAsLast = new []
+			var badHostsWithGoodAsLast = new []
 			{
 				"192.168.0.23",
 				_host
 			};
 
-			var conn = await new ConnectionFactory().Connect(listsOfFakeHostsWithGoodAsLast, _vhost, _username, _password);
+			var conn = await new ConnectionFactory().Connect(badHostsWithGoodAsLast, _vhost, _username, _password);
 
 			conn.Dispose();
 		}
@@ -30,8 +30,7 @@
 		{
 			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
-
-			Connection conn = null;
+			IConnection conn = null;
 			using (conn = await base.StartConnection())
 			{
 				conn.IsClosed.Should().BeFalse();

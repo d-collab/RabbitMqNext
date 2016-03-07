@@ -23,12 +23,12 @@ namespace RabbitMqNext.Internals.RingBuffer
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
 
-			ThreadFactory.CreateBackgroundThread(ReadSocketIntoRingBuffer, "SocketProducer_" + index);
+			ThreadFactory.BackgroundThread(ReadSocketIntoRingBuffer, "SocketProducer_" + index);
 		}
 
 		public event Action<Socket, Exception> OnNotifyClosed;
 
-		private void ReadSocketIntoRingBuffer(object obj)
+		private void ReadSocketIntoRingBuffer()
 		{
 			try
 			{

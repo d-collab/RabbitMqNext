@@ -73,6 +73,7 @@
     <Compile Include="ChannelApiExtensions.cs" />
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="IChannel.cs" />
+    <Compile Include="IConnection.cs" />
     <Compile Include="Internals\RingBuffer\Padding.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferPositionMarker.cs">
       <SubType>Code</SubType>
@@ -98,7 +99,8 @@
     <Compile Include="MConsole\UserVHostPermissionsInfo.cs" />
     <Compile Include="MConsole\VHostInfo.cs" />
     <Compile Include="QueueConsumer.cs" />
-    <Compile Include="Recovery.cs" />
+    <Compile Include="Recovery\AutoRecoveryEnabledChannel.cs" />
+    <Compile Include="Recovery\AutoRecoveryEnabledConnection.cs" />
     <Compile Include="RpcHelper.cs" />
     <Compile Include="TplExtensions\TaskExtensions.cs" />
     <Compile Include="UndeliveredMessage.cs" />
@@ -138,7 +140,6 @@
     <Compile Include="Internals\RingBuffer\RingBufferStreamAdapter.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Internals\RingBuffer\SocketConsumer.cs" />
     <Compile Include="Internals\RingBuffer\SocketProducer.cs" />
     <Compile Include="Internals\RingBuffer\Utils.cs" />
     <Compile Include="MessageDelivery.cs" />

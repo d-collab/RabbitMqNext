@@ -9,7 +9,7 @@ namespace RabbitMqNext.IntegrationTests
 
 	public class BaseTest
 	{
-		private Connection _conn;
+		private IConnection _conn;
 
 		protected string _host, _vhost, _username, _password;
 
@@ -24,7 +24,7 @@ namespace RabbitMqNext.IntegrationTests
 			_password = ConfigurationManager.AppSettings["password"];
 		}
 
-		public async Task<Connection> StartConnection()
+		public async Task<Connection> StartConnection(bool autoRecovery = false)
 		{
 			using (var console = new RestConsole(_host, _username, _password))
 			{
@@ -40,26 +40,26 @@ namespace RabbitMqNext.IntegrationTests
 				}
 			}
 
-//			LogAdapter.LogDebugFn = (cat, msg, exc) =>
-//			{
-//				Console.WriteLine("[{0}] DEBUG : {1} - {2}", cat, msg, exc);
-//			};
-//			LogAdapter.LogErrorFn = (cat, msg, exc) =>
-//			{
-//				var color = Console.ForegroundColor;
-//				Console.ForegroundColor = ConsoleColor.Red;
-//				Console.WriteLine("[{0}] ERROR : {1} - {2}", cat, msg, exc);
-//				Console.ForegroundColor = color;
-//			};
-//			LogAdapter.LogWarnFn = (cat, msg, exc) =>
-//			{
-//				var color = Console.ForegroundColor;
-//				Console.ForegroundColor = ConsoleColor.Magenta;
-//				Console.WriteLine("[{0}] WARN  : {1} - {2}", cat, msg, exc);
-//				Console.ForegroundColor = color;
-//			};
+			LogAdapter.LogDebugFn = (cat, msg, exc) =>
+			{
+				Console.WriteLine("DEBUG [{0}] : {1} - {2}", cat, msg, exc);
+			};
+			LogAdapter.LogErrorFn = (cat, msg, exc) =>
+			{
+				var color = Console.ForegroundColor;
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.WriteLine("ERROR [{0}] : {1} - {2}", cat, msg, exc);
+				Console.ForegroundColor = color;
+			};
+			LogAdapter.LogWarnFn = (cat, msg, exc) =>
+			{
+				var color = Console.ForegroundColor;
+				Console.ForegroundColor = ConsoleColor.Magenta;
+				Console.WriteLine("WARN  [{0}] : {1} - {2}", cat, msg, exc);
+				Console.ForegroundColor = color;
+			};
 
-			var conn = await new ConnectionFactory().Connect(_host, _vhost, _username, _password);
+			var conn = (Connection) await new ConnectionFactory().Connect(_host, _vhost, _username, _password, autoRecovery: autoRecovery);
 			_conn = conn;
 			return conn;
 		}

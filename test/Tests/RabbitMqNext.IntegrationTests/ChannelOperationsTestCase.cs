@@ -16,7 +16,6 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
-
 			using (var conn = await base.StartConnection())
 			using (var channel = await conn.CreateChannel())
 			{
@@ -31,7 +30,6 @@ namespace RabbitMqNext.IntegrationTests
 		public async Task BasicAck()
 		{
 			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
-
 
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
@@ -49,7 +47,6 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
-
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
@@ -65,7 +62,6 @@ namespace RabbitMqNext.IntegrationTests
 		public async Task QueueDeclare_with_wait_Should_return_queueInfo()
 		{
 			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
-
 
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();

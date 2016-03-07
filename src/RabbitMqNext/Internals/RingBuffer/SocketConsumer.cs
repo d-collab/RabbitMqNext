@@ -24,7 +24,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 			_ringBuffer = ringBuffer;
 			_cancellationToken = cancellationToken;
 
-			ThreadFactory.CreateBackgroundThread(WriteSocketFromRingBuffer, "SocketConsumer_" + index);
+			ThreadFactory.BackgroundThread(WriteSocketFromRingBuffer, "SocketConsumer_" + index);
 		}
 
 		public event Action<Socket, Exception> OnNotifyClosed;

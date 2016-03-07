@@ -5,7 +5,6 @@ namespace RabbitMqNext.Internals
 	using System.Collections;
 	using System.Collections.Generic;
 	using System.Text;
-	using System.Threading.Tasks;
 	using RingBuffer;
 
 
@@ -60,11 +59,14 @@ namespace RabbitMqNext.Internals
 
 			_reader.FillBufferWithLock(_smallBuffer, byteCount, reverse: false);
 			var str = Encoding.UTF8.GetString(_smallBuffer, 0, byteCount);
+
+#pragma warning disable 162
 			if (InternStrings)
 			{
 				return String.Intern(str);
 			}
 			return str;
+#pragma warning restore 162
 		}
 
 		public string ReadLongstr()
@@ -77,11 +79,13 @@ namespace RabbitMqNext.Internals
 			{
 				_reader.FillBufferWithLock(buffer, byteCount, reverse: false);
 				var str = Encoding.UTF8.GetString(buffer, 0, byteCount);
+#pragma warning disable 162
 				if (InternStrings)
 				{
 					return String.Intern(str);
 				}
 				return str;
+#pragma warning restore 162
 			}
 			finally
 			{

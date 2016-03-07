@@ -29,7 +29,7 @@ namespace RabbitMqNext.Internals
 		public InternalBigEndianWriter Writer;
 		public InternalBigEndianReader Reader;
 
-		private int _socketIsClosed = 0;
+		internal int _socketIsClosed = 0;
 		private int _index;
 
 		public SocketHolder(CancellationToken token)
@@ -58,7 +58,8 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task<bool> Connect(string hostname, int port, Action notifyWhenClosed, int index, bool throwOnError)
+		public async Task<bool> Connect(string hostname, int port, Action notifyWhenClosed, 
+										int index, bool throwOnError)
 		{
 			_index = index;
 			var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);

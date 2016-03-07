@@ -9,8 +9,8 @@
 	using System.Threading;
 	using System.Threading.Tasks;
 	using RabbitMqNext;
-	using RabbitMQ.Client;
-	using RabbitMQ.Client.Events;
+//	using RabbitMQ.Client;
+//	using RabbitMQ.Client.Events;
 	using ConnectionFactory = RabbitMqNext.ConnectionFactory;
 
 	public class Program
@@ -161,8 +161,8 @@
 
 		private static async Task StartRpc()
 		{
-			Connection conn1 = null;
-			Connection conn2 = null;
+			IConnection conn1 = null;
+			IConnection conn2 = null;
 			try
 			{
 				conn1 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
@@ -255,7 +255,7 @@
 
 		private static async Task Start()
 		{
-			Connection conn = null;
+			IConnection conn = null;
 			try
 			{
 				conn = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
@@ -553,11 +553,11 @@
 			}, TaskCreationOptions.LongRunning);
 		}
 
-		class OldStyleConsumer : IBasicConsumer
+		class OldStyleConsumer : RabbitMQ.Client.IBasicConsumer 
 		{
-			private readonly Action<ulong, IBasicProperties, byte[]> _action;
+			private readonly Action<ulong, RabbitMQ.Client.IBasicProperties, byte[]> _action;
 
-			public OldStyleConsumer(Action<ulong, IBasicProperties, byte[]> action)
+			public OldStyleConsumer(Action<ulong, RabbitMQ.Client.IBasicProperties, byte[]> action)
 			{
 				_action = action;
 			}
@@ -575,17 +575,17 @@
 			}
 
 			public void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey,
-				IBasicProperties properties, byte[] body)
+				RabbitMQ.Client.IBasicProperties properties, byte[] body)
 			{
 				_action(deliveryTag, properties, body);
 			}
 
-			public void HandleModelShutdown(object model, ShutdownEventArgs reason)
+			public void HandleModelShutdown(object model, RabbitMQ.Client.ShutdownEventArgs reason)
 			{
 			}
 
-			public IModel Model { get; private set; }
-			public event EventHandler<ConsumerEventArgs> ConsumerCancelled;
+			public RabbitMQ.Client.IModel Model { get; private set; }
+			public event EventHandler<RabbitMQ.Client.Events.ConsumerEventArgs> ConsumerCancelled;
 		}
 	}
 }

@@ -59,7 +59,7 @@
 
 		private static async Task<bool> StartRpcServer()
 		{
-			Connection conn1 = null;
+			IConnection conn1 = null;
 
 			try
 			{
