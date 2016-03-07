@@ -54,6 +54,12 @@
 					.Connect(_host, _vhost, 
 					_username, _password, autoRecovery: true);
 
+			conn.RecoveryCompleted += async () =>
+			{
+				var channel = await conn.CreateChannel();
+				await channel.BasicQos(0, 150, false);
+			};
+
 			Console.WriteLine("Do stop rabbitmq service");
 
 			await Task.Delay(TimeSpan.FromMinutes(10));

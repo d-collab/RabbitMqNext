@@ -8,7 +8,7 @@
 	using Internals;
 	using Internals.RingBuffer;
 
-	internal enum ConnectionRecoveryAction
+	internal enum RecoveryAction
 	{
 		NoAction,
 		WillReconnect
@@ -23,6 +23,9 @@
 		private readonly List<RecoveryEnabledChannel> _channelRecoveries;
 		private volatile bool _disableRecovery;
 		private string _selectedHostname;
+
+		public event Action WillRecover;
+		public event Action RecoveryCompleted;
 
 		public RecoveryEnabledConnection(string hostname, Connection connection) 
 			: this(new [] { hostname }, connection)
@@ -54,19 +57,28 @@
 
 		private int _inRecovery;
 
-		internal ConnectionRecoveryAction NotifyAbruptClose(Exception reason)
+		internal RecoveryAction NotifyAbruptClose(Exception reason)
 		{
 			if (_disableRecovery)
 			{
 				LogAdapter.LogDebug(LogSource, "NotifyAbrupt skipping action since disconect was initiated by the user", reason);
-				return ConnectionRecoveryAction.NoAction;
+				return RecoveryAction.NoAction;
 			}
 
 			LogAdapter.LogDebug(LogSource, "NotifyAbrupt", reason);
 
 			TryInitiateRecovery();
 
-			return ConnectionRecoveryAction.WillReconnect;
+			return RecoveryAction.WillReconnect;
+		}
+
+		internal RecoveryAction NotifyCloseByServer()
+		{
+			LogAdapter.LogDebug(LogSource, "NotifyClosedByServer ");
+
+			TryInitiateRecovery();
+
+			return RecoveryAction.WillReconnect;
 		}
 
 		internal void NotifyCloseByUser()
@@ -74,15 +86,6 @@
 			_disableRecovery = true;
 
 			LogAdapter.LogDebug(LogSource, "NotifyClosedByUser ");
-		}
-
-		internal ConnectionRecoveryAction NotifyCloseByServer()
-		{
-			LogAdapter.LogDebug(LogSource, "NotifyClosedByServer ");
-
-			TryInitiateRecovery();
-
-			return ConnectionRecoveryAction.WillReconnect;
 		}
 
 		#region Implementation of IConnection
@@ -130,8 +133,12 @@
 				{
 					try
 					{
+						pthis.FireWillRecover();
+
 						await pthis.CycleReconnect();
 						await pthis.Recover();
+
+						pthis.FireRecoveryCompleted();
 					}
 					catch (Exception ex)
 					{
@@ -170,8 +177,7 @@
 				}
 
 				var succeeded = await _connection.InternalConnect(hostToTry, throwOnError: false);
-				if (succeeded)
-					return true;
+				if (succeeded) return true;
 
 				// TODO: config/parameter for wait time
 				Thread.Sleep(1000);
@@ -193,6 +199,18 @@
 		private void HandleRecoveryFatalError()
 		{
 			// TODO: implement this
+		}
+
+		private void FireRecoveryCompleted()
+		{
+			var ev = this.RecoveryCompleted;
+			if (ev != null) ev();
+		}
+
+		private void FireWillRecover()
+		{
+			var ev = this.WillRecover;
+			if (ev != null) ev();
 		}
 	}
 }

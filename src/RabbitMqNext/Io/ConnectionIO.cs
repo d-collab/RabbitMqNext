@@ -121,7 +121,12 @@ namespace RabbitMqNext.Io
 			}
 			else
 			{
-				_conn.NotifyClosedByServer();
+				if (_conn.NotifyClosedByServer() == RecoveryAction.WillReconnect)
+				{
+					CancelPendingCommands(error);
+
+					return false;
+				}
 			}
 
 			_conn.CloseAllChannels(initiatedByServer, error);
@@ -137,13 +142,16 @@ namespace RabbitMqNext.Io
 
 		internal override void InitiateAbruptClose(Exception reason)
 		{
-			_conn.NotifyAbruptClose(reason);
+			if (_conn.NotifyAbruptClose(reason) == RecoveryAction.WillReconnect)
+			{
+				CancelPendingCommands(reason);
+			}
+			else
+			{
+				_conn.CloseAllChannels(reason);
 
-			_conn.CloseAllChannels(reason);
-
-			CancelPendingCommands(reason);
-
-			base.InitiateAbruptClose(reason);
+				base.InitiateAbruptClose(reason);
+			}
 		}
 
 		protected override void InternalDispose()
@@ -195,9 +203,6 @@ namespace RabbitMqNext.Io
 
 			_socketHolder.WireStreams(_threadCancelToken, OnSocketClosed);
 
-			// _amqpWriter = new AmqpPrimitivesWriter(_socketHolder.Writer);
-			// _amqpReader = new AmqpPrimitivesReader(_socketHolder.Reader);
-			// _frameReader = new FrameReader(_socketHolder.Reader, _amqpReader, this);
 			_amqpWriter.Initialize(_socketHolder.Writer);
 			_amqpReader.Initialize(_socketHolder.Reader);
 			_frameReader.Initialize(_socketHolder.Reader, _amqpReader, this);
@@ -504,6 +509,9 @@ namespace RabbitMqNext.Io
 
 		private Task __SendConnectionClose(ushort replyCode, string message)
 		{
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionClose >");
+
 			var tcs = new TaskCompletionSource<bool>();
 
 			SendCommand(0, 10, 50, AmqpConnectionFrameWriter.ConnectionClose,
@@ -511,10 +519,10 @@ namespace RabbitMqNext.Io
 				{
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionCloseOk)
 					{
-						// _frameReader.Read_ConnectionCloseOk(() =>
-						{
-							tcs.SetResult(true);
-						}//);
+						if (LogAdapter.ProtocolLevelLogEnabled)
+							LogAdapter.LogDebug("ConnectionIO", "__SendConnectionClose enabled");
+						
+						tcs.SetResult(true);
 					}
 					else
 					{
@@ -534,6 +542,9 @@ namespace RabbitMqNext.Io
 
 		private Task __SendConnectionCloseOk()
 		{
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionCloseOk >");
+
 			var tcs = new TaskCompletionSource<bool>();
 
 			this.SendCommand(0, 10, 51,

@@ -158,24 +158,26 @@
 			}
 		}
 
-		internal void NotifyAbruptClose(Exception reason)
+		internal RecoveryAction NotifyAbruptClose(Exception reason)
 		{
 			if (this.Recovery != null)
-				this.Recovery.NotifyAbruptClose(reason);
+				return this.Recovery.NotifyAbruptClose(reason);
 
-			// this.CloseAllChannels(reason);
+			return RecoveryAction.NoAction;
+		}
+
+		internal RecoveryAction NotifyClosedByServer()
+		{
+			if (this.Recovery != null)
+				return this.Recovery.NotifyCloseByServer();
+
+			return RecoveryAction.NoAction;
 		}
 
 		internal void NotifyClosedByUser()
 		{
 			if (this.Recovery != null)
 				this.Recovery.NotifyCloseByUser();
-		}
-
-		internal void NotifyClosedByServer()
-		{
-			if (this.Recovery != null)
-				this.Recovery.NotifyCloseByServer();
 		}
 
 		internal class ConnectionInfo
