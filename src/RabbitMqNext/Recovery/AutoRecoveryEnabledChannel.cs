@@ -5,13 +5,13 @@
 	using System.Threading.Tasks;
 	using Internals;
 
-	public class AutoRecoveryEnabledChannel : IChannel
+	public class RecoveryEnabledChannel : IChannel
 	{
 		const string LogSource = "ChannelRecovery";
 		
 		private readonly Channel _channel;
 
-		public AutoRecoveryEnabledChannel(Channel channel)
+		public RecoveryEnabledChannel(Channel channel)
 		{
 			_channel = channel;
 		}

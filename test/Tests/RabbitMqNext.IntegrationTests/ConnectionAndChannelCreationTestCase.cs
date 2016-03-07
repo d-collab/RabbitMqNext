@@ -20,7 +20,7 @@
 				_host
 			};
 
-			var conn = await new ConnectionFactory().Connect(badHostsWithGoodAsLast, _vhost, _username, _password);
+			var conn = await ConnectionFactory.Connect(badHostsWithGoodAsLast, _vhost, _username, _password);
 
 			conn.Dispose();
 		}

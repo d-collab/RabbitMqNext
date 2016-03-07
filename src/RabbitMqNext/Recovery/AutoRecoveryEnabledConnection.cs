@@ -14,32 +14,32 @@
 		WillReconnect
 	}
 
-	public class AutoRecoveryEnabledConnection : IConnection
+	public class RecoveryEnabledConnection : IConnection
 	{
 		const string LogSource = "ConnectionRecovery";
 
 		private readonly IEnumerable<string> _hostnames;
 		private readonly Connection _connection;
-		private readonly List<AutoRecoveryEnabledChannel> _channelRecoveries;
+		private readonly List<RecoveryEnabledChannel> _channelRecoveries;
 		private volatile bool _disableRecovery;
 		private string _selectedHostname;
 
-		public AutoRecoveryEnabledConnection(string hostname, Connection connection) 
+		public RecoveryEnabledConnection(string hostname, Connection connection) 
 			: this(new [] { hostname }, connection)
 		{
 		}
 
-		public AutoRecoveryEnabledConnection(IEnumerable<string> hostnames, Connection connection)
+		public RecoveryEnabledConnection(IEnumerable<string> hostnames, Connection connection)
 		{
 			_hostnames = hostnames;
 			_connection = connection;
 			_connection.Recovery = this;
-			_channelRecoveries = new List<AutoRecoveryEnabledChannel>();
+			_channelRecoveries = new List<RecoveryEnabledChannel>();
 		}
 
-		internal AutoRecoveryEnabledChannel CreateChannelRecovery(Channel channel)
+		internal RecoveryEnabledChannel CreateChannelRecovery(Channel channel)
 		{
-			var channelRecovery = new AutoRecoveryEnabledChannel(channel);
+			var channelRecovery = new RecoveryEnabledChannel(channel);
 			lock (_channelRecoveries)
 				_channelRecoveries.Add(channelRecovery);
 			return channelRecovery;
@@ -69,18 +69,20 @@
 			return ConnectionRecoveryAction.WillReconnect;
 		}
 
-		public void NotifyCloseByUser()
+		internal void NotifyCloseByUser()
 		{
 			_disableRecovery = true;
 
-			LogAdapter.LogDebug(LogSource, "NotifyCloseByUser ");
+			LogAdapter.LogDebug(LogSource, "NotifyClosedByUser ");
 		}
 
-		public void NotifyCloseByServer()
+		internal ConnectionRecoveryAction NotifyCloseByServer()
 		{
-			// should we reconnect after connection error?
+			LogAdapter.LogDebug(LogSource, "NotifyClosedByServer ");
 
-			LogAdapter.LogDebug(LogSource, "NotifyCloseByServer ");
+			TryInitiateRecovery();
+
+			return ConnectionRecoveryAction.WillReconnect;
 		}
 
 		#region Implementation of IConnection
@@ -124,7 +126,7 @@
 			{
 				LogAdapter.LogDebug(LogSource, "TryInitiateRecovery starting recovery process");
 
-				ThreadFactory.BackgroundThread<AutoRecoveryEnabledConnection>(async (pthis) =>
+				ThreadFactory.BackgroundThread(async (pthis) =>
 				{
 					try
 					{
@@ -167,11 +169,11 @@
 					continue;
 				}
 
-				var succeeded = await _connection.InternalConnect(hostToTry);
+				var succeeded = await _connection.InternalConnect(hostToTry, throwOnError: false);
 				if (succeeded)
 					return true;
 
-				// TODO: parameterized wait time
+				// TODO: config/parameter for wait time
 				Thread.Sleep(1000);
 			}
 		}

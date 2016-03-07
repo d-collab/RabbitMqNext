@@ -22,6 +22,8 @@
 
 			internal PaddingForInt32 _pad2;
 			internal uint _bufferSize;
+
+			internal volatile bool _resetApplied;
 		}
 
 		internal State _state;
@@ -143,6 +145,27 @@
 //
 //			return minGatePos;
 //		}
+
+		internal void Restart()
+		{
+			Reset(); // ensure positions are properly set
+
+			_state._resetApplied = false;
+			Thread.MemoryBarrier();
+		}
+
+		internal void Reset()
+		{
+			_state._resetApplied = true;
+
+			_readLock.Reset();
+			_writeLock.Reset();
+
+			_state._readPosition = _state._readPositionCopy = 0;
+			_state._writePosition = _state._writePositionCopy = 0;
+
+			Thread.MemoryBarrier();
+		}
 
 #if !DEBUG
 		// [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -320,8 +343,7 @@
 #endif
 		private static int InternalMin(uint v1, int v2)
 		{
-			if (v1 <= v2) 
-				return (int)v1;
+			if (v1 <= v2) return (int)v1;
 			return v2;
 		}
 //

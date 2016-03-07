@@ -10,7 +10,8 @@ namespace RabbitMqNext.Internals
 	{
 		internal const int BufferSize = 1024 * 128;
 
-		internal readonly InternalBigEndianWriter _writer;
+		internal InternalBigEndianWriter _writer;
+		
 		private readonly ArrayPool<byte> _bufferPool;
 		internal readonly ObjectPool<ReusableTempWriter> _memStreamPool;
 
@@ -18,11 +19,13 @@ namespace RabbitMqNext.Internals
 
 		public uint? FrameMaxSize { get; set; }
 
-		public AmqpPrimitivesWriter(InternalBigEndianWriter writer, ArrayPool<byte> bufferPool,
+		public AmqpPrimitivesWriter() : this(null, null)
+		{
+		}
+
+		public AmqpPrimitivesWriter(ArrayPool<byte> bufferPool,
 									ObjectPool<ReusableTempWriter> memStreamPool)
 		{
-			_writer = writer;
-
 			_bufferPool = bufferPool ?? new DefaultArrayPool<byte>(BufferSize, 5);
 			if (memStreamPool == null)
 			{
@@ -35,6 +38,11 @@ namespace RabbitMqNext.Internals
 				}, 6);
 			}
 			_memStreamPool = memStreamPool;
+		}
+
+		public void Initialize(InternalBigEndianWriter writer)
+		{
+			_writer = writer;
 		}
 
 		public void WriteOctet(byte b)

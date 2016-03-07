@@ -107,11 +107,13 @@
 				int available;
 				var writePos = this.InternalGetReadyToWriteEntries(count - totalwritten, out available);
 
+				if (_state._resetApplied) break;
+
 				if (available == 0)
 				{
 					if (writeAll)
 					{
-						_readLock.Wait();
+						_readLock.Wait(); // may be signaled during a reset
 						continue;
 					}
 					break;
@@ -148,6 +150,8 @@
 			{
 				writePos = this.InternalGetReadyToWriteEntries(BufferSize, out available);
 
+				if (_state._resetApplied) break;
+
 				if (available == 0)
 					_readLock.Wait();
 				else
@@ -181,6 +185,9 @@
 			{
 				int available;
 				int readPos = this.InternalGetReadyToReadEntries(count - totalRead, out available, fromGate);
+
+				if (_state._resetApplied) break;
+
 				if (available == 0)
 				{
 					if (fillBuffer)
@@ -226,6 +233,8 @@
 				int totalRead;
 				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out totalRead, null);
 
+				if (_state._resetApplied) break;
+
 				// buffer is empty.. return and expect to be called again when something gets written
 				if (totalRead == 0) 
 				{
@@ -261,6 +270,8 @@
 			{
 				int available;
 				int readPos = this.InternalGetReadyToReadEntries(offset - totalSkipped, out available, null);
+
+				if (_state._resetApplied) break;
 
 				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
 				if (available == 0)

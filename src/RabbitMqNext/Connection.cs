@@ -14,8 +14,10 @@
 
 		internal const int MaxChannels = 10;
 		private readonly Channel[] _channels = new Channel[MaxChannels + 1]; // 1-based index
+		
 		private int _channelNumbers;
 		private ConnectionInfo _connectionInfo;
+		private CancellationTokenSource _channelCancellationTokenSource = new CancellationTokenSource();
 
 		public Connection()
 		{
@@ -25,7 +27,7 @@
 			};
 		}
 
-		public AutoRecoveryEnabledConnection Recovery { get; internal set; }
+		public RecoveryEnabledConnection Recovery { get; internal set; }
 
 		public event Action<AmqpError> OnError;
 
@@ -34,7 +36,6 @@
 									int port, bool throwOnError = true)
 		{
 			// Saves info for reconnection scenarios
-
 			_connectionInfo = new ConnectionInfo 
 			{ 
 				hostname = hostname, 
@@ -49,6 +50,9 @@
 
 		internal async Task<bool> InternalConnect(string hostname, bool throwOnError = true)
 		{
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug("Connection", "Trying to connect to " + hostname);
+
 			var result = await _io.InternalDoConnectSocket(hostname, _connectionInfo.port, throwOnError).ConfigureAwait(false);
 
 			if (!result) return false;
@@ -115,6 +119,8 @@
 
 		internal void CloseAllChannels(bool initiatedByServer, AmqpError error)
 		{
+			LogAdapter.LogDebug("Connection", "Closing all channels");
+
 			foreach (var channel in _channels)
 			{
 				if (channel == null) continue;
@@ -132,7 +138,7 @@
 			if (channelNum > MaxChannels)
 				throw new Exception("Exceeded channel limits");
 
-			var channel = new Channel(channelNum, this._io, this._io._cancellationToken);
+			var channel = new Channel(channelNum, this._io, _channelCancellationTokenSource.Token);
 
 			try
 			{
@@ -152,7 +158,6 @@
 			}
 		}
 
-
 		internal void NotifyAbruptClose(Exception reason)
 		{
 			if (this.Recovery != null)
@@ -161,13 +166,13 @@
 			// this.CloseAllChannels(reason);
 		}
 
-		internal void NotifyCloseByUser()
+		internal void NotifyClosedByUser()
 		{
 			if (this.Recovery != null)
 				this.Recovery.NotifyCloseByUser();
 		}
 
-		internal void NotifyCloseByServer()
+		internal void NotifyClosedByServer()
 		{
 			if (this.Recovery != null)
 				this.Recovery.NotifyCloseByServer();
@@ -175,11 +180,11 @@
 
 		internal class ConnectionInfo
 		{
-			public string hostname;
-			public string vhost;
-			public string username;
-			public string password;
-			public int port;
+			internal string hostname;
+			internal string vhost;
+			internal string username;
+			internal string password;
+			internal int port;
 		}
 	}
 }

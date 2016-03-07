@@ -15,7 +15,8 @@ namespace RabbitMqNext.Internals
 
 			_innerWriter = new InternalBigEndianWriter(_memoryStream);
 
-			_writer2 = new AmqpPrimitivesWriter(_innerWriter, bufferPool, memStreamPool);
+			_writer2 = new AmqpPrimitivesWriter(bufferPool, memStreamPool);
+			_writer2.Initialize(_innerWriter);
 		}
 
 		public void EnsureMaxFrameSizeSet(uint? frameMax)

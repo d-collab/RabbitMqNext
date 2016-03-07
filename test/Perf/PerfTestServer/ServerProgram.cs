@@ -63,7 +63,7 @@
 
 			try
 			{
-				conn1 = await new ConnectionFactory().Connect(TargetHost, 
+				conn1 = await ConnectionFactory.Connect(TargetHost, 
 					vhost: VHost, username: _username, password: _password);
 
 				Console.WriteLine("[Connected]");

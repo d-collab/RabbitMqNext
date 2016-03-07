@@ -13,19 +13,25 @@ namespace RabbitMqNext.Io
 
 	public sealed class ConnectionIO : AmqpIOBase, IFrameProcessor
 	{
-		private readonly CancellationTokenSource _cancellationTokenSource;
+		private static int _counter = 0;
+
 		private readonly Connection _conn;
 		
-		internal readonly SocketHolder _socketHolder;
-		internal readonly CancellationToken _cancellationToken;
-
 		private readonly AutoResetEvent _commandOutboxEvent;
 		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
 		private readonly ObjectPool<CommandToSend> _cmdToSendObjPool;
 		
-		private AmqpPrimitivesWriter _amqpWriter; // main output writer
-		private AmqpPrimitivesReader _amqpReader; // main input reader
-		internal FrameReader _frameReader; // interpreter of input
+		internal readonly SocketHolder _socketHolder;
+
+		private readonly AmqpPrimitivesWriter _amqpWriter; // main output writer
+		private readonly AmqpPrimitivesReader _amqpReader; // main input reader
+		internal readonly FrameReader _frameReader; // interpreter of input
+
+		private CancellationTokenSource _threadCancelSource;
+		private CancellationToken _threadCancelToken;
+
+//		private readonly CancellationTokenSource _cancellationTokenSource;
+//		internal readonly CancellationToken _cancellationToken;
 
 		#region populated by server replies
 
@@ -40,17 +46,18 @@ namespace RabbitMqNext.Io
 		
 		public ConnectionIO(Connection connection) : base(channelNum: 0)
 		{
-			_cancellationTokenSource = new CancellationTokenSource();
-			_cancellationToken = _cancellationTokenSource.Token;
-
 			_conn = connection;
-			_socketHolder = new SocketHolder(_cancellationTokenSource.Token);
+			_socketHolder = new SocketHolder();
 
 			_commandOutboxEvent = new AutoResetEvent(false);
 			// _commandOutboxEvent = new AutoResetSuperSlimLock(false);
 			_commandOutbox = new ConcurrentQueue<CommandToSend>();
 
 			_cmdToSendObjPool = new ObjectPool<CommandToSend>(() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 200, true);
+
+			_amqpWriter = new AmqpPrimitivesWriter();
+			_amqpReader = new AmqpPrimitivesReader();
+			_frameReader = new FrameReader();
 		}
 
 		#region FrameProcessor
@@ -104,7 +111,7 @@ namespace RabbitMqNext.Io
 		{
 			if (!initiatedByServer)
 			{
-				_conn.NotifyCloseByUser();
+				_conn.NotifyClosedByUser();
 
 				while (!_commandOutbox.IsEmpty && !_socketHolder.IsClosed)
 				{
@@ -114,7 +121,7 @@ namespace RabbitMqNext.Io
 			}
 			else
 			{
-				_conn.NotifyCloseByServer();
+				_conn.NotifyClosedByServer();
 			}
 
 			_conn.CloseAllChannels(initiatedByServer, error);
@@ -141,24 +148,96 @@ namespace RabbitMqNext.Io
 
 		protected override void InternalDispose()
 		{
-			_cancellationTokenSource.Cancel();
+			// _cancellationTokenSource.Cancel();
 			_socketHolder.Dispose();
 		}
 
 		#endregion
 
+		private void OnSocketClosed()
+		{
+			if (_threadCancelSource != null)
+			{
+				_threadCancelSource.Cancel();
+				_commandOutboxEvent.Set(); // <- gets it out of the Wait state, and fast exit
+			}
+
+			base.HandleDisconnect(); // either a consequence of a close method, or unexpected disconnect
+		}
+
+		internal async Task<bool> InternalDoConnectSocket(string hostname, int port, bool throwOnError)
+		{
+			var index = Interlocked.Increment(ref _counter);
+
+			var result = await _socketHolder.Connect(hostname, port, index, throwOnError).ConfigureAwait(false);
+
+			if (!throwOnError && !result)
+			{
+				Interlocked.Decrement(ref _counter);
+				return false;
+			}
+
+			// Reset state
+			_lastError = null;
+			while (!_commandOutbox.IsEmpty)
+			{
+				CommandToSend cmd;
+				_commandOutbox.TryDequeue(out cmd);
+			}
+
+			if (_threadCancelSource != null)
+			{
+				_threadCancelSource.Dispose();
+			}
+
+			_threadCancelSource = new CancellationTokenSource();
+			_threadCancelToken = _threadCancelSource.Token;
+
+			_socketHolder.WireStreams(_threadCancelToken, OnSocketClosed);
+
+			// _amqpWriter = new AmqpPrimitivesWriter(_socketHolder.Writer);
+			// _amqpReader = new AmqpPrimitivesReader(_socketHolder.Reader);
+			// _frameReader = new FrameReader(_socketHolder.Reader, _amqpReader, this);
+			_amqpWriter.Initialize(_socketHolder.Writer);
+			_amqpReader.Initialize(_socketHolder.Reader);
+			_frameReader.Initialize(_socketHolder.Reader, _amqpReader, this);
+
+			ThreadFactory.BackgroundThread(WriteFramesLoop, "WriteFramesLoop_" + index);
+			ThreadFactory.BackgroundThread(ReadFramesLoop,  "ReadFramesLoop_"  + index);
+
+			return true;
+		}
+
+		internal async Task<bool> Handshake(string vhost, string username, string password, bool throwOnError)
+		{
+			await __SendGreeting().ConfigureAwait(false);
+			await __SendConnectionStartOk(username, password).ConfigureAwait(false);
+			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat: 0).ConfigureAwait(false); // disabling heartbeats for now
+			_amqpWriter.FrameMaxSize = _frameMax;
+			KnownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
+
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug("ConnectionIO", "Known Hosts: " + KnownHosts);
+
+			return true;
+		}
+
 		// Run on its own thread, and invokes user code from it (task continuations)
 		private void WriteFramesLoop()
 		{
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogError("ConnectionIO", "WriteFramesLoop starting");
+
 			CommandToSend cmdToSend = null;
 
 			try
 			{
-				while (_socketHolder._socketIsClosed == 0 && 
-					   !_cancellationToken.IsCancellationRequested)
+				var token = _threadCancelToken;
+
+				while (!token.IsCancellationRequested)
 				{
 					_commandOutboxEvent.WaitOne(1000); // maybe it's better to _cancellationToken.Register(action) ?
-//					_commandOutboxEvent.Wait();
+					// _commandOutboxEvent.Wait();
 
 					while (_commandOutbox.TryDequeue(out cmdToSend))
 					{
@@ -167,7 +246,7 @@ namespace RabbitMqNext.Io
 						if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
 						{
 							var queue = cmdToSend.Channel == 0
-								? _awaitingReplyQueue : 
+								? _awaitingReplyQueue :
 								  _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
 
 							queue.Enqueue(cmdToSend);
@@ -209,10 +288,14 @@ namespace RabbitMqNext.Io
 		// Run on its own thread, and invokes user code from it
 		private void ReadFramesLoop()
 		{
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogError("ConnectionIO", "ReadFramesLoop starting");
+
 			try
 			{
-				while (_socketHolder._socketIsClosed == 0 && 
-					   !_cancellationTokenSource.Token.IsCancellationRequested)
+				var token = _threadCancelToken;
+
+				while (!token.IsCancellationRequested)
 				{
 					_frameReader.ReadAndDispatch();
 				}
@@ -229,45 +312,6 @@ namespace RabbitMqNext.Io
 
 				this.InitiateAbruptClose(ex);
 			}
-		}
-
-		private void OnSocketClosed()
-		{
-			base.HandleDisconnect(); // either a consequence of a close method, or unexpected disconnect
-		}
-
-		private static int _counter = 0;
-
-		internal async Task<bool> InternalDoConnectSocket(string hostname, int port, bool throwOnError)
-		{
-			var index = Interlocked.Increment(ref _counter);
-
-			var result = await _socketHolder.Connect(hostname, port, OnSocketClosed, index, throwOnError).ConfigureAwait(false);
-
-			if (!throwOnError && !result) return false;
-
-			_amqpWriter = new AmqpPrimitivesWriter(_socketHolder.Writer, null, null);
-			_amqpReader = new AmqpPrimitivesReader(_socketHolder.Reader);
-			_frameReader = new FrameReader(_socketHolder.Reader, _amqpReader, this);
-
-			ThreadFactory.BackgroundThread(WriteFramesLoop, "WriteFramesLoop_" + index);
-			ThreadFactory.BackgroundThread(ReadFramesLoop, "ReadFramesLoop_" + index);
-
-			return true;
-		}
-
-		internal async Task<bool> Handshake(string vhost, string username, string password, bool throwOnError)
-		{
-			await __SendGreeting().ConfigureAwait(false);
-			await __SendConnectionStartOk(username, password).ConfigureAwait(false);
-			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat: 0).ConfigureAwait(false); // disabling heartbeats for now
-			_amqpWriter.FrameMaxSize = _frameMax;
-			KnownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
-
-			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "Known Hosts: " + KnownHosts);
-
-			return true;
 		}
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
@@ -339,6 +383,9 @@ namespace RabbitMqNext.Io
 
 		private Task __SendGreeting()
 		{
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug("ConnectionIO", "__SendGreeting >");
+
 			var tcs = new TaskCompletionSource<bool>();
 
 			SendCommand(0, 0, 0,
@@ -351,6 +398,9 @@ namespace RabbitMqNext.Io
 						{
 							this.ServerProperties = serverProperties;
 							this.AuthMechanisms = mechanisms;
+
+							if (LogAdapter.ProtocolLevelLogEnabled)
+								LogAdapter.LogDebug("ConnectionIO", "__SendGreeting completed");
 
 							tcs.SetResult(true);
 						});
@@ -375,11 +425,17 @@ namespace RabbitMqNext.Io
 
 			SendCommand(0, 10, 31, writer, reply: null, expectsReply: false, tcs: tcs);
 
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionTuneOk >");
+
 			return tcs.Task;
 		}
 
 		private Task<string> __SendConnectionOpen(string vhost)
 		{
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionOpen >");
+
 			var tcs = new TaskCompletionSource<string>();
 			var writer = AmqpConnectionFrameWriter.ConnectionOpen(vhost, string.Empty, false);
 
@@ -390,6 +446,9 @@ namespace RabbitMqNext.Io
 					{
 						_frameReader.Read_ConnectionOpenOk((knowHosts) =>
 						{
+							if (LogAdapter.ProtocolLevelLogEnabled)
+								LogAdapter.LogDebug("ConnectionIO", "__SendConnectionOpen completed");
+
 							tcs.SetResult(knowHosts);
 						});
 					}
@@ -405,6 +464,9 @@ namespace RabbitMqNext.Io
 
 		private Task __SendConnectionStartOk(string username, string password)
 		{
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionStartOk >");
+
 			var tcs = new TaskCompletionSource<bool>();
 
 			// Only supports PLAIN authentication for now
@@ -423,6 +485,9 @@ namespace RabbitMqNext.Io
 							this._channelMax = channelMax;
 							this._frameMax = frameMax;
 							this.Heartbeat = heartbeat;
+
+							if (LogAdapter.ProtocolLevelLogEnabled)
+								LogAdapter.LogDebug("ConnectionIO", "__SendConnectionStartOk completed");
 
 							tcs.SetResult(true);
 						});

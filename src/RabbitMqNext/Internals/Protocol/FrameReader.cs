@@ -6,13 +6,12 @@ namespace RabbitMqNext.Internals
 
 	internal partial class FrameReader
 	{
-		private readonly InternalBigEndianReader _reader;
-		private readonly AmqpPrimitivesReader _amqpReader;
-		private readonly IFrameProcessor _frameProcessor;
+		private InternalBigEndianReader _reader;
+		private AmqpPrimitivesReader _amqpReader;
+		private IFrameProcessor _frameProcessor;
 
-		public FrameReader(InternalBigEndianReader reader, 
-						   AmqpPrimitivesReader amqpReader,
-						   IFrameProcessor frameProcessor)
+		public void Initialize(InternalBigEndianReader reader, 
+							   AmqpPrimitivesReader amqpReader, IFrameProcessor frameProcessor)
 		{
 			_reader = reader;
 			_amqpReader = amqpReader;

@@ -10,15 +10,15 @@ namespace RabbitMqNext.Internals
 
 	internal class AmqpPrimitivesReader
 	{
-		private readonly InternalBigEndianReader _reader;
 		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(1024 * 15, 20);
 		private readonly byte[] _smallBuffer = new byte[300];
+		private InternalBigEndianReader _reader;
 
 		private const bool InternStrings = true;
 
 		public uint? FrameMaxSize { get; set; }
 
-		public AmqpPrimitivesReader(InternalBigEndianReader reader)
+		public void Initialize(InternalBigEndianReader reader)
 		{
 			_reader = reader;
 		}

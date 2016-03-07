@@ -165,8 +165,8 @@
 			IConnection conn2 = null;
 			try
 			{
-				conn1 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
-				conn2 = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
+				conn1 = await ConnectionFactory.Connect(TargetHost, vhost: VHost, username: _username, password: _password);
+				conn2 = await ConnectionFactory.Connect(TargetHost, vhost: VHost, username: _username, password: _password);
 
 				Console.WriteLine("[Connected]");
 
@@ -258,7 +258,7 @@
 			IConnection conn = null;
 			try
 			{
-				conn = await new ConnectionFactory().Connect(TargetHost, vhost: VHost, username: _username, password: _password);
+				conn = await ConnectionFactory.Connect(TargetHost, vhost: VHost, username: _username, password: _password);
 
 				Console.WriteLine("[Connected]");
 

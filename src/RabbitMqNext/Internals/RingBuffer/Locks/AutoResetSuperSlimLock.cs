@@ -29,7 +29,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		internal const int NumWaitersStateMask = (0xFF);     // 0000 0000 1111 1111
 		internal const int NumWaitersStatePos = 0;
 
-		private readonly ConcurrentQueue<TaskCompletionSource<bool>> _waiters = new ConcurrentQueue<TaskCompletionSource<bool>>();
+//		private readonly ConcurrentQueue<TaskCompletionSource<bool>> _waiters = new ConcurrentQueue<TaskCompletionSource<bool>>();
 		// private volatile int _state;
 
 		private readonly object _lock = new object();
@@ -46,26 +46,46 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			if (initialState) _lockState._state = SignalledStateMask;
 		}
 
-		public Task WaitAsync()
-		{
-			return WaitAsync(Timeout.Infinite);
-		}
+//		public Task WaitAsync()
+//		{
+//			return WaitAsync(Timeout.Infinite);
+//		}
+//
+//		public Task WaitAsync(int millisecondsTimeout) //, CancellationToken cancellationToken)
+//		{
+////			cancellationToken.Register(OnCancelled)
+//
+//			if (!CheckForIsSetAndResetIfTrue())
+//			{
+//				if (SpinAndTryToObtainLock()) 
+//					return Task.CompletedTask;
+//
+//				var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+//				_waiters.Enqueue(tcs);
+//				return tcs.Task;
+//			}
+//
+//			return Task.CompletedTask;
+//		}
 
-		public Task WaitAsync(int millisecondsTimeout) //, CancellationToken cancellationToken)
+		/// <summary>
+		/// For advanced scenarios, since it releases waiters 
+		/// without a corresponding 'Set'
+		/// </summary>
+		public void Reset()
 		{
-//			cancellationToken.Register(OnCancelled)
-
-			if (!CheckForIsSetAndResetIfTrue())
+			// Free waiters
+			lock (_lock)
 			{
-				if (SpinAndTryToObtainLock()) 
-					return Task.CompletedTask;
-
-				var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-				_waiters.Enqueue(tcs);
-				return tcs.Task;
+				while (Waiters > 0)
+				{
+					Monitor.Pulse(_lock);
+					Waiters--;
+				}
 			}
 
-			return Task.CompletedTask;
+			// reset state
+			_lockState._state = 0;
 		}
 
 		public bool Wait()
@@ -133,21 +153,21 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 				{
 					Monitor.Pulse(_lock);
 				}
-				else
-				{
-					if (_waiters.TryDequeue(out tcs))
-					{
-						AtomicChange(0, SignalledStatePos, SignalledStateMask);
-					}
-				}
+//				else
+//				{
+//					if (_waiters.TryDequeue(out tcs))
+//					{
+//						AtomicChange(0, SignalledStatePos, SignalledStateMask);
+//					}
+//				}
 			}
 			// schedules the continuation to run
 			// since it was created with TaskCreationOptions.RunContinuationsAsynchronously
 			// it's guaranteed to run outside this _lock, but just in case...
-			if (tcs != null)
-			{
-				tcs.SetResult(true);
-			}
+//			if (tcs != null)
+//			{
+//				tcs.SetResult(true);
+//			}
 		}
 
 		public bool IsSet
@@ -158,9 +178,11 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		public void Dispose()
 		{
-			TaskCompletionSource<bool> tcs;
-			if (_waiters.TryDequeue(out tcs))
-				tcs.SetCanceled();
+			Reset();
+
+//			TaskCompletionSource<bool> tcs;
+//			if (_waiters.TryDequeue(out tcs))
+//				tcs.SetCanceled();
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

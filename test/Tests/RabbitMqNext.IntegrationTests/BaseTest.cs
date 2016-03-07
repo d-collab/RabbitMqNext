@@ -59,7 +59,7 @@ namespace RabbitMqNext.IntegrationTests
 				Console.ForegroundColor = color;
 			};
 
-			var conn = (Connection) await new ConnectionFactory().Connect(_host, _vhost, _username, _password, autoRecovery: autoRecovery);
+			var conn = (Connection) await ConnectionFactory.Connect(_host, _vhost, _username, _password, autoRecovery: autoRecovery);
 			_conn = conn;
 			return conn;
 		}

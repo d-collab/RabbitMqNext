@@ -8,6 +8,7 @@ namespace RabbitMqNext.IntegrationTests
 	[TestFixture]
 	public class ConnectionRecoveryTestCase : BaseTest
 	{
+		
 		[Test]
 		public async Task ServerErrorShouldTriggerReconnect()
 		{

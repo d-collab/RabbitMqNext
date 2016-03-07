@@ -41,7 +41,7 @@
 		private static async Task<bool> StartConsumer()
 		{
 			IConnection conn1 = null;
-			conn1 = await new ConnectionFactory().Connect(_targetHost, vhost: _vhost, username: _username, password: _password);
+			conn1 = await ConnectionFactory.Connect(_targetHost, vhost: _vhost, username: _username, password: _password);
 
 			var newChannel = await conn1.CreateChannel();
 			Console.WriteLine("[channel created] " + newChannel.ChannelNumber);

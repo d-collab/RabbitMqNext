@@ -71,6 +71,8 @@
 			Thread.MemoryBarrier();
 			_isClosed = true;
 
+			LogAdapter.LogDebug("Amqpq", "Clean close initiated. By server? " + initiatedByServer);
+
 			if (initiatedByServer)
 				await SendCloseConfirmation().ConfigureAwait(false);
 			else

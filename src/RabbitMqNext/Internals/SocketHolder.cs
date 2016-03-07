@@ -5,9 +5,7 @@ namespace RabbitMqNext.Internals
 	using System.Net.Sockets;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using Internals;
 	using Internals.RingBuffer;
-	using Sockets;
 
 
 	// TODO: Needs lots of unit testing
@@ -16,7 +14,6 @@ namespace RabbitMqNext.Internals
 	// the consumer loops before reutilizing the ring buffers.
 	public class SocketHolder
 	{
-		private readonly CancellationToken _token;
 		private readonly ByteRingBuffer _inputBuffer;
 		private readonly RingBufferStreamAdapter _inputRingBufferStream; 
 
@@ -32,18 +29,15 @@ namespace RabbitMqNext.Internals
 		internal int _socketIsClosed = 0;
 		private int _index;
 
-		public SocketHolder(CancellationToken token)
+		public SocketHolder()
 		{
-			_token = token;
-
 			_inputBuffer = new ByteRingBuffer();
-
 			_inputRingBufferStream = new RingBufferStreamAdapter(_inputBuffer);
 		}
 
 		public bool IsClosed
 		{
-			get { return _socketIsClosed == 1; } //&& _outputBuffer.HasUnreadContent; }
+			get { return _socketIsClosed != 0; } //&& _outputBuffer.HasUnreadContent; }
 		}
 
 		// Should be called on termination, no chance of reusing it afterwards
@@ -58,8 +52,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		public async Task<bool> Connect(string hostname, int port, Action notifyWhenClosed, 
-										int index, bool throwOnError)
+		public async Task<bool> Connect(string hostname, int port, int index, bool throwOnError)
 		{
 			_index = index;
 			var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
@@ -71,9 +64,11 @@ namespace RabbitMqNext.Internals
 				if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
 				{
 					started = true;
+
 					try
 					{
-						await socket.ConnectTaskAsync(new IPEndPoint(ipAddress, port)).ConfigureAwait(false);
+						var endpoint = new IPEndPoint(ipAddress, port);
+						await Task.Factory.FromAsync(socket.BeginConnect, socket.EndConnect, endpoint, null).ConfigureAwait(false);
 					}
 					catch (Exception)
 					{
@@ -83,6 +78,7 @@ namespace RabbitMqNext.Internals
 
 						return false;
 					}
+
 					break;
 				}
 			}
@@ -96,7 +92,8 @@ namespace RabbitMqNext.Internals
 				return false;
 			}
 
-			WireStreams(socket, notifyWhenClosed);
+			_socketIsClosed = 0;
+			_socket = socket;
 
 			return true;
 		}
@@ -110,22 +107,11 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
-		private void WireStreams(Socket newSocket, Action notifyWhenClosed)
+		internal void WireStreams(CancellationToken cancellationToken, Action notifyWhenClosed)
 		{
-			if (_socket != null) // reset
-			{
-				_socketIsClosed = 0; 
+			_inputBuffer.Restart();
 
-				// TODO: replace cancellation token in ringbuffers
-
-				// Writer / Reader.Dipose()
-				// _socketConsumer.Dispose();
-				// _socketProducer.Dispose();
-				// _inputBuffer.Reset();
-				// _outputBuffer.Reset();
-			}
-
-			_socket = newSocket;
+			// _socket = newSocket;
 			_notifyWhenClosed = notifyWhenClosed;
 
 			// WriteLoop
@@ -133,7 +119,7 @@ namespace RabbitMqNext.Internals
 			_socketConsumer.OnNotifyClosed += OnSocketClosed;
 
 			// ReadLoop
-			_socketProducer = new SocketProducer(_socket, _inputBuffer, _token, _index);
+			_socketProducer = new SocketProducer(_socket, _inputBuffer, cancellationToken, _index);
 			_socketProducer.OnNotifyClosed += OnSocketClosed;
 
 			Writer = new InternalBigEndianWriter(_socketConsumer);
@@ -144,7 +130,11 @@ namespace RabbitMqNext.Internals
 		{
 			if (Interlocked.CompareExchange(ref _socketIsClosed, 1, 0) == 0)
 			{
-				this._notifyWhenClosed();
+				try
+				{
+					this._notifyWhenClosed();
+				}
+				catch (Exception) { }
 			}
 		}
 	}
