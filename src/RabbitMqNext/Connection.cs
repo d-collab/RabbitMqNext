@@ -7,13 +7,15 @@
 	using RabbitMqNext.Io;
 	using RabbitMqNext.Internals;
 
-	public class Connection : IDisposable
+
+	public sealed class Connection : IConnection
 	{
-		private readonly ConnectionIO _io;
+		internal readonly ConnectionIO _io;
 
 		internal const int MaxChannels = 10;
 		private readonly Channel[] _channels = new Channel[MaxChannels + 1]; // 1-based index
 		private int _channelNumbers;
+		private ConnectionInfo _connectionInfo;
 
 		public Connection()
 		{
@@ -23,19 +25,43 @@
 			};
 		}
 
-		public ConnectionRecoveryStrategy ConnectionRecoveryStrategy { get; internal set; }
+		public AutoRecoveryEnabledConnection Recovery { get; internal set; }
 
 		public event Action<AmqpError> OnError;
 
-		internal async Task<bool> Connect(string hostname, string vhost, 
-										  string username, string password, 
-										  int port, bool throwOnError = true)
+		internal Task<bool> Connect(string hostname, string vhost, 
+									string username, string password, 
+									int port, bool throwOnError = true)
 		{
-			var result = await _io.InternalDoConnectSocket(hostname, port, throwOnError).ConfigureAwait(false);
-			
+			// Saves info for reconnection scenarios
+
+			_connectionInfo = new ConnectionInfo 
+			{ 
+				hostname = hostname, 
+				vhost = vhost, 
+				username = username, 
+				password = password, 
+				port = port 
+			};
+
+			return InternalConnect(hostname);
+		}
+
+		internal async Task<bool> InternalConnect(string hostname, bool throwOnError = true)
+		{
+			var result = await _io.InternalDoConnectSocket(hostname, _connectionInfo.port, throwOnError).ConfigureAwait(false);
+
 			if (!result) return false;
-			
-			return await _io.Handshake(vhost, username, password, throwOnError).ConfigureAwait(false);
+
+			result = await _io.Handshake(_connectionInfo.vhost, 
+				_connectionInfo.username, _connectionInfo.password, throwOnError).ConfigureAwait(false);
+
+			if (result && this.Recovery != null)
+			{
+				this.Recovery.NotifyConnected(hostname);
+			}
+
+			return result;
 		}
 
 		public bool IsClosed { get { return _io.IsClosed; } }
@@ -52,6 +78,9 @@
 
 		public void Dispose()
 		{
+			if (this.Recovery != null)
+				this.Recovery.Dispose();
+
 			this._io.Dispose();
 		}
 
@@ -121,6 +150,36 @@
 				_channels[channelNum] = null;
 				throw;
 			}
+		}
+
+
+		internal void NotifyAbruptClose(Exception reason)
+		{
+			if (this.Recovery != null)
+				this.Recovery.NotifyAbruptClose(reason);
+
+			// this.CloseAllChannels(reason);
+		}
+
+		internal void NotifyCloseByUser()
+		{
+			if (this.Recovery != null)
+				this.Recovery.NotifyCloseByUser();
+		}
+
+		internal void NotifyCloseByServer()
+		{
+			if (this.Recovery != null)
+				this.Recovery.NotifyCloseByServer();
+		}
+
+		internal class ConnectionInfo
+		{
+			public string hostname;
+			public string vhost;
+			public string username;
+			public string password;
+			public int port;
 		}
 	}
 }
