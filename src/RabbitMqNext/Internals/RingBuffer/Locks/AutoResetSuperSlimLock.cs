@@ -12,7 +12,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 	/// heavily "inspired" by the counterpart ManualResetEventSlim
 	/// with the difference that waiters try to atomically "unset" the set bit/flag
 	/// </summary>
-	internal class AutoResetSuperSlimLock
+	public class AutoResetSuperSlimLock
 	{
 		[StructLayout(LayoutKind.Sequential)]
 		private struct LockState
