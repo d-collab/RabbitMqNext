@@ -77,10 +77,11 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			// Free waiters
 			lock (_lock)
 			{
-				while (Waiters > 0)
+				var waiters = Waiters;
+				while (--waiters >= 0)
 				{
-					Monitor.Pulse(_lock);
-					Waiters--;
+					_lockState._state = 1 << SignalledStatePos; // Ugly Shortcut, but we're reseting, all bets are off.
+					Monitor.Pulse(_lock); // release a waiting thread
 				}
 			}
 
@@ -151,6 +152,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			{
 				if (Waiters > 0)
 				{
+					// The awakened thread will still check if it can Xor the state before continuing
 					Monitor.Pulse(_lock);
 				}
 //				else
