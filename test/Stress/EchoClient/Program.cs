@@ -49,7 +49,10 @@
 
 			Console.WriteLine("Client started");
 
-			_socket2Streams = new SocketHolder(cancellationToken.Token);
+			_socket2Streams = new SocketHolder();
+//			_socket2Streams.WireStreams(cancellationToken.Token, );
+
+
 //				delegate
 //			{
 //				cancellationToken.Cancel();
