@@ -79,6 +79,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Internals\RingBuffer\SocketStreamWriterAdapter.cs" />
+    <Compile Include="Internals\RingBuffer\ThreadFactory.cs" />
     <Compile Include="Io\AmqpIOBase.cs" />
     <Compile Include="Channel.cs" />
     <Compile Include="Io\ChannelIO.cs" />
