@@ -33,7 +33,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 		}
 	}
 
-	internal static class Utils
+	public static class Utils
 	{
 		public static bool IsPowerOfTwo(int n)
 		{
