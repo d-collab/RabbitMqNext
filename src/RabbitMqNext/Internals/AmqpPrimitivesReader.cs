@@ -41,7 +41,7 @@ namespace RabbitMqNext.Internals
 			uint tableLength = _reader.ReadUInt32();
 			if (tableLength == 0) return table;
 
-			var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+			var marker = new RingBufferPositionMarker(_reader._ringBufferStream);
 			while (marker.LengthRead < tableLength)
 			{
 				string key = ReadShortStr();
@@ -101,7 +101,7 @@ namespace RabbitMqNext.Internals
 			var arrayLength = (int) _reader.ReadUInt32();
 			if (arrayLength == 0) return array;
 
-			var marker = new RingBufferPositionMarker(_reader._ringBufferStream._ringBuffer);
+			var marker = new RingBufferPositionMarker(_reader._ringBufferStream);
 			while (marker.LengthRead < arrayLength)
 			{
 				object value = ReadFieldValue();

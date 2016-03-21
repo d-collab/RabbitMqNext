@@ -10,16 +10,26 @@ namespace RabbitMqNext.Internals.RingBuffer
 		private readonly ByteRingBuffer _ringBuffer;
 		private uint _start;
 
-		public RingBufferPositionMarker(ByteRingBuffer ringBuffer)
+		public RingBufferPositionMarker(RingBufferStreamAdapter ringBuffer)
 		{
-			_ringBuffer = ringBuffer;
-			_start = _ringBuffer.GlobalReadPos;
+			if (ringBuffer != null)
+			{
+				_ringBuffer = ringBuffer._ringBuffer;
+				_start = _ringBuffer.GlobalReadPos;
+			}
+			else
+			{
+				_ringBuffer = null;
+				_start = 0;
+			}
 		}
 
 		public uint LengthRead
 		{
 			get
 			{
+				if (_ringBuffer == null) return 0;
+
 				var curReadPos = _ringBuffer.GlobalReadPos;
 				if (curReadPos < _start) // overflowed
 				{

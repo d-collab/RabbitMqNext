@@ -271,7 +271,7 @@
 					delivery.stream = bodySize == 0 ? EmptyStream : ringBufferStream;
 
 					// upon return it's assumed the user has consumed from the stream and is done with it
-					var marker = new RingBufferPositionMarker(ringBufferStream._ringBuffer);
+					var marker = new RingBufferPositionMarker(ringBufferStream);
 
 					try
 					{
@@ -354,6 +354,9 @@
 			else
 			{
 				// received msg but nobody was subscribed to get it (?) TODO: log it at least
+
+				LogAdapter.LogWarn("Channel", "Received message without a matching subscription. " +
+								   "Exchange: " + exchange + " routing: " + routingKey);
 			}
 		}
 
@@ -362,7 +365,7 @@
 			BasicProperties properties, RingBufferStreamAdapter ringBufferStream)
 		{
 			var ev = this.MessageUndeliveredHandler;
-			var marker = new RingBufferPositionMarker(ringBufferStream._ringBuffer);
+			var marker = new RingBufferPositionMarker(ringBufferStream);
 
 			try
 			{
