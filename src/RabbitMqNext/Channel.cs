@@ -390,11 +390,8 @@
 				var totalRead = marker.LengthRead;
 				if (totalRead < bodySize)
 				{
-					checked
-					{
-						int offset = (int)(bodySize - totalRead);
-						ringBufferStream.Seek(offset, SeekOrigin.Current); // may block!
-					}
+					int offset = checked( (int)(bodySize - totalRead) );
+					ringBufferStream.Seek(offset, SeekOrigin.Current); // may block!
 				}
 			}
 		}
