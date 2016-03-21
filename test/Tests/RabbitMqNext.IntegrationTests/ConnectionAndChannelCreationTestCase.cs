@@ -12,7 +12,7 @@
 		[Test, Explicit("Takes too long")]
 		public async Task ConnectWithListOfHosts()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("ConnectWithListOfHosts");
 
 			var badHostsWithGoodAsLast = new []
 			{
@@ -28,7 +28,7 @@
 		[Test]
 		public async Task OpenAndCloseCleanlyUponDispose()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("OpenAndCloseCleanlyUponDispose");
 
 			IConnection conn = null;
 			using (conn = await base.StartConnection())
@@ -41,7 +41,7 @@
 		[Test]
 		public async Task OpenAndCloseChannelsCleanly()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("OpenAndCloseChannelsCleanly");
 
 
 			using (var conn = await base.StartConnection())
@@ -67,7 +67,7 @@
 		[Test]
 		public async Task ClosingConnection_Should_CloseAllChannels()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("ClosingConnection_Should_CloseAllChannels");
 
 
 			var conn = await base.StartConnection();
@@ -89,7 +89,7 @@
 		[Test]
 		public async Task Opens_PubConfirm_Channel()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("Opens_PubConfirm_Channel");
 
 
 			using (var conn = await base.StartConnection())

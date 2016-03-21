@@ -4,6 +4,7 @@ namespace RabbitMqNext.IntegrationTests
 	using System.Configuration;
 	using System.Linq;
 	using System.Threading.Tasks;
+	using Io;
 	using MConsole;
 	using NUnit.Framework;
 
@@ -12,6 +13,7 @@ namespace RabbitMqNext.IntegrationTests
 		private IConnection _conn;
 
 		protected string _host, _vhost, _username, _password;
+		protected ConnectionIO _io;
 
 		public BaseTest()
 		{
@@ -24,7 +26,7 @@ namespace RabbitMqNext.IntegrationTests
 			_password = ConfigurationManager.AppSettings["password"];
 		}
 
-		public async Task<Connection> StartConnection(bool autoRecovery = false)
+		public async Task<IConnection> StartConnection(bool autoRecovery = false)
 		{
 			using (var console = new RestConsole(_host, _username, _password))
 			{
@@ -59,7 +61,17 @@ namespace RabbitMqNext.IntegrationTests
 				Console.ForegroundColor = color;
 			};
 
-			var conn = (Connection) await ConnectionFactory.Connect(_host, _vhost, _username, _password, autoRecovery: autoRecovery);
+			var conn = await ConnectionFactory.Connect(_host, _vhost, _username, _password, autoRecovery: autoRecovery);
+
+			if (conn is Connection)
+			{
+				_io = (conn as Connection)._io;
+			}
+			else if (conn is RecoveryEnabledConnection)
+			{
+				_io = (conn as RecoveryEnabledConnection)._connection._io;
+			}
+
 			_conn = conn;
 			return conn;
 		}

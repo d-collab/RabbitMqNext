@@ -8,18 +8,17 @@ namespace RabbitMqNext.IntegrationTests
 	[TestFixture]
 	public class ConnectionRecoveryTestCase : BaseTest
 	{
-		
-		[Test]
+		[Test, Ignore("needs review")]
 		public async Task ServerErrorShouldTriggerReconnect()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("ServerErrorShouldTriggerReconnect");
 
 			var conn = await base.StartConnection(autoRecovery: true);
 
-			conn._io._socketHolder.Writer.Write(123456);
-			conn._io._socketHolder.Writer.Write(123456);
-//			conn._io._socketHolder.Writer.Write(123456);
-//			conn._io._socketHolder.Writer.Write(123456);
+			_io._socketHolder.Writer.Write(123456);
+			_io._socketHolder.Writer.Write(123456);
+			_io._socketHolder.Writer.Write(123456);
+			_io._socketHolder.Writer.Write(123456);
 
 			await Task.Delay(1000);
 		}

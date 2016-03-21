@@ -14,7 +14,7 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task BasicQos()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("BasicQos");
 
 			using (var conn = await base.StartConnection())
 			using (var channel = await conn.CreateChannel())
@@ -29,7 +29,7 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task BasicAck()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("BasicAck");
 
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
@@ -45,7 +45,7 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task BasicNAck()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("BasicNAck");
 
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
@@ -61,7 +61,7 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task QueueDeclare_with_wait_Should_return_queueInfo()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("QueueDeclare_with_wait_Should_return_queueInfo");
 
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
@@ -78,7 +78,7 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task ExchangeDeclare_with_wait_Should_waitconfirmation()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("ExchangeDeclare_with_wait_Should_waitconfirmation");
 
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();
@@ -95,7 +95,7 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task QueueBind_should_await_confirmation()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("QueueBind_should_await_confirmation");
 
 			var conn = await base.StartConnection();
 			var channel = await conn.CreateChannel();

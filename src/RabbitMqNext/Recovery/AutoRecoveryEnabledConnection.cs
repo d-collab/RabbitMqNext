@@ -19,7 +19,7 @@
 		const string LogSource = "ConnectionRecovery";
 
 		private readonly IEnumerable<string> _hostnames;
-		private readonly Connection _connection;
+		internal readonly Connection _connection;
 		private readonly List<RecoveryEnabledChannel> _channelRecoveries;
 		private volatile bool _disableRecovery;
 		private string _selectedHostname;

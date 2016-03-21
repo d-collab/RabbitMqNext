@@ -12,7 +12,7 @@
 		[Test]
 		public async Task Parallel_Consumer_Publish()
 		{
-			Console.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
+			Console.WriteLine("Parallel_Consumer_Publish");
 
 			var conn = await base.StartConnection();
 			
