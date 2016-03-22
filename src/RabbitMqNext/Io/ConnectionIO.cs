@@ -30,9 +30,6 @@ namespace RabbitMqNext.Io
 		private CancellationTokenSource _threadCancelSource;
 		private CancellationToken _threadCancelToken;
 
-//		private readonly CancellationTokenSource _cancellationTokenSource;
-//		internal readonly CancellationToken _cancellationToken;
-
 		#region populated by server replies
 
 		public IDictionary<string, object> ServerProperties { get; private set; }
@@ -231,7 +228,7 @@ namespace RabbitMqNext.Io
 		private void WriteFramesLoop()
 		{
 			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogError("ConnectionIO", "WriteFramesLoop starting");
+				LogAdapter.LogDebug("ConnectionIO", "WriteFramesLoop starting");
 
 			CommandToSend cmdToSend = null;
 
@@ -294,7 +291,7 @@ namespace RabbitMqNext.Io
 		private void ReadFramesLoop()
 		{
 			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogError("ConnectionIO", "ReadFramesLoop starting");
+				LogAdapter.LogDebug("ConnectionIO", "ReadFramesLoop starting");
 
 			try
 			{
