@@ -436,7 +436,7 @@ namespace RabbitMqNext.Io
 		private Task<string> __SendConnectionOpen(string vhost)
 		{
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionOpen >");
+				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionOpen > vhost " + vhost);
 
 			var tcs = new TaskCompletionSource<string>();
 			var writer = AmqpConnectionFrameWriter.ConnectionOpen(vhost, string.Empty, false);
@@ -449,7 +449,7 @@ namespace RabbitMqNext.Io
 						_frameReader.Read_ConnectionOpenOk((knowHosts) =>
 						{
 							if (LogAdapter.ProtocolLevelLogEnabled)
-								LogAdapter.LogDebug("ConnectionIO", "__SendConnectionOpen completed");
+								LogAdapter.LogDebug("ConnectionIO", "__SendConnectionOpen completed for vhost " + vhost);
 
 							tcs.SetResult(knowHosts);
 						});
@@ -489,7 +489,9 @@ namespace RabbitMqNext.Io
 							this.Heartbeat = heartbeat;
 
 							if (LogAdapter.ProtocolLevelLogEnabled)
-								LogAdapter.LogDebug("ConnectionIO", "__SendConnectionStartOk completed");
+								LogAdapter.LogDebug("ConnectionIO", "__SendConnectionStartOk completed.");
+
+							LogAdapter.LogDebug("ConnectionIO", "Tune results: Channel max: " + channel + " Frame max size: " + frameMax + " heartbeat: " + heartbeat);
 
 							tcs.SetResult(true);
 						});
