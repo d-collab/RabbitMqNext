@@ -268,7 +268,7 @@ namespace RabbitMqNext.Internals
 							  bool b7 = false, bool b8 = false)
 		{
 			byte byteVal = 0;
-			byteVal = b1 ? (byte)1 : (byte)0;
+			byteVal  = b1 ? (byte)1 : (byte)0;
 			byteVal |= b2 ? (byte)2 : (byte)0;
 			byteVal |= b3 ? (byte)4 : (byte)0;
 			byteVal |= b4 ? (byte)8 : (byte)0;

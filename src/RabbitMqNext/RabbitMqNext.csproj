@@ -99,7 +99,9 @@
     <Compile Include="QueueConsumer.cs" />
     <Compile Include="Recovery\AutoRecoveryEnabledChannel.cs" />
     <Compile Include="Recovery\AutoRecoveryEnabledConnection.cs" />
-    <Compile Include="RpcHelper.cs" />
+    <Compile Include="Rpc\BaseRpcHelper.cs" />
+    <Compile Include="Rpc\RpcAggregateHelper.cs" />
+    <Compile Include="Rpc\RpcHelper.cs" />
     <Compile Include="TplExtensions\TaskExtensions.cs" />
     <Compile Include="UndeliveredMessage.cs" />
     <Compile Include="Internals\BufferUtil.cs" />

@@ -166,7 +166,7 @@
 #endif
 
 			var newWritePos = _state._writePosition + (uint)received;
-			_state._writePosition = newWritePos;   // volative write
+			_state._writePosition = newWritePos;   // volative write_temp
 			_state._writePositionCopy = newWritePos;
 
 			_writeLock.Set(); // signal - if someone is waiting

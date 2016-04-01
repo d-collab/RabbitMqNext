@@ -15,6 +15,11 @@
 			_ringBuffer = ringBuffer;
 		}
 
+		public Stream CloneStream(int bodySize)
+		{
+			return new MemoryStream(BufferUtil.Copy(this, bodySize), 0, bodySize, writable: false);
+		}
+
 		public int Read(byte[] buffer, int offset, int count, bool fillBuffer)
 		{
 			return _ringBuffer.Read(buffer, offset, count, fillBuffer);

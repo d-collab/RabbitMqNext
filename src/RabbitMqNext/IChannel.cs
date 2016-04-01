@@ -67,6 +67,7 @@ namespace RabbitMqNext
 		Task BasicCancel(string consumerTag, bool waitConfirmation);
 		Task BasicRecover(bool requeue);
 		Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500);
+		Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500);
 		Task Close();
 	}
 }

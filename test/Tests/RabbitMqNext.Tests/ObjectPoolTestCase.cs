@@ -19,7 +19,6 @@
 			pool.PutObject(item1);
 
 			item1.Disposed.Should().BeTrue();
-
 		}
 
 		[Test]

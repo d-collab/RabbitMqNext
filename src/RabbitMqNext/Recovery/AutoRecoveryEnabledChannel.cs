@@ -159,9 +159,15 @@
 			return _channel.BasicRecover(requeue);
 		}
 
-		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500)
+		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
 		{
 			return _channel.CreateRpcHelper(mode, timeoutInMs, maxConcurrentCalls);
+		}
+
+		public Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs,
+			int maxConcurrentCalls)
+		{
+			return _channel.CreateRpcAggregateHelper(mode, timeoutInMs, maxConcurrentCalls);
 		}
 
 		public Task Close()

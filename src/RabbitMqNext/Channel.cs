@@ -223,11 +223,18 @@
 			return _io.__BasicRecover(requeue);
 		}
 
-		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500)
+		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
 		{
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
 			return RpcHelper.Create(this, maxConcurrentCalls, mode, timeoutInMs);
+		}
+
+		public Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
+		{
+			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
+
+			return RpcAggregateHelper.Create(this, maxConcurrentCalls, mode, timeoutInMs);
 		}
 
 		public async Task Close()
@@ -302,9 +309,9 @@
 
 					if (mode == ConsumeMode.ParallelWithBufferCopy)
 					{
-						delivery.stream = delivery.bodySize == 0 ? 
-							EmptyStream :
-							new MemoryStream(BufferUtil.Copy(ringBufferStream, (int)bodySize), 0, bodySize, writable: false);
+						delivery.stream = delivery.bodySize == 0
+							? EmptyStream
+							: ringBufferStream.CloneStream(bodySize);
 					}
 //					else if (mode == ConsumeMode.ParallelWithReadBarrier)
 //					{
@@ -355,7 +362,7 @@
 			{
 				// received msg but nobody was subscribed to get it (?) TODO: log it at least
 
-				LogAdapter.LogWarn("Channel", "Received message without a matching subscription. " +
+				LogAdapter.LogWarn("Channel", "Received message without a matching subscription. Discarding. " +
 								   "Exchange: " + exchange + " routing: " + routingKey);
 			}
 		}
