@@ -8,13 +8,13 @@ namespace RabbitMqNext
 
 	public class RpcHelper : BaseRpcHelper<MessageDelivery>
 	{
-		private RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs = 6000)
+		private RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
 			: base(channel, maxConcurrentCalls, mode, timeoutInMs)
 		{
 		}
 
 		public static async Task<RpcHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode,
-			int? timeoutInMs = 6000)
+			int? timeoutInMs)
 		{
 			var instance = new RpcHelper(channel, maxConcurrentCalls, mode, timeoutInMs);
 			await instance.Setup().ConfigureAwait(false);

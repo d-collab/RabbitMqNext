@@ -34,7 +34,7 @@ namespace RabbitMqNext
 
 
 		private RpcAggregateHelper(Channel channel, int maxConcurrentCalls, 
-								   ConsumeMode mode, int? timeoutInMs = 6000)
+								   ConsumeMode mode, int? timeoutInMs)
 			: base(channel, maxConcurrentCalls, mode, timeoutInMs)
 		{
 			_pendingAggregationState = new AggState[maxConcurrentCalls];
@@ -44,8 +44,7 @@ namespace RabbitMqNext
 			}
 		}
 
-		public static async Task<RpcAggregateHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode,
-			int? timeoutInMs = 6000)
+		public static async Task<RpcAggregateHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
 		{
 			var instance = new RpcAggregateHelper(channel, maxConcurrentCalls, mode, timeoutInMs);
 			await instance.Setup().ConfigureAwait(false);
@@ -141,7 +140,7 @@ namespace RabbitMqNext
 			{
 				Interlocked.Exchange(ref state.waitingCount, minExpectedReplies);
 				Interlocked.Exchange(ref state.cookie, cookie);
-				_pendingAggregationState[pos].received.Clear();
+				state.received.Clear();
 			}
 
 			task.Id = correlationId; // so we can confirm we have the right instance later

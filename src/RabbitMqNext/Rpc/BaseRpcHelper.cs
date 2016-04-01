@@ -23,7 +23,7 @@ namespace RabbitMqNext
 		protected readonly TaskSlim<T>[] _pendingCalls;
 		protected readonly ObjectPool<TaskSlim<T>> _taskResultPool;
 
-		protected BaseRpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs = 6000)
+		protected BaseRpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
 		{
 			if (maxConcurrentCalls <= 0) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
 
@@ -105,7 +105,7 @@ namespace RabbitMqNext
 			}
 		}
 
-		protected void OnTimeoutCheck(object state)
+		private void OnTimeoutCheck(object state)
 		{
 			var now = DateTime.Now.Ticks;
 
