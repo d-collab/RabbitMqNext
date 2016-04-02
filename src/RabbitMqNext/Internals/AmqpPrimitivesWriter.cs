@@ -259,7 +259,7 @@ namespace RabbitMqNext.Internals
 //			}
 			else
 			{
-				throw new Exception("Value cannot appear as table value: " + value);
+				throw new Exception("Value cannot appear as table value: " + value + " type " + value.GetType());
 			}
 		}
 

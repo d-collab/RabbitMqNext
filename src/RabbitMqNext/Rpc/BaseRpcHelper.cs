@@ -38,7 +38,7 @@ namespace RabbitMqNext
 			if (timeoutInMs.HasValue)
 			{
 				_timeoutInTicks = timeoutInMs * TimeSpan.TicksPerMillisecond;
-				// _timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs.Value, timeoutInMs.Value);
+				_timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs.Value, timeoutInMs.Value);
 			}
 
 			_pendingCalls = new TaskSlim<T>[maxConcurrentCalls];

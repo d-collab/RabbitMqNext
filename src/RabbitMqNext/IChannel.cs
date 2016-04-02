@@ -2,6 +2,7 @@ namespace RabbitMqNext
 {
 	using System;
 	using System.Collections.Generic;
+	using System.IO;
 	using System.Threading.Tasks;
 	using Internals;
 
@@ -52,6 +53,10 @@ namespace RabbitMqNext
 
 		TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer);
+
+		// This would be a better approach: allocation of a delegate vs allocation of a buffer
+//		TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory,
+//			BasicProperties properties, Action<Stream> bodyWriter);
 
 		void BasicPublishFast(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer);
