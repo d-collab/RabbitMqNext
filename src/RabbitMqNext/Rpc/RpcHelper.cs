@@ -31,16 +31,22 @@ namespace RabbitMqNext
 			if (taskLight == null || taskLight.Id != correlationIndex)
 			{
 				// the helper was disposed and the task list was drained.
-				if (_disposed) return Task.CompletedTask;
 				
 				// other situation, the call timeout'ed previously
-			}
-			else
-			{
-				taskLight.SetResult(delivery);
+
+				return Task.CompletedTask;
 			}
 
-			_semaphoreSlim.Release();
+
+			try
+			{
+				taskLight.Id = 0;
+				taskLight.SetResult(delivery);
+			}
+			finally
+			{
+				_semaphoreSlim.Release();
+			}
 
 			return Task.CompletedTask;
 		}
