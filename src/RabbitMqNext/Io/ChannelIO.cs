@@ -61,6 +61,10 @@ namespace RabbitMqNext.Io
 					_connectionIo._frameReader.Read_ChannelFlow(_channel.HandleChannelFlow);
 					break;
 
+				case AmqpClassMethodChannelLevelConstants.BasicCancel:
+					await _connectionIo._frameReader.Read_BasicCancel(_channel.HandleCancelConsumerByServer);
+					break;
+
 				default:
 					await base.HandReplyToAwaitingQueue(classMethodId).ConfigureAwait(false);
 					break;

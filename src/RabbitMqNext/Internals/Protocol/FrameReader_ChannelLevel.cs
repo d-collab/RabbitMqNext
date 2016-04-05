@@ -273,5 +273,16 @@ namespace RabbitMqNext.Internals
 
 			return continuation(messageCount);
 		}
+
+		public Task Read_BasicCancel(Func<string, byte, Task> continuation)
+		{
+			string consumerTag = _amqpReader.ReadShortStr();
+			var noWait = _amqpReader.ReadBits();
+
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogError(LogSource, "< BasicCancel : " + consumerTag + " bits " + noWait);
+
+			return continuation(consumerTag, noWait);
+		}
 	}
 }

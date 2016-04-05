@@ -431,6 +431,22 @@
 			}
 		}
 
+		internal Task HandleCancelConsumerByServer(string consumerTag, byte noWait)
+		{
+			BasicConsumerSubscriptionInfo subscription;
+			if (_consumerSubscriptions.TryRemove(consumerTag, out subscription))
+			{
+				subscription.SignalCancel();
+			}
+
+			if (noWait == 0)
+			{
+				// TODO: Sends back CancelOk
+			}
+
+			return Task.CompletedTask;
+		}
+
 		internal Task EnableConfirmation(int maxunconfirmedMessages)
 		{
 			if (_confirmationKeeper != null) throw new Exception("Already set");
@@ -455,6 +471,11 @@
 			public ConsumeMode Mode;
 			public Func<MessageDelivery, Task> Callback;
 			public QueueConsumer _consumer;
+
+			public void SignalCancel()
+			{
+				// TODO: expose cancelation on the api
+			}
 		}
 	}
 }

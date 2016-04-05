@@ -27,6 +27,7 @@ namespace RabbitMqNext.Internals
 		public const int BasicNAck = (60 << 16) | 120;
 		public const int BasicReject = (60 << 16) | 90;
 		public const int RecoverOk = (60 << 16) | 111;
+		public const int BasicCancel = (60 << 16) | 30;
 		public const int CancelOk = (60 << 16) | 31;
 
 		public const int ConfirmSelectOk = (85 << 16) | 11;
