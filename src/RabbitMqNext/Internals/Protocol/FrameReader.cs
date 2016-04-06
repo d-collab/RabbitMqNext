@@ -41,11 +41,12 @@ namespace RabbitMqNext.Internals
 				// needs special case for heartbeat, flow, etc.. 
 				// since they are not replies to methods we sent and alter the client's behavior
 
-
+				ushort classId, methodId;
+				classId = methodId = 0;
 				if (frameType == AmqpConstants.FrameMethod)
 				{
-					ushort classId = _reader.ReadUInt16();
-					ushort methodId = _reader.ReadUInt16();
+					classId = _reader.ReadUInt16();
+					methodId = _reader.ReadUInt16();
 
 					var classMethodId = classId << 16 | methodId;
 
@@ -62,7 +63,7 @@ namespace RabbitMqNext.Internals
 				byte frameEndMarker = _reader.ReadByte();
 				if (frameEndMarker != AmqpConstants.FrameEnd)
 				{
-					var msg = "Expecting frame end, but found " + frameEndMarker;
+					var msg = "Expecting frame end, but found " + frameEndMarker + ". The original class and method: " + classId + " " + methodId;
 
 					LogAdapter.LogError("FrameReader", msg);
 					throw new Exception(msg);

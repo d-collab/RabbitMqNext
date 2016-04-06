@@ -39,10 +39,14 @@ namespace RabbitMqNext
 
 		private static Stream CloneStream(Stream originalStream, int bodySize)
 		{
-			if (originalStream == null || originalStream is MemoryStream)
+			if (originalStream == null)
 			{
-				// safe to just use the same. wont be recycled
-				return originalStream;
+				return null;
+			}
+			var original = originalStream as MemoryStream;
+			if (original != null)
+			{
+				return new MemoryStream(original.GetBuffer(), writable: false);
 			}
 
 			return (originalStream as RingBufferStreamAdapter).CloneStream(bodySize);
