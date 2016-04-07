@@ -23,7 +23,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 				var totalSent = 0;
 				while (totalSent < count)
 				{
-					var sent = _socket.Send(buffer, totalSent, count - totalSent, SocketFlags.None);
+					var sent = _socket.Send(buffer, offset + totalSent, count - totalSent, SocketFlags.None);
 					totalSent += sent;
 				}
 			}
