@@ -79,10 +79,25 @@ namespace RabbitMqNext.Internals
 					_recycler(this);
 			}
 
+			public int EstimatedSize
+			{
+				// buffer size + some guess for properties
+				get { return buffer.Count + (properties != null ? 100 : 0); }
+			}
+
 			public void Write(AmqpPrimitivesWriter amqpWriter, ushort channel, ushort classId, ushort methodId, object optionalArg)
 			{
-				// AmqpChannelLevelFrameWriter.InternalBasicPublish(amqpWriter, channel, classId, methodId, optionalArg);
-				AmqpChannelLevelFrameWriter.InternalBufferedBasicPublish(amqpWriter, channel, classId, methodId, optionalArg);
+				var @params = optionalArg as BasicPublishArgs;
+				var maxFrameSize = amqpWriter.FrameMaxSize;
+
+				if (@params.EstimatedSize >= (0.7 * maxFrameSize)) // estimated size >= 70% of max, then dont buffer it
+				{
+					AmqpChannelLevelFrameWriter.InternalBasicPublish(amqpWriter, channel, classId, methodId, optionalArg);
+				}
+				else
+				{
+					AmqpChannelLevelFrameWriter.InternalBufferedBasicPublish(amqpWriter, channel, classId, methodId, optionalArg);
+				}
 			}
 		}
 	}
