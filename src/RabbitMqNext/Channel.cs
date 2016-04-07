@@ -251,8 +251,8 @@
 
 		internal async Task DispatchDeliveredMessage(
 			string consumerTag, ulong deliveryTag, bool redelivered,
-			string exchange, string routingKey, int bodySize, 
-			BasicProperties properties, RingBufferStreamAdapter ringBufferStream)
+			string exchange, string routingKey, int bodySize,
+			BasicProperties properties, BaseLightStream lightStream)
 		{
 			BasicConsumerSubscriptionInfo consumer;
 
@@ -275,10 +275,10 @@
 				{
 					// run with scissors, we're letting 
 					// the user code mess with the ring buffer in the name of performance
-					delivery.stream = bodySize == 0 ? EmptyStream : ringBufferStream;
+					delivery.stream = bodySize == 0 ? EmptyStream : lightStream;
 
 					// upon return it's assumed the user has consumed from the stream and is done with it
-					var marker = new RingBufferPositionMarker(ringBufferStream);
+					var marker = new RingBufferPositionMarker(lightStream);
 
 					try
 					{
@@ -292,15 +292,7 @@
 						// fingers crossed the user cloned the buffer if she needs it later
 						this.Return(properties);
 
-						var totalRead = marker.LengthRead;
-						if (totalRead < bodySize)
-						{
-							checked
-							{
-								int offset = (int)(bodySize - totalRead);
-								ringBufferStream.Seek(offset, SeekOrigin.Current);
-							}
-						}
+						marker.EnsureConsumed(bodySize);
 					}
 				}
 				else 
@@ -311,7 +303,7 @@
 					{
 						delivery.stream = delivery.bodySize == 0
 							? EmptyStream
-							: ringBufferStream.CloneStream(bodySize);
+							: lightStream.CloneStream(bodySize);
 					}
 //					else if (mode == ConsumeMode.ParallelWithReadBarrier)
 //					{
@@ -333,14 +325,20 @@
 //						}
 //					}
 
-					Task.Factory.StartNew(async () =>
+					Task.Factory.StartNew(async state =>
 					{
+						var tuple = (Tuple<MessageDelivery, Func<MessageDelivery, Task>, QueueConsumer, Channel>)state;
+						var delivery1 = tuple.Item1;
+						var cb1 = tuple.Item2;
+						var conInstance = tuple.Item3;
+						var pThis = tuple.Item4;
+
 						try
 						{
-							if (cb != null)
-								await cb(delivery).ConfigureAwait(false);
+							if (cb1 != null)
+								await cb1(delivery1).ConfigureAwait(false);
 							else
-								await consumerInstance.Consume(delivery).ConfigureAwait(false);
+								await conInstance.Consume(delivery1).ConfigureAwait(false);
 						}
 						catch (Exception e)
 						{
@@ -348,12 +346,14 @@
 						}
 						finally
 						{
-							this.Return(properties);
+							pThis.Return(delivery1.properties);
 
-							if (delivery.bodySize != 0)
-								delivery.stream.Dispose();
+							if (delivery1.bodySize != 0)
+								delivery1.stream.Dispose();
 						}
-					}, TaskCreationOptions.PreferFairness)
+
+					}, Tuple.Create(delivery, cb, consumerInstance, this), // tuple avoids the closure capture
+						TaskCreationOptions.PreferFairness)
 						.Unwrap()
 						.IntentionallyNotAwaited();
 				}
@@ -368,8 +368,8 @@
 		}
 
 		internal async Task DispatchBasicReturn(ushort replyCode, string replyText, 
-			string exchange, string routingKey, int bodySize, 
-			BasicProperties properties, RingBufferStreamAdapter ringBufferStream)
+			string exchange, string routingKey, int bodySize,
+			BasicProperties properties, BaseLightStream ringBufferStream)
 		{
 			var ev = this.MessageUndeliveredHandler;
 			var marker = new RingBufferPositionMarker(ringBufferStream);
@@ -394,12 +394,7 @@
 			}
 			finally
 			{
-				var totalRead = marker.LengthRead;
-				if (totalRead < bodySize)
-				{
-					int offset = checked( (int)(bodySize - totalRead) );
-					ringBufferStream.Seek(offset, SeekOrigin.Current); // may block!
-				}
+				marker.EnsureConsumed(bodySize);
 			}
 		}
 
