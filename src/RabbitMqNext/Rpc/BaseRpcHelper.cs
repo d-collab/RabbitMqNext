@@ -52,7 +52,10 @@ namespace RabbitMqNext
 
 			_disposed = true;
 
-			// this._timeoutTimer.Dispose();
+			if (_timeoutTimer != null)
+			{
+				this._timeoutTimer.Dispose();
+			}
 
 			if (!string.IsNullOrEmpty(_subscription))
 			{
@@ -65,7 +68,7 @@ namespace RabbitMqNext
 		protected async Task Setup()
 		{
 			_replyQueueName = await _channel.QueueDeclare("", // temp
-				false, false, exclusive: true, autoDelete: true,
+				false, false, exclusive: false, autoDelete: true,
 				waitConfirmation: true, arguments: null).ConfigureAwait(false);
 
 			_subscription = await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name,

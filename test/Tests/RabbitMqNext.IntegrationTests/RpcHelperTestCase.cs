@@ -112,7 +112,7 @@
 				{
 					var channelSender = await conn2.CreateChannel();
 
-					var rpcHelper = await channelSender.CreateRpcAggregateHelper(ConsumeMode.SingleThreaded, timeoutInMs: 1000);
+					var rpcHelper = await channelSender.CreateRpcAggregateHelper(ConsumeMode.SingleThreaded, timeoutInMs: 30000);
 
 					var replies = await rpcHelper.CallAggregate("rpc_exchange1", "", null, 
 						new ArraySegment<byte>(Encoding.UTF8.GetBytes("hello world")), 
@@ -132,6 +132,67 @@
 					Console.WriteLine("replies are " + string.Join(", ", repliesAsStrings));
 
 					repliesAsStrings.Should().Contain("reply1").And.Contain("reply2");
+				}
+			}
+		}
+
+		[Test]
+		public async Task BasicRpcWithSingleReplyAndReallyLargeBody()
+		{
+			Console.WriteLine("BasicRpcWithSingleReplyAndReallyLargeBody");
+
+			var charBuffer = new char[131072 + 2];
+			for (int i = 0; i < charBuffer.Length; i++)
+			{
+				charBuffer[i] = Convert.ToChar( 'a' + (i%26) );
+			}
+			var content = new String(charBuffer);
+
+			using (var conn1 = await base.StartConnection())
+			{
+				var conn2 = await base.StartConnection();
+				var channelWorker = await conn1.CreateChannel();
+				channelWorker.OnError += error =>
+				{
+					Console.WriteLine("error " + error.ReplyText);
+				};
+
+				await channelWorker.QueueDeclare("queue_rpc3", false, false, false, true, null, waitConfirmation: true);
+
+				await channelWorker.BasicConsume(ConsumeMode.SingleThreaded, (delivery =>
+				{
+					var replyProp = channelWorker.RentBasicProperties();
+					replyProp.CorrelationId = delivery.properties.CorrelationId;
+
+					var buffer = Encoding.UTF8.GetBytes(content);
+
+					channelWorker.BasicPublishFast("", delivery.properties.ReplyTo, false, replyProp, buffer);
+
+					return Task.CompletedTask;
+
+				}), "queue_rpc3", null, withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true);
+
+				using (conn2)
+				{
+					var channelSender = await conn2.CreateChannel();
+					channelSender.OnError += error =>
+					{
+						Console.WriteLine("error " + error.ReplyText);
+					};
+
+					var rpcHelper = await channelSender.CreateRpcHelper(ConsumeMode.SingleThreaded, timeoutInMs: 30000);
+
+					var reply1 = await rpcHelper.Call("", "queue_rpc3", null, new ArraySegment<byte>(Encoding.UTF8.GetBytes("hello world")));
+
+					var replyBuffer = new byte[reply1.bodySize];
+					var read = reply1.stream.Read(replyBuffer, 0, replyBuffer.Length);
+					if (read < reply1.bodySize)
+						reply1.stream.Read(replyBuffer, read, replyBuffer.Length - read);
+
+					var replyTxt = Encoding.UTF8.GetString(replyBuffer);
+					Console.WriteLine("reply is " + replyTxt);
+
+					replyTxt.Should().Be(content);
 				}
 			}
 		}

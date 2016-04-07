@@ -72,16 +72,19 @@ namespace RabbitMqNext
 
 				completed = Interlocked.Decrement(ref state.waitingCount) == 0;
 
-				state.received.Add(_mode == ConsumeMode.SingleThreaded
-					? delivery.SafeClone()
-					: delivery);
-
 				if (completed)
 				{
+					// no need to clone last one
+					state.received.Add(delivery); 
+
 					aggreDeliveries = state.received.ToArray();
-					
+
 					// reset cookie 
 					Interlocked.Exchange(ref state.cookie, 0);
+				}
+				else
+				{
+					state.received.Add(delivery.SafeClone());
 				}
 			}
 
