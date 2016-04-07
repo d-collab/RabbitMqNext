@@ -35,7 +35,7 @@ namespace RabbitMqNext.Internals
 		}
 
 		public async Task Read_BasicDelivery(
-			Func<string, ulong, bool, string, string, int, BasicProperties, RingBufferStreamAdapter, Task> continuation, 
+			Func<string, ulong, bool, string, string, int, BasicProperties, BaseLightStream, Task> continuation, 
 			BasicProperties properties)
 		{
 			string consumerTag = _amqpReader.ReadShortStr();
@@ -94,8 +94,8 @@ namespace RabbitMqNext.Internals
 				}
 				else
 				{
-					throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize +
-					                                " and first body is " + length + " bytes");
+					await continuation(consumerTag, deliveryTag, redelivered, exchange,
+						routingKey, (int)bodySize, properties, new MultiBodyStreamWrapper(_reader._ringBufferStream, (int)length, bodySize)).ConfigureAwait(false);
 				}
 			}
 			else
@@ -153,7 +153,7 @@ namespace RabbitMqNext.Internals
 			continuation(consumerTag);
 		}
 
-		public async Task Read_BasicReturn(Func<ushort, string, string, string, int, BasicProperties, RingBufferStreamAdapter, Task> continuation, 
+		public async Task Read_BasicReturn(Func<ushort, string, string, string, int, BasicProperties, BaseLightStream, Task> continuation, 
 										   BasicProperties properties)
 		{
 			ushort replyCode = _amqpReader.ReadShort();

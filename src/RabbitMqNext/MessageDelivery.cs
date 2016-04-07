@@ -2,6 +2,7 @@ namespace RabbitMqNext
 {
 	using System;
 	using System.IO;
+	using Internals;
 	using Internals.RingBuffer;
 
 	public struct MessageDelivery
@@ -39,17 +40,21 @@ namespace RabbitMqNext
 
 		private static Stream CloneStream(Stream originalStream, int bodySize)
 		{
-			if (originalStream == null)
-			{
-				return null;
-			}
-			var original = originalStream as MemoryStream;
+			if (originalStream == null) return null; 
+			
+			var original = originalStream as MemoryStream; // Empty Stream then
 			if (original != null)
 			{
-				return new MemoryStream(original.GetBuffer(), writable: false);
+				return original;
 			}
 
-			return (originalStream as RingBufferStreamAdapter).CloneStream(bodySize);
+			var original2 = originalStream as MemoryStream2; // Empty Stream then
+			if (original2 != null)
+			{
+				return new MemoryStream2(original2.InnerBuffer);
+			}
+
+			return (originalStream as BaseLightStream).CloneStream(bodySize);
 		}
 	}
 }

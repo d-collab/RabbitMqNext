@@ -74,6 +74,9 @@
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="IChannel.cs" />
     <Compile Include="IConnection.cs" />
+    <Compile Include="Internals\RingBuffer\MemoryStream2.cs" />
+    <Compile Include="Internals\RingBuffer\MultiBodyStreamWrapper.cs" />
+    <Compile Include="Internals\RingBuffer\BaseLightStream.cs" />
     <Compile Include="Internals\RingBuffer\Padding.cs" />
     <Compile Include="Internals\RingBuffer\RingBufferPositionMarker.cs">
       <SubType>Code</SubType>
