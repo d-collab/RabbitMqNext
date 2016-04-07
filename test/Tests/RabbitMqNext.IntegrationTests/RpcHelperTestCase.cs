@@ -141,11 +141,13 @@
 		{
 			Console.WriteLine("BasicRpcWithSingleReplyAndReallyLargeBody");
 
-			var charBuffer = new char[131072 + 2];
+			var charBuffer = new char[131072 + 12];
 			for (int i = 0; i < charBuffer.Length; i++)
-			{
-				charBuffer[i] = Convert.ToChar( 'a' + (i%26) );
-			}
+				charBuffer[i] = Convert.ToChar( 'a' + (i % 26) );
+
+			for (int i = charBuffer.Length - 1; i > charBuffer.Length - 14; i--)
+				charBuffer[i] = Convert.ToChar('0' + (i % 10));
+
 			var content = new String(charBuffer);
 
 			using (var conn1 = await base.StartConnection())
@@ -184,14 +186,14 @@
 
 					var reply1 = await rpcHelper.Call("", "queue_rpc3", null, new ArraySegment<byte>(Encoding.UTF8.GetBytes("hello world")));
 
+					reply1.bodySize.Should().Be(content.Length);
+
 					var replyBuffer = new byte[reply1.bodySize];
 					var read = reply1.stream.Read(replyBuffer, 0, replyBuffer.Length);
 					if (read < reply1.bodySize)
 						reply1.stream.Read(replyBuffer, read, replyBuffer.Length - read);
 
 					var replyTxt = Encoding.UTF8.GetString(replyBuffer);
-					Console.WriteLine("reply is " + replyTxt);
-
 					replyTxt.Should().Be(content);
 				}
 			}
