@@ -146,7 +146,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 			AtomicChange(1, SignalledStatePos, SignalledStateMask);
 
-			TaskCompletionSource<bool> tcs = null;
+//			TaskCompletionSource<bool> tcs = null;
 
 			lock (_lock)
 			{
