@@ -263,7 +263,7 @@ namespace RabbitMqNext.Internals
 
 //			try
 			{
-				var buffer = basicPub.buffer;
+				var userBuffer = basicPub.buffer;
 				var properties = basicPub.properties;
 
 				// First frame: Method
@@ -280,7 +280,7 @@ namespace RabbitMqNext.Internals
 				// First frame completed
 
 				// Header frame (basic properties)
-				WriteBasicPropertiesAsHeader(writer, channel, (ulong)buffer.Count, properties);
+				WriteBasicPropertiesAsHeader(writer, channel, (ulong)userBuffer.Count, properties);
 				// Header frame completed
 
 				// what's the max frame size we can write?
@@ -289,20 +289,19 @@ namespace RabbitMqNext.Internals
 
 				// Frame body
 
-				int maxSubFrameSize =
-					writer.FrameMaxSize == 0 ? buffer.Count : (int)writer.FrameMaxSize.Value - EmptyFrameSize;
+				int maxSubFrameSize = (int)writer.FrameMaxSize.Value - EmptyFrameSize; // writer.FrameMaxSize == 0 ? buffer.Count : (int)writer.FrameMaxSize.Value - EmptyFrameSize;
 
 				// write frames limited by the max size
 				int written = 0;
-				while (written < buffer.Count)
+				while (written < userBuffer.Count)
 				{
 					writer.WriteOctet(AmqpConstants.FrameBody);
 					writer.WriteUShort(channel);
 
-					var countToWrite = Math.Min(buffer.Count - written, maxSubFrameSize);
+					var countToWrite = Math.Min(userBuffer.Count - written, maxSubFrameSize);
 					writer.WriteLong((uint)countToWrite); // payload size
 
-					writer.WriteRaw(buffer.Array, buffer.Offset + written, countToWrite);
+					writer.WriteRaw(userBuffer.Array, userBuffer.Offset + written, countToWrite);
 					written += countToWrite;
 
 					writer.WriteOctet(AmqpConstants.FrameEnd);
