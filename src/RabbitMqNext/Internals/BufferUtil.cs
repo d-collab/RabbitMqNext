@@ -18,5 +18,15 @@ namespace RabbitMqNext.Internals
 
 			return buffer;
 		}
+
+		public static byte[] Copy(MultiBodyStreamWrapper stream, int bodySize)
+		{
+			if (bodySize == 0) return Empty;
+
+			var buffer = new byte[bodySize]; // more allocations. sad!
+			stream.ReadAllInto(buffer, 0, bodySize);
+
+			return buffer;
+		}
 	}
 }
