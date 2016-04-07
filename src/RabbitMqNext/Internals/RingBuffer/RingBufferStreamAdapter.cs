@@ -6,7 +6,8 @@
 	using System.Threading.Tasks;
 
 
-	public class RingBufferStreamAdapter : Stream
+
+	public class RingBufferStreamAdapter : BaseLightStream
 	{
 		internal readonly ByteRingBuffer _ringBuffer;
 
@@ -15,9 +16,9 @@
 			_ringBuffer = ringBuffer;
 		}
 
-		public Stream CloneStream(int bodySize)
+		public override BaseLightStream CloneStream(int bodySize)
 		{
-			return new MemoryStream(BufferUtil.Copy(this, bodySize), 0, bodySize, writable: false);
+			return new MemoryStream2(BufferUtil.Copy(this, bodySize));
 		}
 
 		public int Read(byte[] buffer, int offset, int count, bool fillBuffer)
