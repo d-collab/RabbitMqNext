@@ -27,6 +27,11 @@ namespace RabbitMqNext.Internals
 			_semaphoreSlim = new SemaphoreSlim(max, max);
 		}
 
+		public ulong Max
+		{
+			get { return _max; }
+		}
+
 		// Ensure there's a spot available. we want to block 
 		// at the user api level, not at the frame writing 
 		// level which would hog everything
@@ -39,9 +44,29 @@ namespace RabbitMqNext.Internals
 		{
 			// happens past semaphore, from the frame writing thread, thus "safe"
 
-			var id = GetNext();
-			var index = id % _max;
-			_tasks[index] = tcs;
+			var success = false;
+
+			// for (int i = 0; i < _tasks.Length; i++)
+			{
+				var id = GetNext();
+				var index = id % _max;
+
+				if (Interlocked.CompareExchange(ref _tasks[index], tcs, null) == null)
+				{
+					success = true;
+//					break;
+				}
+				else
+				{
+					// Spot in use, so continue up to sizeOf(_tasks) attempts
+				}
+			}
+
+			if (!success) // probably will never happen due to the semaphore, but just in case. 
+			{
+				// fail fast, better than leaving the task hanging forever
+				tcs.SetException(new Exception("MessagesPendingConfirmationKeeper: Could not find free spot for the waiting task"));
+			}
 		}
 		
 		// invoked from the read frame thread only. continuations need to be executed async
@@ -52,9 +77,12 @@ namespace RabbitMqNext.Internals
 			for (var i = startPos; i <= deliveryTag; i++)
 			{
 				var index = deliveryTag % _max;
-				var tcs = _tasks[index];
+				// var tcs = _tasks[index];
+				var tcs = Interlocked.Exchange(ref _tasks[index], null);
+
+				_semaphoreSlim.Release();
+
 				if (tcs == null) throw new Exception("_tasks is broken!");
-				_tasks[index] = null;
 
 				if (isAck)
 					tcs.SetCompleted(runContinuationAsync: true);
@@ -65,14 +93,26 @@ namespace RabbitMqNext.Internals
 			_lastConfirmed = deliveryTag;
 		}
 
-		public void DrainDueToFailure(string error)
+		public void DrainDueToFailure(AmqpError error)
 		{
-			throw new NotImplementedException();
+			for (int i = 0; i < _tasks.Length; i++)
+			{
+				var tcs = Interlocked.Exchange(ref _tasks[i], null);
+				if (tcs == null) continue;
+
+				tcs.SetException(new Exception("Cancelled due to error " + error.ToErrorString()), runContinuationAsync: true);
+			}
 		}
 
 		public void DrainDueToShutdown()
 		{
-			throw new NotImplementedException();
+			for (int i = 0; i < _tasks.Length; i++)
+			{
+				var tcs = Interlocked.Exchange(ref _tasks[i], null);
+				if (tcs == null) continue;
+				
+				tcs.SetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true);
+			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
