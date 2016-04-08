@@ -54,6 +54,8 @@ namespace RabbitMqNext
 		internal BasicProperties(bool isFrozen, bool reusable)
 		{
 			_options = (byte) ((isFrozen ? FrozenMask : 0) | (reusable ? ReusableMask : 0));
+
+			_headers = new Dictionary<string, object>(StringComparer.Ordinal);
 		}
 
 		public bool IsContentTypePresent
@@ -290,12 +292,12 @@ namespace RabbitMqNext
 		public IDictionary<string, object> Headers
 		{
 			get { return _headers; }
-			set
-			{
-				ThrowIfFrozen();
-				IsHeadersPresent = value != null;
-				_headers = value;
-			}
+//			private set
+//			{
+//				ThrowIfFrozen();
+//				IsHeadersPresent = value != null;
+//				_headers = value;
+//			}
 		}
 
 		#region Implementation of ICloneable
@@ -372,6 +374,11 @@ namespace RabbitMqNext
 			_replyTo = _expiration = _messageId = _type = null;
 			_userId = _appId = _clusterId = null;
 			_timestamp = null;
+		}
+
+		internal void Prepare()
+		{
+			IsHeadersPresent = _headers.Count != 0;
 		}
 	}
 }
