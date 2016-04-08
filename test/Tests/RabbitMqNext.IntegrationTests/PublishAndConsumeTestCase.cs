@@ -11,6 +11,35 @@ namespace RabbitMqNext.IntegrationTests
 	public class PublishAndConsumeTestCase : BaseTest
 	{
 		[Test]
+		public async Task UnroutedMessage_TriggerEvents()
+		{
+			Console.WriteLine("UnroutedMessage_TriggerEvents");
+
+			var conn = await base.StartConnection();
+			var channel = await conn.CreateChannel();
+
+			UndeliveredMessage undelivered = default(UndeliveredMessage);
+
+			channel.MessageUndeliveredHandler += message =>
+			{
+				undelivered = message;
+				return Task.CompletedTask;
+			};
+
+			await channel.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);
+			
+			channel.BasicPublishFast("test_direct", "non_existing_routing", mandatory: true, properties: null, buffer: new ArraySegment<byte>(new byte[] { 1,2,3 }));
+
+			await Task.Delay(500);
+
+			undelivered.exchange.Should().Be("test_direct");
+			undelivered.bodySize.Should().Be(3);
+			undelivered.replyCode.Should().Be(312);
+			undelivered.replyText.Should().Be("NO_ROUTE");
+			undelivered.routingKey.Should().Be("non_existing_routing");
+		}
+
+		[Test]
 		public async Task Parallel_Consumer_FastPublish()
 		{
 			Console.WriteLine("Parallel_Consumer_FastPublish");
