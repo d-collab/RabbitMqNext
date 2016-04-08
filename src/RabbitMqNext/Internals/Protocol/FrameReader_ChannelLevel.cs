@@ -118,7 +118,7 @@ namespace RabbitMqNext.Internals
 				properties._presenceSWord = presence;
 				if (properties.IsContentTypePresent) { properties.ContentType =  _amqpReader.ReadShortStr(); }
 				if (properties.IsContentEncodingPresent) { properties.ContentEncoding =  _amqpReader.ReadShortStr(); }
-				if (properties.IsHeadersPresent) { properties.Headers =  _amqpReader.ReadTable(); }
+				if (properties.IsHeadersPresent) { _amqpReader.ReadTable(properties.Headers); }
 				if (properties.IsDeliveryModePresent) { properties.DeliveryMode = _amqpReader.ReadOctet(); }
 				if (properties.IsPriorityPresent) { properties.Priority = _amqpReader.ReadOctet(); }
 				if (properties.IsCorrelationIdPresent) { properties.CorrelationId =  _amqpReader.ReadShortStr(); }

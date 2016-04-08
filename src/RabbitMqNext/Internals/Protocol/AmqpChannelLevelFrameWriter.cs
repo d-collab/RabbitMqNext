@@ -188,11 +188,13 @@ namespace RabbitMqNext.Internals
 		private static void WriteBasicPropertiesAsHeader(AmqpPrimitivesWriter writer, 
 			ushort channel, ulong bodySize, BasicProperties properties)
 		{
-			if (properties.IsEmpty) 
+			properties.Prepare(); // Ensure IsHeadersSet bit is correct
+
+			if (properties.IsEmpty)
 			{
 				// short cut when it's empty
 
-				uint payloadSize = 4 + 8 + 2;
+				const uint payloadSize = 4 + 8 + 2;
 				writer.WriteFrameStart(AmqpConstants.FrameHeader, channel, payloadSize, 60, 0);
 				writer.WriteULong(bodySize);
 				// no support for continuation. must be less than 15 bits used

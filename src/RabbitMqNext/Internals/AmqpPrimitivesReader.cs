@@ -38,8 +38,15 @@ namespace RabbitMqNext.Internals
 			// unbounded allocation! bad
 			var table = new Dictionary<string, object>(capacity: 11);
 
+			ReadTable(table);
+
+			return table;
+		}
+
+		public void ReadTable(IDictionary<string, object> table)
+		{
 			uint tableLength = _reader.ReadUInt32();
-			if (tableLength == 0) return table;
+			if (tableLength == 0) return;
 
 			var marker = new RingBufferPositionMarker(_reader._ringBufferStream);
 			while (marker.LengthRead < tableLength)
@@ -48,8 +55,6 @@ namespace RabbitMqNext.Internals
 				object value = ReadFieldValue();
 				table[key] = value;
 			}
-
-			return table;
 		}
 
 		public string ReadShortStr()
