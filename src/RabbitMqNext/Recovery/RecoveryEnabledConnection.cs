@@ -1,4 +1,4 @@
-﻿namespace RabbitMqNext
+﻿namespace RabbitMqNext.Recovery
 {
 	using System;
 	using System.Collections.Generic;
@@ -24,8 +24,11 @@
 		private volatile bool _disableRecovery;
 		private string _selectedHostname;
 
+		private readonly CancellationTokenSource _recoveryCancellationTokenSource;
+
 		public event Action WillRecover;
 		public event Action RecoveryCompleted;
+		public event Action RecoveryFailed;
 
 		public RecoveryEnabledConnection(string hostname, Connection connection) 
 			: this(new [] { hostname }, connection)
@@ -38,6 +41,8 @@
 			_connection = connection;
 			_connection.Recovery = this;
 			_channelRecoveries = new List<RecoveryEnabledChannel>();
+
+			_recoveryCancellationTokenSource = new CancellationTokenSource();
 		}
 
 		internal RecoveryEnabledChannel CreateChannelRecovery(Channel channel)
@@ -116,9 +121,13 @@
 			if (LogAdapter.ExtendedLogEnabled)
 				LogAdapter.LogDebug(LogSource, "Dispose called");
 
+			_recoveryCancellationTokenSource.Cancel();
+
 			_disableRecovery = true;
 			
 			_connection.Dispose();
+
+			// not disposing _recoveryCancellationTokenSource. for now leaving for finalizer
 		}
 
 		#endregion
@@ -135,7 +144,14 @@
 					{
 						pthis.FireWillRecover();
 
-						await pthis.CycleReconnect();
+						var didConnect = await pthis.CycleReconnect();
+						if (!didConnect)
+						{
+							// Cancelled
+							pthis.FireRecoveryFailed();
+							return;
+						}
+
 						await pthis.Recover();
 
 						pthis.FireRecoveryCompleted();
@@ -143,7 +159,9 @@
 					catch (Exception ex)
 					{
 						LogAdapter.LogError(LogSource, "TryInitiateRecovery error", ex);
-						pthis.HandleRecoveryFatalError();
+						pthis.HandleRecoveryFatalError(ex);
+						
+						pthis.FireRecoveryFailed();
 					}
 					finally
 					{
@@ -166,7 +184,7 @@
 			var firstRun = true;
 
 			// TODO: maxattempts or api hook to allow continuing/stopping
-			while (true)
+			while (!_recoveryCancellationTokenSource.Token.IsCancellationRequested)
 			{
 				var hostToTry = hosts[index++ % hosts.Length];
 
@@ -182,21 +200,33 @@
 				// TODO: config/parameter for wait time
 				Thread.Sleep(1000);
 			}
+
+			return false;
 		}
 
 		private Task Recover()
 		{
-			// Recover channels
-			// Recover declares
-			// Recover bindings
-			// Recover subscriptions
-			// Recover rpchelpers
+			lock (_channelRecoveries)
+			foreach (var channel in _channelRecoveries)
+			{
+				LogAdapter.LogWarn(LogSource, "Recover: recovering channel " + channel.ChannelNumber);
+
+				try
+				{
+					return channel.DoRecover(_connection);
+				}
+				catch (Exception ex)
+				{
+					LogAdapter.LogError(LogSource, "Recover: error recovering channel " + channel.ChannelNumber, ex);
+					return Task.FromException(ex);
+				}
+			}
 
 			return Task.CompletedTask;
 		}
 
 		// When the recovery process completely failed, close everything
-		private void HandleRecoveryFatalError()
+		private void HandleRecoveryFatalError(Exception ex)
 		{
 			// TODO: implement this
 		}
@@ -210,6 +240,12 @@
 		private void FireWillRecover()
 		{
 			var ev = this.WillRecover;
+			if (ev != null) ev();
+		}
+
+		private void FireRecoveryFailed()
+		{
+			var ev = this.RecoveryFailed;
 			if (ev != null) ev();
 		}
 	}

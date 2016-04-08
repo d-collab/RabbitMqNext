@@ -9,6 +9,7 @@ namespace RabbitMqNext.Io
 	using Internals.RingBuffer;
 	using RabbitMqNext;
 	using RabbitMqNext.Internals;
+	using Recovery;
 
 
 	public sealed class ConnectionIO : AmqpIOBase, IFrameProcessor
