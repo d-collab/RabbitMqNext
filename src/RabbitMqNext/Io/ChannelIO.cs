@@ -85,6 +85,13 @@ namespace RabbitMqNext.Io
 		{
 		}
 
+		protected override void DrainPending(AmqpError error)
+		{
+			base.DrainPending(error);
+
+			this._channel.DrainPendingIfNeeded(error);
+		}
+
 		#endregion
 
 		internal Task Open()

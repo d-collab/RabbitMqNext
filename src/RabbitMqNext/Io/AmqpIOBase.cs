@@ -121,7 +121,7 @@
 			return InitiateCleanClose(true, error);
 		}
 
-		private void DrainPending(AmqpError error)
+		protected virtual void DrainPending(AmqpError error)
 		{
 			// releases every task awaiting
 			CommandToSend sent;
