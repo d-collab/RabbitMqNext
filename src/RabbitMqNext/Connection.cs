@@ -6,6 +6,7 @@
 	using System.Threading.Tasks;
 	using RabbitMqNext.Io;
 	using RabbitMqNext.Internals;
+	using Recovery;
 
 
 	public sealed class Connection : IConnection
@@ -72,12 +73,12 @@
 
 		public Task<IChannel> CreateChannel()
 		{
-			return InternalCreateChannel(withPubConfirm: false);
+			return InternalCreateChannel(null, withPubConfirm: false);
 		}
 
 		public Task<IChannel> CreateChannelWithPublishConfirmation(int maxunconfirmedMessages = 100)
 		{
-			return InternalCreateChannel(maxunconfirmedMessages, withPubConfirm: true);
+			return InternalCreateChannel(null, maxunconfirmedMessages, withPubConfirm: true);
 		}
 
 		public void Dispose()
@@ -131,9 +132,11 @@
 			}
 		}
 
-		private async Task<IChannel> InternalCreateChannel(int maxunconfirmedMessages = 0, bool withPubConfirm = false)
+		internal async Task<IChannel> InternalCreateChannel(int? desiredChannelNum, int maxunconfirmedMessages = 0, bool withPubConfirm = false)
 		{
-			var channelNum = (ushort)Interlocked.Increment(ref _channelNumbers);
+			var channelNum = desiredChannelNum.HasValue ?
+				(ushort) desiredChannelNum.Value : 
+				(ushort) Interlocked.Increment(ref _channelNumbers);
 
 			if (channelNum > MaxChannels)
 				throw new Exception("Exceeded channel limits");
