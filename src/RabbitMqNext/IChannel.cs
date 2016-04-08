@@ -2,13 +2,14 @@ namespace RabbitMqNext
 {
 	using System;
 	using System.Collections.Generic;
-	using System.IO;
 	using System.Threading.Tasks;
 	using Internals;
+
 
 	public interface IChannel : IDisposable
 	{
 		event Action<AmqpError> OnError;
+
 		Func<UndeliveredMessage, Task> MessageUndeliveredHandler { get; set; }
 
 		bool IsConfirmationEnabled { get; }
@@ -69,8 +70,24 @@ namespace RabbitMqNext
 			string queue, string consumerTag, bool withoutAcks, bool exclusive,
 			IDictionary<string, object> arguments, bool waitConfirmation);
 
+		/// <summary>
+		/// This cancels a consumer.
+		/// </summary>
+		/// <param name="consumerTag"></param>
+		/// <param name="waitConfirmation"></param>
+		/// <returns></returns>
 		Task BasicCancel(string consumerTag, bool waitConfirmation);
+		
+		/// <summary>
+		/// This method asks the server to redeliver all unacknowledged messages on a specified channel. Zero or more messages may be redelivered.
+		/// </summary>
+		/// <param name="requeue">If false, the message will 
+		/// be redelivered to the original recipient. If true, the 
+		/// server will attempt to requeue the message, potentially then delivering it to an alternative subscriber.
+		/// </param>
+		/// <returns></returns>
 		Task BasicRecover(bool requeue);
+
 		Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500);
 		Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500);
 		Task Close();
