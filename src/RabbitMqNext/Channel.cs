@@ -213,9 +213,15 @@
 				});
 		}
 
-		public Task BasicCancel(string consumerTag, bool waitConfirmation)
+		public async Task BasicCancel(string consumerTag, bool waitConfirmation)
 		{
-			return _io.__BasicCancel(consumerTag, waitConfirmation);
+			await _io.__BasicCancel(consumerTag, waitConfirmation);
+
+			BasicConsumerSubscriptionInfo subscriptionInfo;
+			if (_consumerSubscriptions.TryRemove(consumerTag, out subscriptionInfo))
+			{
+				subscriptionInfo.SignalCancel();
+			}
 		}
 
 		public Task BasicRecover(bool requeue)
@@ -246,6 +252,15 @@
 
 		public void Dispose()
 		{
+			if (_confirmationKeeper != null)
+			{
+				_confirmationKeeper.DrainDueToShutdown();
+
+				_confirmationKeeper.Dispose();
+
+				_confirmationKeeper = null;
+			}
+
 			this._io.Dispose();
 		}
 
@@ -469,7 +484,18 @@
 
 			public void SignalCancel()
 			{
-				// TODO: expose cancelation on the api
+				if (_consumer != null)
+				{
+					_consumer.Cancelled();
+				}
+			}
+		}
+
+		internal void DrainPendingIfNeeded(AmqpError error)
+		{
+			if (this._confirmationKeeper != null)
+			{
+				this._confirmationKeeper.DrainDueToFailure(error);
 			}
 		}
 	}
