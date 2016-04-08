@@ -279,8 +279,9 @@
 				{
 					// DeliveryMode = 2,
 					Type = "type1",
-					Headers = new Dictionary<string, object> {{"serialization", 0}}
+					
 				};
+				prop.Headers["serialization"] = 0;
 
 				newChannel.MessageUndeliveredHandler = (undelivered) =>
 				{

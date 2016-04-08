@@ -5,6 +5,7 @@
 	using System.Threading;
 	using System.Threading.Tasks;
 	using RabbitMqNext;
+	using RabbitMqNext.Recovery;
 
 	class Program
 	{

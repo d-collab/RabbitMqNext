@@ -7,6 +7,7 @@ namespace RabbitMqNext.IntegrationTests
 	using Io;
 	using MConsole;
 	using NUnit.Framework;
+	using Recovery;
 
 	public class BaseTest
 	{

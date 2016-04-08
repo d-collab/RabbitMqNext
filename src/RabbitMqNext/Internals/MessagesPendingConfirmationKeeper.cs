@@ -115,6 +115,11 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
+		public void Dispose()
+		{
+			_semaphoreSlim.Dispose();
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private ulong GetNext()
 		{
