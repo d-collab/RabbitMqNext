@@ -70,6 +70,8 @@
 				return RecoveryAction.NoAction;
 			}
 
+			// TODO: Block RecoveryChannels? So new operations are blocked. also should fire notifications to indicate recovery in progress
+
 			LogAdapter.LogDebug(LogSource, "NotifyAbrupt", reason);
 
 			TryInitiateRecovery();
@@ -80,6 +82,8 @@
 		internal RecoveryAction NotifyCloseByServer()
 		{
 			LogAdapter.LogDebug(LogSource, "NotifyClosedByServer ");
+
+			// TODO: Block RecoveryChannels? So new operations are blocked. also should fire notifications to indicate recovery in progress
 
 			TryInitiateRecovery();
 
@@ -138,6 +142,11 @@
 			{
 				LogAdapter.LogDebug(LogSource, "TryInitiateRecovery starting recovery process");
 
+				foreach (var recoveryEnabledChannel in _channelRecoveries)
+				{
+					recoveryEnabledChannel.Disconnected();
+				}
+
 				ThreadFactory.BackgroundThread(async (pthis) =>
 				{
 					try
@@ -159,6 +168,7 @@
 					catch (Exception ex)
 					{
 						LogAdapter.LogError(LogSource, "TryInitiateRecovery error", ex);
+						
 						pthis.HandleRecoveryFatalError(ex);
 						
 						pthis.FireRecoveryFailed();
