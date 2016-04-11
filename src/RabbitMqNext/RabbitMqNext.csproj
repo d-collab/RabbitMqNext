@@ -99,7 +99,11 @@
     <Compile Include="MConsole\UserInfo.cs" />
     <Compile Include="MConsole\UserVHostPermissionsInfo.cs" />
     <Compile Include="MConsole\VHostInfo.cs" />
-    <Compile Include="QueueConsumer.cs" />
+    <Compile Include="IQueueConsumer.cs" />
+    <Compile Include="Recovery\ExchangeBindRecovery.cs" />
+    <Compile Include="Recovery\QueueBoundRecovery.cs" />
+    <Compile Include="Recovery\QueueConsumerRecovery.cs" />
+    <Compile Include="Recovery\QueueDeclaredRecovery.cs" />
     <Compile Include="Recovery\RecoveryEnabledChannel.cs" />
     <Compile Include="Recovery\RecoveryEnabledConnection.cs" />
     <Compile Include="Recovery\ExchangeDeclaredRecovery.cs" />
