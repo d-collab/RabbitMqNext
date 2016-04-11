@@ -2,29 +2,38 @@ namespace RabbitMqNext
 {
 	using System.Threading.Tasks;
 
-	public abstract class QueueConsumer
+	public interface IQueueConsumer
 	{
-		public abstract Task Consume(MessageDelivery delivery);
-
-		// Add Connection lost, Cancelled, etc..
+		Task Consume(MessageDelivery delivery);
 
 		/// <summary>
 		/// When auto-recovery is enabled, indicates that the connection is down but recovery will start
 		/// </summary>
-		public virtual void Broken()
-		{
-		}
+		void Broken();
 
 		/// <summary>
 		/// When auto-recovery is enabled, indicates that recovery has succeeded
 		/// </summary>
-		public virtual void Recovered()
-		{
-		}
+		void Recovered();
 
 		/// <summary>
 		/// indicates that the server cancelled this consumer
 		/// </summary>
+		void Cancelled();
+	}
+
+	public abstract class QueueConsumer : IQueueConsumer
+	{
+		public abstract Task Consume(MessageDelivery delivery);
+
+		public virtual void Broken()
+		{
+		}
+
+		public virtual void Recovered()
+		{
+		}
+
 		public virtual void Cancelled()
 		{
 		}

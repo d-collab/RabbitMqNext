@@ -62,7 +62,7 @@ namespace RabbitMqNext
 		void BasicPublishFast(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer);
 
-		Task<string> BasicConsume(ConsumeMode mode, QueueConsumer consumer,
+		Task<string> BasicConsume(ConsumeMode mode, IQueueConsumer consumer,
 			string queue, string consumerTag, bool withoutAcks, bool exclusive,
 			IDictionary<string, object> arguments, bool waitConfirmation);
 
