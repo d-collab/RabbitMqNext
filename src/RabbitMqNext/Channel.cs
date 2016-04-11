@@ -4,6 +4,7 @@
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.IO;
+	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
 	using RabbitMqNext.Internals;
@@ -70,72 +71,98 @@
 
 		public Task BasicQos(uint prefetchSize, ushort prefetchCount, bool global)
 		{
+			EnsureOpen();
+
 			return _io.__BasicQos(prefetchSize, prefetchCount, global);
 		}
 
 		public void BasicAck(ulong deliveryTag, bool multiple)
 		{
+			EnsureOpen();
+
 			_io.__BasicAck(deliveryTag, multiple);
 		}
 
 		public void BasicNAck(ulong deliveryTag, bool multiple, bool requeue)
 		{
+			EnsureOpen();
+
 			_io.__BasicNAck(deliveryTag, multiple, requeue);
 		}
 
 		public Task ExchangeDeclare(string exchange, string type, bool durable, bool autoDelete,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			return _io.__ExchangeDeclare(exchange, type, durable, autoDelete, arguments, waitConfirmation);
 		}
 
 		public Task ExchangeBind(string source, string destination, string routingKey, 
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			return _io.__ExchangeBind(source, destination, routingKey, arguments, waitConfirmation);
 		}
 
 		public Task ExchangeUnbind(string source, string destination, string routingKey,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			return _io.__ExchangeUnbind(source, destination, routingKey, arguments, waitConfirmation);
 		}
 
 		public Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			return _io.__ExchangeDelete(exchange, arguments, waitConfirmation);
 		}
 
 		public Task<AmqpQueueInfo> QueueDeclare(string queue, bool passive, bool durable, bool exclusive, bool autoDelete,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			return _io.__QueueDeclare(queue, passive, durable, exclusive, autoDelete, arguments, waitConfirmation);
 		}
 
 		public Task QueueBind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments,
 			bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			return _io.__QueueBind(queue, exchange, routingKey, arguments, waitConfirmation);
 		}
 
 		public Task QueueUnbind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments)
 		{
+			EnsureOpen();
+
 			return _io.__QueueUnbind(queue, exchange, routingKey, arguments);
 		}
 
 		public Task QueueDelete(string queue /*, bool ifUnused, bool ifEmpty*/, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			return _io.__QueueDelete(queue, waitConfirmation);
 		}
 
 		public Task QueuePurge(string queue, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			return _io.__QueuePurge(queue, waitConfirmation);
 		}
 
 		public TaskSlim BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			EnsureOpen();
+
 			if (_confirmationKeeper == null) throw new Exception("This channel is not set up for confirmations");
 
 			return _io.__BasicPublishConfirm(exchange, routingKey, mandatory, properties, buffer);
@@ -144,6 +171,8 @@
 		public TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			EnsureOpen();
+
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
 
 			return _io.__BasicPublishTask(exchange, routingKey, mandatory, properties, buffer);
@@ -152,15 +181,19 @@
 		public void BasicPublishFast(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			EnsureOpen();
+
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
 
 			_io.__BasicPublish(exchange, routingKey, mandatory, properties, buffer);
 		}
 
-		public Task<string> BasicConsume(ConsumeMode mode, QueueConsumer consumer,
+		public Task<string> BasicConsume(ConsumeMode mode, IQueueConsumer consumer,
 			string queue, string consumerTag, bool withoutAcks, bool exclusive,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			if (consumer == null) throw new ArgumentNullException("consumer");
 			if (!waitConfirmation && string.IsNullOrEmpty(consumerTag))
 				throw new ArgumentException("You must specify a consumer tag if waitConfirmation = false");
@@ -189,6 +222,8 @@
 			string queue, string consumerTag, bool withoutAcks, bool exclusive,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			if (consumer == null) throw new ArgumentNullException("consumer");
 			if (!waitConfirmation && string.IsNullOrEmpty(consumerTag)) 
 				throw new ArgumentException("You must specify a consumer tag if waitConfirmation = false");
@@ -215,6 +250,8 @@
 
 		public async Task BasicCancel(string consumerTag, bool waitConfirmation)
 		{
+			EnsureOpen();
+
 			await _io.__BasicCancel(consumerTag, waitConfirmation);
 
 			BasicConsumerSubscriptionInfo subscriptionInfo;
@@ -226,11 +263,15 @@
 
 		public Task BasicRecover(bool requeue)
 		{
+			EnsureOpen();
+
 			return _io.__BasicRecover(requeue);
 		}
 
 		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
 		{
+			EnsureOpen();
+
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
 			return RpcHelper.Create(this, maxConcurrentCalls, mode, timeoutInMs);
@@ -238,6 +279,8 @@
 
 		public Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
 		{
+			EnsureOpen();
+
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
 			return RpcAggregateHelper.Create(this, maxConcurrentCalls, mode, timeoutInMs);
@@ -342,7 +385,7 @@
 
 					Task.Factory.StartNew(async state =>
 					{
-						var tuple = (Tuple<MessageDelivery, Func<MessageDelivery, Task>, QueueConsumer, Channel>)state;
+						var tuple = (Tuple<MessageDelivery, Func<MessageDelivery, Task>, IQueueConsumer, Channel>)state;
 						var delivery1 = tuple.Item1;
 						var cb1 = tuple.Item2;
 						var conInstance = tuple.Item3;
@@ -480,7 +523,7 @@
 		{
 			public ConsumeMode Mode;
 			public Func<MessageDelivery, Task> Callback;
-			public QueueConsumer _consumer;
+			public IQueueConsumer _consumer;
 
 			public void SignalCancel()
 			{
@@ -497,6 +540,12 @@
 			{
 				this._confirmationKeeper.DrainDueToFailure(error);
 			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private void EnsureOpen()
+		{
+			if (!_io._isClosed) throw new ObjectDisposedException("Channel disposed");
 		}
 	}
 }
