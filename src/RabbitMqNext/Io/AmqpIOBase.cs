@@ -14,7 +14,7 @@
 	public abstract class AmqpIOBase : IDisposable
 	{
 		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
-		private volatile bool _isClosed, _isDisposed;
+		internal bool _isClosed, _isDisposed;
 		internal readonly ushort _channelNum;
 
 		// if not null, it's the error that closed the channel or connection
