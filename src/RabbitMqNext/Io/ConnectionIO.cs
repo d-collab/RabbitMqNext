@@ -140,14 +140,14 @@ namespace RabbitMqNext.Io
 
 		internal override void InitiateAbruptClose(Exception reason)
 		{
+			_conn.CloseAllChannels(reason);
+
 			if (_conn.NotifyAbruptClose(reason) == RecoveryAction.WillReconnect)
 			{
 				CancelPendingCommands(reason);
 			}
 			else
 			{
-				_conn.CloseAllChannels(reason);
-
 				base.InitiateAbruptClose(reason);
 			}
 		}
