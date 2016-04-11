@@ -545,7 +545,7 @@
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void EnsureOpen()
 		{
-			if (!_io._isClosed) throw new ObjectDisposedException("Channel disposed");
+			if (_io._isClosed) throw new ObjectDisposedException("Channel disposed");
 		}
 	}
 }
