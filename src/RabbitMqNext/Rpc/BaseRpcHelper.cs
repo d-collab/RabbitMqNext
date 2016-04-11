@@ -49,7 +49,7 @@ namespace RabbitMqNext
 		public void Dispose()
 		{
 			if (_disposed) return;
-
+			Thread.MemoryBarrier();
 			_disposed = true;
 
 			if (_timeoutTimer != null)
