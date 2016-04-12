@@ -8,13 +8,14 @@ namespace RabbitMqNext
 
 	public class RpcHelper : BaseRpcHelper<MessageDelivery>
 	{
+		const string LogSource = "RpcHelper";
+
 		private RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
 			: base(channel, maxConcurrentCalls, mode, timeoutInMs)
 		{
 		}
 
-		public static async Task<RpcHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode,
-			int? timeoutInMs)
+		public static async Task<RpcHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
 		{
 			var instance = new RpcHelper(channel, maxConcurrentCalls, mode, timeoutInMs);
 			await instance.Setup().ConfigureAwait(false);
@@ -37,29 +38,21 @@ namespace RabbitMqNext
 				return Task.CompletedTask;
 			}
 
-
 			try
 			{
 				taskLight.Id = 0;
-				taskLight.SetResult(delivery);
-			}
-			finally
-			{
+				taskLight.SetResult(delivery); // <- this races with DrainPendingCalls. 
+				
+				// But we want just one call to semaphore.Release
 				_semaphoreSlim.Release();
+			}
+			catch (Exception ex)
+			{
+				LogAdapter.LogError(LogSource, "OnReplyReceived error", ex);
 			}
 
 			return Task.CompletedTask;
 		}
-
-//		/// <summary>
-//		/// The request message is expected to have multiple receivers, but the first one to reply 
-//		/// wins and the result is set. The caller should add extra metadata so workers know they dont need to reply 
-//		/// unless they can return a valid response (no need to reply with errors for example, unless error is semantic valid).
-//		/// </summary>
-//		public TaskSlim<MessageDelivery> CallMultiple(string exchange, string routing, BasicProperties properties,
-//			ArraySegment<byte> buffer)
-//		{
-//		}
 
 		/// <summary>
 		/// Sends a requests message and awaits for a reply in the temporary and exclusive queue created, matching the correlationid
@@ -107,7 +100,7 @@ namespace RabbitMqNext
 			catch (Exception ex)
 			{
 				// release spot
-				Interlocked.Exchange(ref _pendingCalls[correlationId % _maxConcurrentCalls], null);
+				Interlocked.Exchange(ref _pendingCalls[pos], null);
 
 				_semaphoreSlim.Release();
 
@@ -126,5 +119,7 @@ namespace RabbitMqNext
 			return Interlocked.Exchange(ref _pendingCalls[pos], null);
 		}
 		*/
+
+		
 	}
 }

@@ -5,7 +5,6 @@ namespace RabbitMqNext
 	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using Internals;
 	using Internals.RingBuffer;
 
 
@@ -38,6 +37,7 @@ namespace RabbitMqNext
 			: base(channel, maxConcurrentCalls, mode, timeoutInMs)
 		{
 			_pendingAggregationState = new AggState[maxConcurrentCalls];
+
 			for (int i = 0; i < maxConcurrentCalls; i++)
 			{
 				_pendingAggregationState[i] = new AggState();
@@ -172,7 +172,7 @@ namespace RabbitMqNext
 			catch (Exception ex)
 			{
 				// release spot
-				Interlocked.Exchange(ref _pendingCalls[correlationId % _maxConcurrentCalls], null);
+				Interlocked.Exchange(ref _pendingCalls[pos], null);
 
 				_semaphoreSlim.Release();
 
