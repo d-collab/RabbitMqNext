@@ -26,6 +26,8 @@ namespace RabbitMqNext.Internals
 		public const int NotAllowed = 530;
 		public const int NotImplemented = 540;
 		public const int InternalError = 541;
+
+		public const string AmqpReservedPrefix = "amq.";
 	}
 
 	public static class Amqp
@@ -41,10 +43,6 @@ namespace RabbitMqNext.Internals
 
 				public const ushort ChannelClose = 40;
 			}
-
-
-
-
 
 			public static class Exchange
 			{

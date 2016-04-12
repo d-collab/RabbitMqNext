@@ -15,19 +15,25 @@
 		private IQueueConsumer _consumer2;
 		private Func<MessageDelivery, Task> _consumer;
 
-		public QueueConsumerRecovery(ConsumeMode mode, Func<MessageDelivery, Task> consumer, string queue, string consumerTag2, bool withoutAcks, bool exclusive, IDictionary<string, object> arguments)
+		public QueueConsumerRecovery(ConsumeMode mode, Func<MessageDelivery, Task> consumer, 
+									 string queue, string consumerTag2, bool withoutAcks, bool exclusive, 
+									 IDictionary<string, object> arguments)
 			: this(mode, queue, consumerTag2, withoutAcks, exclusive, arguments)
 		{
 			_consumer = consumer;
 		}
 
-		public QueueConsumerRecovery(ConsumeMode mode, IQueueConsumer consumer, string queue, string consumerTag2, bool withoutAcks, bool exclusive, IDictionary<string, object> arguments)
+		public QueueConsumerRecovery(ConsumeMode mode, IQueueConsumer consumer, 
+									 string queue, string consumerTag2, bool withoutAcks, bool exclusive, 
+									 IDictionary<string, object> arguments)
 			: this(mode, queue, consumerTag2, withoutAcks, exclusive, arguments)
 		{
 			_consumer2 = consumer;
 		}
 
-		private QueueConsumerRecovery(ConsumeMode mode, string queue, string consumerTag2, bool withoutAcks, bool exclusive, IDictionary<string, object> arguments)
+		private QueueConsumerRecovery(ConsumeMode mode, 
+									  string queue, string consumerTag2, bool withoutAcks, bool exclusive, 
+									  IDictionary<string, object> arguments)
 		{
 			_mode = mode;
 			_queue = queue;
@@ -39,10 +45,14 @@
 
 		public Task Apply(Channel channel)
 		{
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug("Recovery", "Recovering consumer " + _consumerTag + " for queue " + _queue);
+
 			if (_consumer2 != null)
 			{
 				return channel.BasicConsume(_mode, _consumer2, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
 			}
+
 			return channel.BasicConsume(_mode, _consumer, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
 		}
 

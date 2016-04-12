@@ -5,9 +5,9 @@ namespace RabbitMqNext
 	using System.Threading.Tasks;
 	using Internals;
 
+
 	public abstract class BaseRpcHelper<T> : BaseRpcHelper, IDisposable
 	{
-		protected readonly ConsumeMode _mode;
 		protected readonly Timer _timeoutTimer;
 		protected readonly int? _timeoutInMs;
 		protected readonly long? _timeoutInTicks;
@@ -17,15 +17,10 @@ namespace RabbitMqNext
 		protected volatile uint _correlationCounter;
 		protected volatile bool _disposed;
 
-		protected AmqpQueueInfo _replyQueueName;
-		protected string _subscription;
-
 
 		protected BaseRpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
-			: base(maxConcurrentCalls)
+			: base(mode, channel, maxConcurrentCalls)
 		{
-			_channel = channel;
-			_mode = mode;
 			_timeoutInMs = timeoutInMs;
 
 			// the impl keeps a timer pool so this is light and efficient
@@ -66,19 +61,6 @@ namespace RabbitMqNext
 			DrainPendingCalls();
 		}
 
-		protected async Task Setup()
-		{
-			_replyQueueName = await _channel.QueueDeclare("", // temp
-				false, false, exclusive: true, autoDelete: true,
-				waitConfirmation: true, arguments: null).ConfigureAwait(false);
-
-			_subscription = await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name,
-				consumerTag: "",
-				withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true).ConfigureAwait(false);
-		}
-
-		protected abstract Task OnReplyReceived(MessageDelivery delivery);
-		
 		protected bool SecureSpotAndUniqueCorrelationId(TaskSlim<T> task, out long pos, out uint correlationId)
 		{
 			correlationId = 0;

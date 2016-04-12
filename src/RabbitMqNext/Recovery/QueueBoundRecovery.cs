@@ -21,6 +21,9 @@
 
 		public Task Apply(Channel channel)
 		{
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug("Recovery", "Recovering binding queue: " + _queue + " ex: " + _exchange + " routing: " + _routingKey);
+
 			return channel.QueueBind(_queue, _exchange, _routingKey, _arguments, waitConfirmation: true);
 		}
 

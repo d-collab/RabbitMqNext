@@ -2,6 +2,7 @@ namespace RabbitMqNext
 {
 	using System;
 
+
 	public static class ChannelApiExtensions
 	{
 		public static TaskSlim BasicPublish(this IChannel source, 

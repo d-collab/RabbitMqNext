@@ -22,7 +22,7 @@
 		private readonly List<BaseRpcHelper> _rpcHelpers;
 		private readonly List<QueueConsumerRecovery> _consumersRegistered;
 
-		private bool _isRecovering;
+		private int _isRecovering;
 
 		public RecoveryEnabledChannel(Channel channel)
 		{
@@ -149,6 +149,12 @@
 
 			var result = await _channel.QueueDeclare(queue, passive, durable, exclusive, autoDelete, arguments, waitConfirmation);
 
+			// We can't try to restore an entity with a reserved name (will happen for temporary queues)
+			if (result != null && result.Name.StartsWith(AmqpConstants.AmqpReservedPrefix, StringComparison.Ordinal))
+			{
+				return result;
+			}
+
 			lock (_declaredQueues) _declaredQueues.Add(new QueueDeclaredRecovery(result.Name, passive, durable, exclusive, autoDelete, arguments));
 
 			return result;
@@ -256,6 +262,8 @@
 		{
 			ThrowIfRecoveryInProcess();
 
+			if (this.IsConfirmationEnabled) throw new Exception("This channel is set up for confirmations");
+
 			var helper = await _channel.CreateRpcHelper(mode, timeoutInMs, maxConcurrentCalls);
 
 			lock (_rpcHelpers) _rpcHelpers.Add(helper);
@@ -267,7 +275,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			var helper = await _channel.CreateRpcAggregateHelper(mode, timeoutInMs, maxConcurrentCalls);
+			var helper = await _channel.CreateRpcAggregateHelper(mode, timeoutInMs, maxConcurrentCalls).ConfigureAwait(false);
 
 			lock (_rpcHelpers) _rpcHelpers.Add(helper);
 
@@ -294,8 +302,7 @@
 
 		internal void Disconnected()
 		{
-			_isRecovering = true;
-			Thread.MemoryBarrier();
+			Interlocked.Exchange(ref _isRecovering, 1);
 
 			lock (_rpcHelpers)
 			{
@@ -308,93 +315,101 @@
 
 		internal async Task DoRecover(Connection connection)
 		{
-			var maxUnconfirmed = this._channel._confirmationKeeper != null ? (int) this._channel._confirmationKeeper.Max : 0;
-
-			var replacementChannel = (Channel) await connection.InternalCreateChannel(this.ChannelNumber, maxUnconfirmed, this.IsConfirmationEnabled);
-
-			// _channel.Dispose(); need to dispose in a way that consumers do not receive the cancellation signal, but drain any pending task
-
-			// copy delegate pointers from old to new
-			_channel.CopyDelegates(replacementChannel);
-
-			// 0. QoS
-			await RecoverQos();
-
-			// 1. Recover exchanges
-			await RecoverExchanges();
-
-			// 2. Recover queues
-			await RecoverQueues();
-
-			// 3. Recover bindings (queue and exchanges)
-			await RecoverBindings();
-
-			// 4. Recover consumers 
-			await RecoverConsumers();
-
-			// (+ rpc lifecycle)
-			foreach (var helper in _rpcHelpers)
+			try
 			{
-				helper.SignalRecovered(_channel);
-			}
-			
-			_channel = replacementChannel;
+				var maxUnconfirmed = this._channel._confirmationKeeper != null ? (int) this._channel._confirmationKeeper.Max : 0;
 
-			_isRecovering = false;
-			Thread.MemoryBarrier();
+				var replacementChannel = (Channel) await connection.InternalCreateChannel(this.ChannelNumber, maxUnconfirmed, this.IsConfirmationEnabled);
+
+				// _channel.Dispose(); need to dispose in a way that consumers do not receive the cancellation signal, but drain any pending task
+
+				// copy delegate pointers from old to new
+				_channel.CopyDelegates(replacementChannel);
+
+				// 0. QoS
+				await RecoverQos(replacementChannel);
+
+				// 1. Recover exchanges
+				await RecoverExchanges(replacementChannel);
+
+				// 2. Recover queues
+				await RecoverQueues(replacementChannel);
+
+				// 3. Recover bindings (queue and exchanges)
+				await RecoverBindings(replacementChannel);
+
+				// 4. Recover consumers 
+				await RecoverConsumers(replacementChannel);
+
+				// (+ rpc lifecycle)
+				foreach (var helper in _rpcHelpers)
+				{
+					await helper.SignalRecovered(replacementChannel);
+				}
+			
+				_channel = replacementChannel;
+
+				Interlocked.Exchange(ref _isRecovering, 0);
+			}
+			catch (Exception ex)
+			{
+				LogAdapter.LogError(LogSource, "Recovery error", ex);
+
+				throw;
+			}
 		}
 
-		private async Task RecoverQos()
+		private async Task RecoverQos(Channel newChannel)
 		{
 			if (_qosSetting.HasValue)
 			{
-				await _qosSetting.Value.Apply(_channel);
+				await _qosSetting.Value.Apply(newChannel);
 			}
 		}
 
-		private async Task RecoverConsumers()
+		private async Task RecoverConsumers(Channel newChannel)
 		{
 			foreach (var consumer in _consumersRegistered)
 			{
-				await consumer.Apply(_channel);
+				await consumer.Apply(newChannel);
 			}
 		}
 
-		private async Task RecoverBindings()
+		private async Task RecoverBindings(Channel newChannel)
 		{
 			// 3. Recover bindings (exchanges)
 			foreach (var binding in _boundExchanges)
 			{
-				await binding.Apply(_channel);
+				await binding.Apply(newChannel);
 			}
 
 			// 3. Recover bindings (queues)
 			foreach (var binding in _boundQueues)
 			{
-				await binding.Apply(_channel);
+				await binding.Apply(newChannel);
 			}
 		}
 
-		private async Task RecoverQueues()
+		private async Task RecoverQueues(Channel newChannel)
 		{
 			foreach (var declaredQueue in _declaredQueues)
 			{
-				await declaredQueue.Apply(_channel);
+				await declaredQueue.Apply(newChannel);
 			}
 		}
 
-		private async Task RecoverExchanges()
+		private async Task RecoverExchanges(Channel newChannel)
 		{
 			foreach (var declaredExchange in _declaredExchanges)
 			{
-				await declaredExchange.Apply(_channel);
+				await declaredExchange.Apply(newChannel);
 			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void ThrowIfRecoveryInProcess()
 		{
-			if (_isRecovering) throw new Exception("Recovery in progress, channel not available");
+			if (_isRecovering == 1) throw new Exception("Recovery in progress, channel not available");
 		}
 	}
 }

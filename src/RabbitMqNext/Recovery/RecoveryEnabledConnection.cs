@@ -157,7 +157,11 @@
 				{
 					try
 					{
+						LogAdapter.LogDebug(LogSource, "Starting Recovery");
+
 						pthis.FireWillRecover();
+
+						pthis.ResetConnection();
 
 						var didConnect = await pthis.CycleReconnect();
 						if (!didConnect)
@@ -167,9 +171,13 @@
 							return;
 						}
 
+						LogAdapter.LogDebug(LogSource, "Reconnected");
+
 						await pthis.Recover();
 
 						pthis.FireRecoveryCompleted();
+
+						LogAdapter.LogDebug(LogSource, "Completed");
 					}
 					catch (Exception ex)
 					{
@@ -190,6 +198,11 @@
 			{
 				LogAdapter.LogDebug(LogSource, "TryInitiateRecovery: recovery in progress. skipping");
 			}
+		}
+
+		private void ResetConnection()
+		{
+			_connection.Reset();
 		}
 
 		// Runs from a background thread
@@ -220,25 +233,28 @@
 			return false;
 		}
 
-		private Task Recover()
+		private async Task Recover()
 		{
+			RecoveryEnabledChannel[] channelsToRecover;
+
 			lock (_channelRecoveries)
-			foreach (var channel in _channelRecoveries)
+				channelsToRecover = _channelRecoveries.ToArray();
+
+			foreach (var recoveryEnabledChannel in channelsToRecover)
 			{
-				LogAdapter.LogWarn(LogSource, "Recover: recovering channel " + channel.ChannelNumber);
+				if (LogAdapter.ExtendedLogEnabled)
+					LogAdapter.LogWarn(LogSource, "Recover: recovering channel " + recoveryEnabledChannel.ChannelNumber);
 
 				try
 				{
-					return channel.DoRecover(_connection);
+					await recoveryEnabledChannel.DoRecover(_connection);
 				}
 				catch (Exception ex)
 				{
-					LogAdapter.LogError(LogSource, "Recover: error recovering channel " + channel.ChannelNumber, ex);
-					return Task.FromException(ex);
+					LogAdapter.LogError(LogSource, "Recover: error recovering channel " + recoveryEnabledChannel.ChannelNumber, ex);
+					throw;
 				}
 			}
-
-			return Task.CompletedTask;
 		}
 
 		// When the recovery process completely failed, close everything

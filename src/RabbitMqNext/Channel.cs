@@ -394,9 +394,13 @@
 						try
 						{
 							if (cb1 != null)
+							{
 								await cb1(delivery1).ConfigureAwait(false);
+							}
 							else
+							{
 								await conInstance.Consume(delivery1).ConfigureAwait(false);
+							}
 						}
 						catch (Exception e)
 						{
@@ -418,10 +422,15 @@
 			}
 			else
 			{
-				// received msg but nobody was subscribed to get it (?) TODO: log it at least
+				// received msg but nobody was subscribed to get it (?)
 
 				LogAdapter.LogWarn("Channel", "Received message without a matching subscription. Discarding. " +
-								   "Exchange: " + exchange + " routing: " + routingKey);
+								   "Exchange: " + exchange + " routing: " + routingKey + 
+								   " consumer tag: " + consumerTag + " and channel " + this.ChannelNumber);
+
+				// Ensure moved ahead
+				var marker = new RingBufferPositionMarker(lightStream);
+				marker.EnsureConsumed(bodySize);
 			}
 		}
 

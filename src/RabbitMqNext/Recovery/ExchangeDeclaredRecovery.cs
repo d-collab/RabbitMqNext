@@ -28,6 +28,9 @@
 
 		public Task Apply(Channel channel)
 		{
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug("Recovery", "Recovering exchange: " + _exchange);
+
 			return channel.ExchangeDeclare(_exchange, _type, _durable, _autoDelete, _arguments, waitConfirmation: true);
 		}
 

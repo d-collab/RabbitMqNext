@@ -30,6 +30,9 @@
 
 		public Task Apply(Channel channel)
 		{
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug("Recovery", "Recovering queue " + _queue);
+
 			return channel.QueueDeclare(_queue, _passive, _durable, _exclusive, _autoDelete, _arguments, waitConfirmation: !_passive);
 		}
 

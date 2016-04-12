@@ -132,6 +132,14 @@
 			}
 		}
 
+		internal void Reset()
+		{
+			for (int i = 0; i < MaxChannels; i++)
+			{
+				Interlocked.Exchange(ref _channels[i], null);
+			}
+		}
+
 		internal async Task<IChannel> InternalCreateChannel(int? desiredChannelNum, int maxunconfirmedMessages = 0, bool withPubConfirm = false)
 		{
 			var channelNum = desiredChannelNum.HasValue ?

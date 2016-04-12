@@ -108,6 +108,7 @@
     <Compile Include="Recovery\RecoveryEnabledConnection.cs" />
     <Compile Include="Recovery\ExchangeDeclaredRecovery.cs" />
     <Compile Include="Recovery\QosSettingRecovery.cs" />
+    <Compile Include="RpcHelperApiExtensions.cs" />
     <Compile Include="Rpc\BaseRpcHelper.cs" />
     <Compile Include="Rpc\BaseRpcHelper_Of_T.cs" />
     <Compile Include="Rpc\RpcAggregateHelper.cs" />

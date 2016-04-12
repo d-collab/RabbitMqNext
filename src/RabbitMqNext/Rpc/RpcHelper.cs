@@ -1,10 +1,9 @@
 namespace RabbitMqNext
 {
 	using System;
-	using System.Collections.Generic;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using Internals;
+
 
 	public class RpcHelper : BaseRpcHelper<MessageDelivery>
 	{
@@ -119,7 +118,5 @@ namespace RabbitMqNext
 			return Interlocked.Exchange(ref _pendingCalls[pos], null);
 		}
 		*/
-
-		
 	}
 }
