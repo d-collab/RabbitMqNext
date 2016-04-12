@@ -4,6 +4,7 @@
 	using System.Collections.Generic;
 	using System.Threading.Tasks;
 
+
 	internal class QueueConsumerRecovery
 	{
 		private readonly ConsumeMode _mode;
@@ -12,6 +13,7 @@
 		private readonly bool _withoutAcks;
 		private readonly bool _exclusive;
 		private readonly IDictionary<string, object> _arguments;
+		
 		private IQueueConsumer _consumer2;
 		private Func<MessageDelivery, Task> _consumer;
 
@@ -43,22 +45,34 @@
 			_arguments = arguments;
 		}
 
-		public Task Apply(Channel channel)
+		public QueueConsumerRecovery(string consumerTag)
+		{
+			_consumerTag = consumerTag;
+		}
+
+		public async Task Apply(Channel channel)
 		{
 			if (LogAdapter.ExtendedLogEnabled)
 				LogAdapter.LogDebug("Recovery", "Recovering consumer " + _consumerTag + " for queue " + _queue);
 
 			if (_consumer2 != null)
 			{
-				return channel.BasicConsume(_mode, _consumer2, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
+				await channel.BasicConsume(_mode, _consumer2, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
+				
+				_consumer2.Recovered();
+
+				return;
 			}
 
-			return channel.BasicConsume(_mode, _consumer, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
+			await channel.BasicConsume(_mode, _consumer, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
 		}
 
-		public QueueConsumerRecovery(string consumerTag)
+		public void SignalBlocked()
 		{
-			_consumerTag = consumerTag;
+			if (_consumer2 != null)
+			{
+				_consumer2.Broken();
+			}
 		}
 
 		protected bool Equals(QueueConsumerRecovery other)

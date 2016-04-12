@@ -54,6 +54,8 @@ namespace RabbitMqNext
 
 		protected async Task Setup()
 		{
+			Console.WriteLine("Setup Rpc");
+
 			_replyQueueName = await _channel.QueueDeclare("", // temp
 				false, false, exclusive: true, autoDelete: true,
 				waitConfirmation: true, arguments: null).ConfigureAwait(false);

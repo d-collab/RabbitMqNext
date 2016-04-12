@@ -311,6 +311,11 @@
 					helper.SignalInRecovery();
 				}
 			}
+
+			foreach (var consumer in _consumersRegistered)
+			{
+				consumer.SignalBlocked();
+			}
 		}
 
 		internal async Task DoRecover(Connection connection)
@@ -327,24 +332,24 @@
 				_channel.CopyDelegates(replacementChannel);
 
 				// 0. QoS
-				await RecoverQos(replacementChannel);
+				await RecoverQos(replacementChannel).ConfigureAwait(false);
 
 				// 1. Recover exchanges
-				await RecoverExchanges(replacementChannel);
+				await RecoverExchanges(replacementChannel).ConfigureAwait(false);
 
 				// 2. Recover queues
-				await RecoverQueues(replacementChannel);
+				await RecoverQueues(replacementChannel).ConfigureAwait(false);
 
 				// 3. Recover bindings (queue and exchanges)
-				await RecoverBindings(replacementChannel);
+				await RecoverBindings(replacementChannel).ConfigureAwait(false);
 
 				// 4. Recover consumers 
-				await RecoverConsumers(replacementChannel);
+				await RecoverConsumers(replacementChannel).ConfigureAwait(false);
 
 				// (+ rpc lifecycle)
 				foreach (var helper in _rpcHelpers)
 				{
-					await helper.SignalRecovered(replacementChannel);
+					await helper.SignalRecovered(replacementChannel).ConfigureAwait(false);
 				}
 			
 				_channel = replacementChannel;
