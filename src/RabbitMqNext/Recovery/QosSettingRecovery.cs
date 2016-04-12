@@ -1,5 +1,7 @@
 ﻿namespace RabbitMqNext.Recovery
 {
+	using System.Threading.Tasks;
+
 	internal struct QosSettingRecovery
 	{
 		private readonly uint _prefetchSize;
@@ -11,6 +13,11 @@
 			_prefetchSize = prefetchSize;
 			_prefetchCount = prefetchCount;
 			_global = global;
+		}
+
+		public Task Apply(Channel channel)
+		{
+			return channel.BasicQos(_prefetchSize, _prefetchCount, _global);
 		}
 	}
 }

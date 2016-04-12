@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Threading.Tasks;
 
 	internal class QueueDeclaredRecovery
 	{
@@ -25,6 +26,11 @@
 		public QueueDeclaredRecovery(string queue)
 		{
 			_queue = queue;
+		}
+
+		public Task Apply(Channel channel)
+		{
+			return channel.QueueDeclare(_queue, _passive, _durable, _exclusive, _autoDelete, _arguments, waitConfirmation: !_passive);
 		}
 
 		protected bool Equals(QueueDeclaredRecovery other)

@@ -10,7 +10,7 @@
 
 	public class RecoveryEnabledChannel : IChannel
 	{
-		const string LogSource = "ChannelRecovery";
+		const string LogSource = "RecoveryEnabledChannel";
 		
 		private Channel _channel;
 
@@ -19,8 +19,7 @@
 		private readonly List<ExchangeBindRecovery> _boundExchanges;
 		private readonly List<QueueDeclaredRecovery> _declaredQueues;
 		private readonly List<QueueBoundRecovery> _boundQueues;
-		private readonly List<RpcHelper> _rpcHelpers;
-		private readonly List<RpcAggregateHelper> _rpcAggregateHelpers;
+		private readonly List<BaseRpcHelper> _rpcHelpers;
 		private readonly List<QueueConsumerRecovery> _consumersRegistered;
 
 		private bool _isRecovering;
@@ -34,8 +33,7 @@
 			_declaredQueues = new List<QueueDeclaredRecovery>();
 			_boundQueues = new List<QueueBoundRecovery>();
 			_consumersRegistered = new List<QueueConsumerRecovery>();
-			_rpcHelpers = new List<RpcHelper>();
-			_rpcAggregateHelpers = new List<RpcAggregateHelper>();
+			_rpcHelpers = new List<BaseRpcHelper>();
 		}
 
 		#region Implementation of IChannel
@@ -271,7 +269,7 @@
 
 			var helper = await _channel.CreateRpcAggregateHelper(mode, timeoutInMs, maxConcurrentCalls);
 
-			lock (_rpcAggregateHelpers) _rpcAggregateHelpers.Add(helper);
+			lock (_rpcHelpers) _rpcHelpers.Add(helper);
 
 			return helper;
 		}
@@ -298,6 +296,14 @@
 		{
 			_isRecovering = true;
 			Thread.MemoryBarrier();
+
+			lock (_rpcHelpers)
+			{
+				foreach (var helper in _rpcHelpers)
+				{
+					helper.SignalInRecovery();
+				}
+			}
 		}
 
 		internal async Task DoRecover(Connection connection)
@@ -308,17 +314,81 @@
 
 			// _channel.Dispose(); need to dispose in a way that consumers do not receive the cancellation signal, but drain any pending task
 
-			_channel = replacementChannel;
+			// copy delegate pointers from old to new
+			_channel.CopyDelegates(replacementChannel);
 
-			// TODO: copy delegate pointers from old to new
+			// 0. QoS
+			await RecoverQos();
 
-			// 1. Recover exchanges + exchange bindings
+			// 1. Recover exchanges
+			await RecoverExchanges();
+
 			// 2. Recover queues
-			// 3. Recover bindings
-			// 4. Recover consumers
+			await RecoverQueues();
+
+			// 3. Recover bindings (queue and exchanges)
+			await RecoverBindings();
+
+			// 4. Recover consumers 
+			await RecoverConsumers();
+
+			// (+ rpc lifecycle)
+			foreach (var helper in _rpcHelpers)
+			{
+				helper.SignalRecovered(_channel);
+			}
+			
+			_channel = replacementChannel;
 
 			_isRecovering = false;
 			Thread.MemoryBarrier();
+		}
+
+		private async Task RecoverQos()
+		{
+			if (_qosSetting.HasValue)
+			{
+				await _qosSetting.Value.Apply(_channel);
+			}
+		}
+
+		private async Task RecoverConsumers()
+		{
+			foreach (var consumer in _consumersRegistered)
+			{
+				await consumer.Apply(_channel);
+			}
+		}
+
+		private async Task RecoverBindings()
+		{
+			// 3. Recover bindings (exchanges)
+			foreach (var binding in _boundExchanges)
+			{
+				await binding.Apply(_channel);
+			}
+
+			// 3. Recover bindings (queues)
+			foreach (var binding in _boundQueues)
+			{
+				await binding.Apply(_channel);
+			}
+		}
+
+		private async Task RecoverQueues()
+		{
+			foreach (var declaredQueue in _declaredQueues)
+			{
+				await declaredQueue.Apply(_channel);
+			}
+		}
+
+		private async Task RecoverExchanges()
+		{
+			foreach (var declaredExchange in _declaredExchanges)
+			{
+				await declaredExchange.Apply(_channel);
+			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

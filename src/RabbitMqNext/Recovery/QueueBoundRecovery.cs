@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Threading.Tasks;
 
 	internal class QueueBoundRecovery
 	{
@@ -16,6 +17,11 @@
 			_exchange = exchange;
 			_routingKey = routingKey;
 			_arguments = arguments;
+		}
+
+		public Task Apply(Channel channel)
+		{
+			return channel.QueueBind(_queue, _exchange, _routingKey, _arguments, waitConfirmation: true);
 		}
 
 		protected bool Equals(QueueBoundRecovery other)

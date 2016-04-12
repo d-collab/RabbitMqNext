@@ -547,5 +547,16 @@
 		{
 			if (_io._isClosed) throw new ObjectDisposedException("Channel disposed");
 		}
+
+		internal void CopyDelegates(Channel replacementChannel)
+		{
+			replacementChannel.MessageUndeliveredHandler = this.MessageUndeliveredHandler;
+
+			var onErrorEv = this.OnError;
+			if (onErrorEv != null)
+			{
+				replacementChannel.OnError = onErrorEv;
+			}
+		}
 	}
 }

@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Threading.Tasks;
 
 	internal class ExchangeDeclaredRecovery
 	{
@@ -9,6 +10,7 @@
 		private readonly bool _durable;
 		private readonly bool _autoDelete;
 		private readonly string _exchange;
+		private readonly IDictionary<string, object> _arguments;
 
 		public ExchangeDeclaredRecovery(string exchange, string type, bool durable, bool autoDelete, IDictionary<string, object> arguments)
 			: this(exchange, arguments)
@@ -21,6 +23,12 @@
 		public ExchangeDeclaredRecovery(string exchange, IDictionary<string, object> arguments)
 		{
 			_exchange = exchange;
+			_arguments = arguments;
+		}
+
+		public Task Apply(Channel channel)
+		{
+			return channel.ExchangeDeclare(_exchange, _type, _durable, _autoDelete, _arguments, waitConfirmation: true);
 		}
 
 		protected bool Equals(ExchangeDeclaredRecovery other)

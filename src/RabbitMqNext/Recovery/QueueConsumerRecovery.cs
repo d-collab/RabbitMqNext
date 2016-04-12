@@ -11,6 +11,7 @@
 		private readonly string _consumerTag;
 		private readonly bool _withoutAcks;
 		private readonly bool _exclusive;
+		private readonly IDictionary<string, object> _arguments;
 		private IQueueConsumer _consumer2;
 		private Func<MessageDelivery, Task> _consumer;
 
@@ -33,6 +34,16 @@
 			_consumerTag = consumerTag2;
 			_withoutAcks = withoutAcks;
 			_exclusive = exclusive;
+			_arguments = arguments;
+		}
+
+		public Task Apply(Channel channel)
+		{
+			if (_consumer2 != null)
+			{
+				return channel.BasicConsume(_mode, _consumer2, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
+			}
+			return channel.BasicConsume(_mode, _consumer, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
 		}
 
 		public QueueConsumerRecovery(string consumerTag)

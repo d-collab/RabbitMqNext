@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Threading.Tasks;
 
 	internal class ExchangeBindRecovery
 	{
@@ -16,6 +17,11 @@
 			_destination = destination;
 			_routingKey = routingKey;
 			_arguments = arguments;
+		}
+
+		public Task Apply(Channel channel)
+		{
+			return channel.ExchangeBind(_source, _destination, _routingKey, _arguments, waitConfirmation: true);
 		}
 
 		protected bool Equals(ExchangeBindRecovery other)

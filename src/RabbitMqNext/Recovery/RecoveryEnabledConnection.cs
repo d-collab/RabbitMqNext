@@ -16,13 +16,14 @@
 
 	public class RecoveryEnabledConnection : IConnection
 	{
-		const string LogSource = "ConnectionRecovery";
+		const string LogSource = "RecoveryEnabledConnection";
 
 		private readonly IEnumerable<string> _hostnames;
 		internal readonly Connection _connection;
 		private readonly List<RecoveryEnabledChannel> _channelRecoveries;
 		private volatile bool _disableRecovery;
 		private string _selectedHostname;
+		private int _inRecovery;
 
 		private readonly CancellationTokenSource _recoveryCancellationTokenSource;
 
@@ -49,7 +50,9 @@
 		{
 			var channelRecovery = new RecoveryEnabledChannel(channel);
 			lock (_channelRecoveries)
+			{
 				_channelRecoveries.Add(channelRecovery);
+			}
 			return channelRecovery;
 		}
 
@@ -59,8 +62,6 @@
 
 			LogAdapter.LogDebug(LogSource, "Connected to " + hostname);
 		}
-
-		private int _inRecovery;
 
 		internal RecoveryAction NotifyAbruptClose(Exception reason)
 		{
@@ -142,10 +143,15 @@
 			{
 				LogAdapter.LogDebug(LogSource, "TryInitiateRecovery starting recovery process");
 
+				// block all channels
+
+				lock (_channelRecoveries)
 				foreach (var recoveryEnabledChannel in _channelRecoveries)
 				{
 					recoveryEnabledChannel.Disconnected();
 				}
+
+				// from this point on, no api calls are allowed on the channel decorators
 
 				ThreadFactory.BackgroundThread(async (pthis) =>
 				{
