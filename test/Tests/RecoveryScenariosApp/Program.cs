@@ -66,16 +66,7 @@
 
 			conn.RecoveryCompleted += async () =>
 			{
-				try
-				{
-					var channel = await conn.CreateChannel();
-					await channel.BasicQos(0, 150, false);
-				}
-				catch (Exception ex)
-				{
-					Console.WriteLine("Error in ev " + ex);
-					throw;
-				}
+				Console.WriteLine("Recovery completed!!");
 			};
 
 			var channel1 = await conn.CreateChannel();

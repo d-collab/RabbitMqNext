@@ -76,6 +76,7 @@ namespace RabbitMqNext.Internals
 			catch (Exception ex)
 			{
 				Console.WriteLine("Frame Reader error: " + ex);
+				LogAdapter.LogError(LogSource, "Frame Reader error", ex);
 				throw;
 			}
 		}
