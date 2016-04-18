@@ -11,7 +11,7 @@
 		public static async Task<IConnection> Connect(IEnumerable<string> hostnames,
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672, 
-			bool autoRecovery = true)
+			bool autoRecovery = true, string connectionName = null)
 		{
 			var conn = new Connection();
 
@@ -21,7 +21,7 @@
 				{
 					var successful = 
 						await conn.Connect(hostname, vhost, 
-										   username, password, port,
+										   username, password, port, connectionName, 
 										   throwOnError: false).ConfigureAwait(false);
 					if (successful)
 					{
@@ -47,15 +47,15 @@
 
 		public static async Task<IConnection> Connect(string hostname, 
 			string vhost = "/", string username = "guest",
-			string password = "guest", int port = 5672, 
-			bool autoRecovery = true)
+			string password = "guest", int port = 5672,
+			bool autoRecovery = true, string connectionName = null)
 		{
 			var conn = new Connection();
 
 			try
 			{
 				await conn
-					.Connect(hostname, vhost, username, password, port, throwOnError: true)
+					.Connect(hostname, vhost, username, password, port, connectionName, throwOnError: true)
 					.ConfigureAwait(false);
 
 				if (LogAdapter.ExtendedLogEnabled)

@@ -35,7 +35,7 @@
 
 		internal Task<bool> Connect(string hostname, string vhost, 
 									string username, string password, 
-									int port, bool throwOnError = true)
+									int port, string connectionName, bool throwOnError = true)
 		{
 			// Saves info for reconnection scenarios
 			_connectionInfo = new ConnectionInfo 
@@ -44,7 +44,8 @@
 				vhost = vhost, 
 				username = username, 
 				password = password, 
-				port = port 
+				port = port,
+				connectionName = connectionName
 			};
 
 			return InternalConnect(hostname);
@@ -60,7 +61,9 @@
 			if (!result) return false;
 
 			result = await _io.Handshake(_connectionInfo.vhost, 
-				_connectionInfo.username, _connectionInfo.password, throwOnError).ConfigureAwait(false);
+				_connectionInfo.username, 
+				_connectionInfo.password, 
+				_connectionInfo.connectionName, throwOnError).ConfigureAwait(false);
 
 			if (result && this.Recovery != null)
 			{
@@ -198,6 +201,7 @@
 			internal string vhost;
 			internal string username;
 			internal string password;
+			internal string connectionName;
 			internal int port;
 		}
 	}

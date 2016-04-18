@@ -211,10 +211,10 @@ namespace RabbitMqNext.Io
 			return true;
 		}
 
-		internal async Task<bool> Handshake(string vhost, string username, string password, bool throwOnError)
+		internal async Task<bool> Handshake(string vhost, string username, string password, string connectionName, bool throwOnError)
 		{
 			await __SendGreeting().ConfigureAwait(false);
-			await __SendConnectionStartOk(username, password).ConfigureAwait(false);
+			await __SendConnectionStartOk(username, password, connectionName).ConfigureAwait(false);
 			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat: 0).ConfigureAwait(false); // disabling heartbeats for now
 			_amqpWriter.FrameMaxSize = _frameMax;
 			KnownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
@@ -465,7 +465,7 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
-		private Task __SendConnectionStartOk(string username, string password)
+		private Task __SendConnectionStartOk(string username, string password, string connectionName)
 		{
 			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionStartOk >");
@@ -474,8 +474,15 @@ namespace RabbitMqNext.Io
 
 			// Only supports PLAIN authentication for now
 
+			var clientProperties = Protocol.ClientProperties;
+			if (!string.IsNullOrEmpty(connectionName))
+			{
+				clientProperties = new Dictionary<string, object>(clientProperties);
+				clientProperties["connection_name"] = connectionName;
+			}
+
 			var auth = Encoding.UTF8.GetBytes("\0" + username + "\0" + password);
-			var writer = AmqpConnectionFrameWriter.ConnectionStartOk(Protocol.ClientProperties, "PLAIN", auth, "en_US");
+			var writer = AmqpConnectionFrameWriter.ConnectionStartOk(clientProperties, "PLAIN", auth, "en_US");
 
 			SendCommand(0, 10, 30, 
 				writer,
