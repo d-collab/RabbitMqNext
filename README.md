@@ -48,13 +48,20 @@ The way this is accomplished is two fold:
 - ChannelFlow 
 - Heartbeats
 
-- Connection/channels recovery / Programming model friendly
+- Connection/channels recovery / Programming model friendly [Done]
   ** Upon disconnection, try to reconnect and when successfull restore the channels and consumers
+
 
 Not planning to support:
 - Any authentication method besides plain
-- multi body send (limit to framemax)
-- multi body receive  (limit to framemax)
+- ~~multi body send (limit to framemax)~~ [Done]
+- ~~multi body receive  (limit to framemax)~~ [Done]
+
+
+Special support:
+- RpcHelper: for common cases of 1-to-1 rpc calls
+- RpcAggregateHelper: for more advanced scenarios of sending a single message to multiple workers and aggregating the replies (think sharding)
+
 
 
 ### Sample code
