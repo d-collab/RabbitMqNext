@@ -35,9 +35,6 @@ namespace RabbitMqNext.Internals
 				ushort channel = _reader.ReadUInt16();
 				int payloadLength = _reader.ReadInt32();
 
-				if (LogAdapter.ProtocolLevelLogEnabled)
-					LogAdapter.LogDebug("FrameReader", "> Incoming Frame (" + frameType + ") for channel [" + channel + "]  payload size: " + payloadLength);
-
 				// needs special case for heartbeat, flow, etc.. 
 				// since they are not replies to methods we sent and alter the client's behavior
 
@@ -50,7 +47,11 @@ namespace RabbitMqNext.Internals
 
 					var classMethodId = classId << 16 | methodId;
 
-//					Console.WriteLine("> Incoming Method: class " + classId + " method " + methodId + " classMethodId " + classMethodId);
+					if (LogAdapter.ProtocolLevelLogEnabled)
+					{
+						LogAdapter.LogDebug("FrameReader", "> Incoming Frame (" + frameType + ") for channel [" + channel + 
+							"] class (" + classId + ") method  (" + methodId + ") payload size: " + payloadLength);
+					}
 
 					_frameProcessor.DispatchMethod(channel, classMethodId);
 				}

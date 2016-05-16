@@ -77,8 +77,10 @@ namespace RabbitMqNext.Internals
 			return (writer, channel, classId, methodId, args) =>
 			{
 				if (LogAdapter.ProtocolLevelLogEnabled)
-					LogAdapter.LogDebug(LogSource, "> QueueDeclare " + queue);
-
+				{
+					var logQueueName = string.IsNullOrEmpty(queue) ? "*temp*" : queue;
+					LogAdapter.LogDebug(LogSource, "> QueueDeclare " + logQueueName);
+				}
 
 				writer.WriteFrameWithPayloadFirst(AmqpConstants.FrameMethod, channel, w =>
 				{
