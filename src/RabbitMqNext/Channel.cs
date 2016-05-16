@@ -252,7 +252,7 @@
 		{
 			EnsureOpen();
 
-			await _io.__BasicCancel(consumerTag, waitConfirmation);
+			await _io.__BasicCancel(consumerTag, waitConfirmation).ConfigureAwait(false);
 
 			BasicConsumerSubscriptionInfo subscriptionInfo;
 			if (_consumerSubscriptions.TryRemove(consumerTag, out subscriptionInfo))

@@ -91,7 +91,7 @@ namespace RabbitMqNext
 				// TODO: confirm this doesnt cause more overhead to rabbitmq
 				if (_timeoutInMs.HasValue)
 				{
-					prop.Expiration = _timeoutInMs.ToString();
+					// prop.Expiration = _timeoutInMs.ToString();
 				}
 
 				_channel.BasicPublishFast(exchange, routing, true, prop, buffer);

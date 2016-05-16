@@ -57,14 +57,14 @@
 
 			if (_consumer2 != null)
 			{
-				await channel.BasicConsume(_mode, _consumer2, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
+				await channel.BasicConsume(_mode, _consumer2, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true).ConfigureAwait(false);
 				
 				_consumer2.Recovered();
 
 				return;
 			}
 
-			await channel.BasicConsume(_mode, _consumer, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true);
+			await channel.BasicConsume(_mode, _consumer, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true).ConfigureAwait(false);
 		}
 
 		public void SignalBlocked()

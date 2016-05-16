@@ -113,12 +113,12 @@
 		
 		public async Task<IChannel> CreateChannel()
 		{
-			return CreateChannelRecovery(await _connection.CreateChannel() as Channel);
+			return CreateChannelRecovery(await _connection.CreateChannel().ConfigureAwait(false) as Channel);
 		}
 
 		public async Task<IChannel> CreateChannelWithPublishConfirmation(int maxunconfirmedMessages = 100)
 		{
-			return CreateChannelRecovery(await _connection.CreateChannelWithPublishConfirmation(maxunconfirmedMessages) as Channel);
+			return CreateChannelRecovery(await _connection.CreateChannelWithPublishConfirmation(maxunconfirmedMessages).ConfigureAwait(false) as Channel);
 		}
 
 		public void Dispose()
@@ -163,7 +163,7 @@
 
 						pthis.ResetConnection();
 
-						var didConnect = await pthis.CycleReconnect();
+						var didConnect = await pthis.CycleReconnect().ConfigureAwait(false);
 						if (!didConnect)
 						{
 							// Cancelled
@@ -173,7 +173,7 @@
 
 						LogAdapter.LogDebug(LogSource, "Reconnected");
 
-						await pthis.Recover();
+						await pthis.Recover().ConfigureAwait(false);
 
 						pthis.FireRecoveryCompleted();
 
@@ -223,7 +223,7 @@
 					continue;
 				}
 
-				var succeeded = await _connection.InternalConnect(hostToTry, throwOnError: false);
+				var succeeded = await _connection.InternalConnect(hostToTry, throwOnError: false).ConfigureAwait(false);
 				if (succeeded) return true;
 
 				// TODO: config/parameter for wait time
@@ -247,7 +247,7 @@
 
 				try
 				{
-					await recoveryEnabledChannel.DoRecover(_connection);
+					await recoveryEnabledChannel.DoRecover(_connection).ConfigureAwait(false);
 				}
 				catch (Exception ex)
 				{

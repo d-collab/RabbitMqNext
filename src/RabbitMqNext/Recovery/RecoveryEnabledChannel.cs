@@ -79,7 +79,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			await _channel.BasicQos(prefetchSize, prefetchCount, global);
+			await _channel.BasicQos(prefetchSize, prefetchCount, global).ConfigureAwait(false);
 
 			_qosSetting = new QosSettingRecovery(prefetchSize, prefetchCount, global);
 		}
@@ -102,7 +102,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			await _channel.ExchangeDeclare(exchange, type, durable, autoDelete, arguments, waitConfirmation);
+			await _channel.ExchangeDeclare(exchange, type, durable, autoDelete, arguments, waitConfirmation).ConfigureAwait(false);
 
 			var recovery = new ExchangeDeclaredRecovery(exchange, type, durable, autoDelete, arguments);
 
@@ -113,7 +113,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			await _channel.ExchangeBind(source, destination, routingKey, arguments, waitConfirmation);
+			await _channel.ExchangeBind(source, destination, routingKey, arguments, waitConfirmation).ConfigureAwait(false);
 
 			var recovery = new ExchangeBindRecovery(source, destination, routingKey, arguments);
 
@@ -124,22 +124,22 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			await _channel.ExchangeUnbind(source, destination, routingKey, arguments, waitConfirmation);
+			await _channel.ExchangeUnbind(source, destination, routingKey, arguments, waitConfirmation).ConfigureAwait(false);
 
 			var recovery = new ExchangeBindRecovery(source, destination, routingKey, arguments);
 
 			lock(_boundExchanges) _boundExchanges.Remove(recovery);
 		}
 
-		public Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
+		public async Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
 		{
 			ThrowIfRecoveryInProcess();
 
 			var recovery = new ExchangeDeclaredRecovery(exchange, arguments);
 
 			lock(_declaredExchanges) _declaredExchanges.Remove(recovery);
-			
-			return _channel.ExchangeDelete(exchange, arguments, waitConfirmation);
+
+			await _channel.ExchangeDelete(exchange, arguments, waitConfirmation).ConfigureAwait(false);
 		}
 
 		public async Task<AmqpQueueInfo> QueueDeclare(string queue, bool passive, bool durable, bool exclusive, bool autoDelete, IDictionary<string, object> arguments,
@@ -147,7 +147,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			var result = await _channel.QueueDeclare(queue, passive, durable, exclusive, autoDelete, arguments, waitConfirmation);
+			var result = await _channel.QueueDeclare(queue, passive, durable, exclusive, autoDelete, arguments, waitConfirmation).ConfigureAwait(false);
 
 			// We can't try to restore an entity with a reserved name (will happen for temporary queues)
 			if (result != null && result.Name.StartsWith(AmqpConstants.AmqpReservedPrefix, StringComparison.Ordinal))
@@ -164,7 +164,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			await _channel.QueueBind(queue, exchange, routingKey, arguments, waitConfirmation);
+			await _channel.QueueBind(queue, exchange, routingKey, arguments, waitConfirmation).ConfigureAwait(false);
 
 			lock(_boundQueues) _boundQueues.Add(new QueueBoundRecovery(queue, exchange, routingKey, arguments));
 		}
@@ -223,7 +223,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			var consumerTag2 = await _channel.BasicConsume(mode, consumer, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
+			var consumerTag2 = await _channel.BasicConsume(mode, consumer, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation).ConfigureAwait(false);
 
 			lock (_consumersRegistered) _consumersRegistered.Add(new QueueConsumerRecovery(mode, consumer, queue, consumerTag2, withoutAcks, exclusive, arguments));
 
@@ -235,7 +235,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			var consumerTag2 = await _channel.BasicConsume(mode, consumer, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
+			var consumerTag2 = await _channel.BasicConsume(mode, consumer, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation).ConfigureAwait(false);
 
 			lock (_consumersRegistered) _consumersRegistered.Add(new QueueConsumerRecovery(mode, consumer, queue, consumerTag2, withoutAcks, exclusive, arguments));
 
@@ -264,7 +264,7 @@
 
 			if (this.IsConfirmationEnabled) throw new Exception("This channel is set up for confirmations");
 
-			var helper = await _channel.CreateRpcHelper(mode, timeoutInMs, maxConcurrentCalls);
+			var helper = await _channel.CreateRpcHelper(mode, timeoutInMs, maxConcurrentCalls).ConfigureAwait(false);
 
 			lock (_rpcHelpers) _rpcHelpers.Add(helper);
 
@@ -324,7 +324,7 @@
 			{
 				var maxUnconfirmed = this._channel._confirmationKeeper != null ? (int) this._channel._confirmationKeeper.Max : 0;
 
-				var replacementChannel = (Channel) await connection.InternalCreateChannel(this.ChannelNumber, maxUnconfirmed, this.IsConfirmationEnabled);
+				var replacementChannel = (Channel)await connection.InternalCreateChannel(this.ChannelNumber, maxUnconfirmed, this.IsConfirmationEnabled).ConfigureAwait(false);
 
 				// _channel.Dispose(); need to dispose in a way that consumers do not receive the cancellation signal, but drain any pending task
 
@@ -368,7 +368,7 @@
 		{
 			if (_qosSetting.HasValue)
 			{
-				await _qosSetting.Value.Apply(newChannel);
+				await _qosSetting.Value.Apply(newChannel).ConfigureAwait(false);
 			}
 		}
 
@@ -376,7 +376,7 @@
 		{
 			foreach (var consumer in _consumersRegistered)
 			{
-				await consumer.Apply(newChannel);
+				await consumer.Apply(newChannel).ConfigureAwait(false);
 			}
 		}
 
@@ -385,13 +385,13 @@
 			// 3. Recover bindings (exchanges)
 			foreach (var binding in _boundExchanges)
 			{
-				await binding.Apply(newChannel);
+				await binding.Apply(newChannel).ConfigureAwait(false);
 			}
 
 			// 3. Recover bindings (queues)
 			foreach (var binding in _boundQueues)
 			{
-				await binding.Apply(newChannel);
+				await binding.Apply(newChannel).ConfigureAwait(false);
 			}
 		}
 
@@ -399,7 +399,7 @@
 		{
 			foreach (var declaredQueue in _declaredQueues)
 			{
-				await declaredQueue.Apply(newChannel);
+				await declaredQueue.Apply(newChannel).ConfigureAwait(false);
 			}
 		}
 
@@ -407,7 +407,7 @@
 		{
 			foreach (var declaredExchange in _declaredExchanges)
 			{
-				await declaredExchange.Apply(newChannel);
+				await declaredExchange.Apply(newChannel).ConfigureAwait(false);
 			}
 		}
 
