@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Runtime.CompilerServices;
+	using System.Threading;
 	using System.Threading.Tasks;
 	using RabbitMqNext.Io;
 	using RabbitMqNext.Internals;
@@ -25,10 +26,14 @@
 		public object OptionalArg;
 		public TaskCompletionSource<bool> Tcs;
 		public TaskSlim TcsSlim;
+		
+		private ManualResetEventSlim _whenReplyReceived;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal void Prepare()
+		internal void Prepare(ManualResetEventSlim whenReplyReceived)
 		{
+			_whenReplyReceived = whenReplyReceived;
+
 			if (PrepareAction != null) PrepareAction();
 		}
 
@@ -51,6 +56,13 @@
 				}
 			}
 #endif
+
+			// Allows more commands to be sent. This contention is sadly required by the amqp/rabbitmq
+			if (_whenReplyReceived != null)
+			{
+				_whenReplyReceived.Set();
+			}
+			// ---
 
 			if (this.ReplyAction != null)
 			{
@@ -100,6 +112,7 @@
 			PrepareAction = null;
 			Tcs = null;
 			TcsSlim = null;
+			_whenReplyReceived = null;
 		}
 	}
 

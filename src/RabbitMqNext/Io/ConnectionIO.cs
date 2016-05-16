@@ -19,6 +19,7 @@ namespace RabbitMqNext.Io
 		private readonly Connection _conn;
 		
 		private readonly AutoResetEvent _commandOutboxEvent;
+		private readonly ManualResetEventSlim _waitingServerReply;
 		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
 		private readonly ObjectPool<CommandToSend> _cmdToSendObjPool;
 		
@@ -48,6 +49,7 @@ namespace RabbitMqNext.Io
 			_socketHolder = new SocketHolder();
 
 			_commandOutboxEvent = new AutoResetEvent(false);
+			_waitingServerReply = new ManualResetEventSlim(true);
 			// _commandOutboxEvent = new AutoResetSuperSlimLock(false);
 			_commandOutbox = new ConcurrentQueue<CommandToSend>();
 
@@ -240,16 +242,20 @@ namespace RabbitMqNext.Io
 				while (!token.IsCancellationRequested)
 				{
 					_commandOutboxEvent.WaitOne(1000); // maybe it's better to _cancellationToken.Register(action) ?
-					// _commandOutboxEvent.Wait();
 
 					while (_commandOutbox.TryDequeue(out cmdToSend))
 					{
-						cmdToSend.Prepare();
+						_waitingServerReply.Wait(token); // Contention sadly required by the server/amqp
+
+						// The command will signal that we can send more commands...
+						cmdToSend.Prepare(cmdToSend.ExpectsReply ? _waitingServerReply : null);
 
 						if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
 						{
+							_waitingServerReply.Reset(); // cannot send anything else
+
 							var queue = cmdToSend.Channel == 0
-								? _awaitingReplyQueue :
+								? _awaitingReplyQueue : 
 								  _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
 
 							queue.Enqueue(cmdToSend);
