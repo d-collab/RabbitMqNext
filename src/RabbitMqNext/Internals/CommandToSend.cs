@@ -1,13 +1,16 @@
 ﻿namespace RabbitMqNext.Internals
 {
 	using System;
+	using System.ComponentModel;
+	using System.Diagnostics;
 	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
 	using RabbitMqNext.Io;
 	using RabbitMqNext.Internals;
 
-	internal sealed class CommandToSend : IDisposable
+	[DebuggerDisplay("CommandToSend Channel: {Channel} Class: {ClassId} Method: {MethodId} ExpectsReply: {ExpectsReply}")]
+	internal sealed class CommandToSend : IDisposable, ISupportInitialize
 	{
 		private readonly Action<CommandToSend> _recycler;
 
@@ -26,12 +29,15 @@
 		public object OptionalArg;
 		public TaskCompletionSource<bool> Tcs;
 		public TaskSlim TcsSlim;
-		
+
 		private ManualResetEventSlim _whenReplyReceived;
+		private int _inUse = 0;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal void Prepare(ManualResetEventSlim whenReplyReceived)
 		{
+			AssertCanBeUsed();
+
 			_whenReplyReceived = whenReplyReceived;
 
 			if (PrepareAction != null) PrepareAction();
@@ -39,6 +45,8 @@
 
 		public async Task RunReplyAction(ushort channel, int classMethodId, AmqpError error)
 		{
+			AssertCanBeUsed();
+
 #if DEBUG
 			if (classMethodId != 0)
 			{
@@ -113,6 +121,36 @@
 			Tcs = null;
 			TcsSlim = null;
 			_whenReplyReceived = null;
+
+			if (Interlocked.CompareExchange(ref _inUse, value: 0, comparand: 1) != 1)
+			{
+				throw new Exception("CommandToSend being shared inadvertently 1");
+			}
+		}
+
+		// ISupportInitialize start
+
+		public void BeginInit()
+		{
+			if (Interlocked.CompareExchange(ref _inUse, value: 1, comparand: 0) != 0)
+			{
+				throw new Exception("CommandToSend being shared inadvertently 2");
+			}
+		}
+
+		public void EndInit()
+		{
+		}
+
+		// end
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private void AssertCanBeUsed()
+		{
+			if (Volatile.Read(ref _inUse) != 1)
+			{
+				throw new Exception("Cannot use a recycled obj");
+			}
 		}
 	}
 

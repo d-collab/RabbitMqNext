@@ -1,6 +1,7 @@
 ﻿namespace RabbitMqNext.Internals
 {
 	using System;
+	using System.ComponentModel;
 	using System.Threading;
 
 	/// <summary>
@@ -45,12 +46,21 @@
 				if (v != null)
 				{
 					// Console.WriteLine("Pool " + typeof(T).Name + " GetObject at index " + i);
+
+					var initer = v as ISupportInitialize;
+					if (initer != null) initer.BeginInit();
+
 					return v;
 				}
 			}
 
 			// Console.WriteLine("Pool " + typeof(T).Name + " run out of items. creating new one ");
-			return _objectGenerator();
+			var newObj = _objectGenerator();
+			{
+				var initer = newObj as ISupportInitialize;
+				if (initer != null) initer.BeginInit();
+			}
+			return newObj;
 		}
 
 		public void PutObject(T item)
