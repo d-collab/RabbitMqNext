@@ -259,7 +259,7 @@ namespace RabbitMqNext.Internals
 			var consumerTag = _amqpReader.ReadShortStr();
 
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogError(LogSource, "< CancelOk " + consumerTag);
+				LogAdapter.LogDebug(LogSource, "< CancelOk " + consumerTag);
 
 			continuation(consumerTag);
 		}
