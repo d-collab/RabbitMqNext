@@ -3,11 +3,11 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/l84im7iemf8w354m/branch/master?svg=true)](https://ci.appveyor.com/project/hammett/rabbitmqnext/branch/master)
 
 
-Experimenting using [TPL](https://msdn.microsoft.com/en-us/library/dd460717%28v=vs.110%29.aspx) 
+Experimenting with [TPL](https://msdn.microsoft.com/en-us/library/dd460717%28v=vs.110%29.aspx) 
 ~~and sync (completion ports/overlapped io) socket reads~~ and buffer pools to see if a better 
 rabbitmq client comes out of it. 
 
-The goal is to drastically reduce contention and GC pauses. 
+The goal is to drastically reduce contention, mem allocation and therefore GC pauses. 
 
 The way this is accomplished is two fold:
 
