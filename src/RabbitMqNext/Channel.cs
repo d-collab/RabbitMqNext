@@ -389,43 +389,21 @@
 					delivery.stream = delivery.bodySize == 0
 						? EmptyStream
 						: lightStream.CloneStream(bodySize);
-
-					delivery.properties = delivery.properties.Clone();
 				}
-//				else if (mode == ConsumeMode.ParallelWithReadBarrier)
-//				{
-//					// create reader barrier. once they are all done, 
-//					// move the read pos forward. Shouldnt be too hard to implement and 
-//					// avoids the new buffer + GC and keeps the api Stream based consistently
-//
-//					delivery.stream = delivery.bodySize == 0 ? 
-//						EmptyStream : 
-//						new RingBufferStreamReadBarrier(ringBufferStream, delivery.bodySize);
-//
-//					if (delivery.bodySize != 0)
-//					{
-//						var skipped = await ringBufferStream._ringBuffer.Skip(delivery.bodySize);
-//						if (skipped != delivery.bodySize)
-//						{
-//							Console.Error.WriteLine("Skipped " + skipped + " but needed to skip " + delivery.bodySize);
-//						}
-//					}
-//				}
 
 				if (mode == ConsumeMode.SerializedWithBufferCopy)
 				{
 					if (consumer._consumerThread == null)
 					{
+						// Initialization. safe since this delivery call always happen from the same thread
 						consumer._receivedMessages = new ConcurrentQueue<MessageDelivery>();
 						consumer._messageAvailableEv = new AutoResetEvent(false);
 						consumer._consumerThread = ThreadFactory.BackgroundThread(SerializedDelivery, "Delivery_" + consumer.ConsumerTag,
 							consumer);
 					}
-					else
-					{
-						consumer._receivedMessages.Enqueue(delivery);
-						consumer._messageAvailableEv.Set();
-					}
+
+					consumer._receivedMessages.Enqueue(delivery);
+					consumer._messageAvailableEv.Set();
 				}
 				else if (mode == ConsumeMode.ParallelWithBufferCopy)
 				{
@@ -492,6 +470,13 @@
 					catch (Exception ex)
 					{
 						LogAdapter.LogError("Channel", "Consumer error. Tag " + consumer.ConsumerTag, ex);
+					}
+					finally
+					{
+						this.Return(delivery.properties);
+
+						if (delivery.bodySize != 0)
+							delivery.stream.Dispose();
 					}
 				}
 			}

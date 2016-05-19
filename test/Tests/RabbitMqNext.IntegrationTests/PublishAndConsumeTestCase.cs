@@ -138,5 +138,61 @@ namespace RabbitMqNext.IntegrationTests
 			delivery1.redelivered.Should().BeFalse();
 			delivery1.routingKey.Should().Be("routing");
 		}
+
+		[Test]
+		public async Task SerializedWithCopy_Consumer_FastPublish()
+		{
+			Console.WriteLine("SerializedWithCopy_Consumer_FastPublish");
+
+			var conn = await base.StartConnection();
+			var channel1 = await conn.CreateChannel();
+			channel1.OnError += error =>
+			{
+				Console.WriteLine("error " + error.ReplyText);
+			};
+
+			await channel1.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);
+			await channel1.QueueDeclare("queue_direct", false, true, false, false, null, waitConfirmation: true);
+			await channel1.QueueBind("queue_direct", "test_direct", "routing", null, waitConfirmation: true);
+
+			var channel2 = await conn.CreateChannel();
+			channel2.OnError += error =>
+			{
+				Console.WriteLine("error " + error.ReplyText);
+			};
+
+			var deliveries = new List<int>();
+
+			await channel2.BasicConsume(ConsumeMode.SerializedWithBufferCopy, delivery =>
+			{
+				var buffer = new byte[4];
+				delivery.stream.Read(buffer, 0, 4);
+
+				deliveries.Add(BitConverter.ToInt32(buffer, 0));
+
+				return Task.CompletedTask;
+
+			}, "queue_direct", consumerTag: "", withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true);
+
+			await Task.Delay(200);
+
+			// Publishs a bunch of messages
+			var count = 1000;
+			for (int i = 0; i < count; i++)
+			{
+				channel1.BasicPublish("test_direct", "routing", true, BasicProperties.Empty, BitConverter.GetBytes(i));
+			}
+
+			await Task.Delay(3500);
+
+			// Confirms we got all of them
+			deliveries.Should().HaveCount(count);
+
+			// Confirms ordering
+			for (int i = 0; i < count; i++)
+			{
+				deliveries[i].Should().Be(i);
+			}
+		}
 	}
 }
