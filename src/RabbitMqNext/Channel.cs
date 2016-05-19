@@ -357,7 +357,8 @@
 				{
 					// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
 
-					if (mode == ConsumeMode.ParallelWithBufferCopy)
+					if (mode == ConsumeMode.ParallelWithBufferCopy || 
+						mode == ConsumeMode.SerializedWithBufferCopy)
 					{
 						delivery.stream = delivery.bodySize == 0
 							? EmptyStream
@@ -383,41 +384,48 @@
 //						}
 //					}
 
-					Task.Factory.StartNew(async state =>
+					if (mode == ConsumeMode.SerializedWithBufferCopy)
 					{
-						var tuple = (Tuple<MessageDelivery, Func<MessageDelivery, Task>, IQueueConsumer, Channel>)state;
-						var delivery1 = tuple.Item1;
-						var cb1 = tuple.Item2;
-						var conInstance = tuple.Item3;
-						var pThis = tuple.Item4;
-
-						try
+						
+					}
+					else if (mode == ConsumeMode.ParallelWithBufferCopy)
+					{
+						Task.Factory.StartNew(async state =>
 						{
-							if (cb1 != null)
+							var tuple = (Tuple<MessageDelivery, Func<MessageDelivery, Task>, IQueueConsumer, Channel>)state;
+							var delivery1 = tuple.Item1;
+							var cb1 = tuple.Item2;
+							var conInstance = tuple.Item3;
+							var pThis = tuple.Item4;
+
+							try
 							{
-								await cb1(delivery1).ConfigureAwait(false);
+								if (cb1 != null)
+								{
+									await cb1(delivery1).ConfigureAwait(false);
+								}
+								else
+								{
+									await conInstance.Consume(delivery1).ConfigureAwait(false);
+								}
 							}
-							else
+							catch (Exception e)
 							{
-								await conInstance.Consume(delivery1).ConfigureAwait(false);
+								LogAdapter.LogError("Channel", "Error processing message (user code)", e);
 							}
-						}
-						catch (Exception e)
-						{
-							LogAdapter.LogError("Channel", "Error processing message (user code)", e);
-						}
-						finally
-						{
-							pThis.Return(delivery1.properties);
+							finally
+							{
+								pThis.Return(delivery1.properties);
 
-							if (delivery1.bodySize != 0)
-								delivery1.stream.Dispose();
-						}
+								if (delivery1.bodySize != 0)
+									delivery1.stream.Dispose();
+							}
 
-					}, Tuple.Create(delivery, cb, consumerInstance, this), // tuple avoids the closure capture
-						TaskCreationOptions.PreferFairness)
-						.Unwrap()
-						.IntentionallyNotAwaited();
+						}, Tuple.Create(delivery, cb, consumerInstance, this), // tuple avoids the closure capture
+							TaskCreationOptions.PreferFairness)
+							.Unwrap()
+							.IntentionallyNotAwaited();
+					}
 				}
 			}
 			else
