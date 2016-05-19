@@ -332,6 +332,8 @@ namespace RabbitMqNext
 
 		public BasicProperties Clone()
 		{
+			if (this == Empty) return Empty;
+
 			return (this as ICloneable).Clone() as BasicProperties;
 		}
 

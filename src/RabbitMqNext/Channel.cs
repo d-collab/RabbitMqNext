@@ -198,23 +198,31 @@
 			if (!waitConfirmation && string.IsNullOrEmpty(consumerTag))
 				throw new ArgumentException("You must specify a consumer tag if waitConfirmation = false");
 
+			// TODO: refactor
+
 			if (!string.IsNullOrEmpty(consumerTag))
 			{
-				_consumerSubscriptions[consumerTag] = new BasicConsumerSubscriptionInfo
+				var added = _consumerSubscriptions.TryAdd(consumerTag, new BasicConsumerSubscriptionInfo
 				{
+					ConsumerTag = consumerTag,
 					Mode = mode,
 					_consumer = consumer
-				};
+				});
+
+				if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
 			}
 
 			return _io.__BasicConsume(mode, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation,
 				consumerTag2 =>
 				{
-					_consumerSubscriptions[consumerTag2] = new BasicConsumerSubscriptionInfo
+					var added = _consumerSubscriptions.TryAdd(consumerTag2, new BasicConsumerSubscriptionInfo
 					{
+						ConsumerTag = consumerTag,
 						Mode = mode,
 						_consumer = consumer
-					};
+					});
+
+					if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
 				});
 		}
 
@@ -228,23 +236,30 @@
 			if (!waitConfirmation && string.IsNullOrEmpty(consumerTag)) 
 				throw new ArgumentException("You must specify a consumer tag if waitConfirmation = false");
 
+			// TODO: refactor
+
 			if (!string.IsNullOrEmpty(consumerTag))
 			{
-				_consumerSubscriptions[consumerTag] = new BasicConsumerSubscriptionInfo
+				var added = _consumerSubscriptions.TryAdd(consumerTag, new BasicConsumerSubscriptionInfo
 				{
+					ConsumerTag = consumerTag,
 					Mode = mode,
 					Callback = consumer
-				};
+				});
+				if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
 			}
 
 			return _io.__BasicConsume(mode, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation,
 				consumerTag2 =>
 				{
-					_consumerSubscriptions[consumerTag2] = new BasicConsumerSubscriptionInfo
+					var added = _consumerSubscriptions.TryAdd(consumerTag2, new BasicConsumerSubscriptionInfo
 					{
+						ConsumerTag = consumerTag,
 						Mode = mode,
 						Callback = consumer
-					};
+					});
+
+					if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
 				});
 		}
 
@@ -314,132 +329,175 @@
 		{
 			BasicConsumerSubscriptionInfo consumer;
 
-			if (_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
-			{
-				var delivery = new MessageDelivery
-				{
-					bodySize = bodySize,
-					properties = properties,
-					routingKey = routingKey,
-					deliveryTag = deliveryTag,
-					redelivered = redelivered
-				};
-
-				var mode = consumer.Mode;
-				var cb = consumer.Callback;
-				var consumerInstance = consumer._consumer;
-
-				if (mode == ConsumeMode.SingleThreaded)
-				{
-					// run with scissors, we're letting 
-					// the user code mess with the ring buffer in the name of performance
-					delivery.stream = bodySize == 0 ? EmptyStream : lightStream;
-
-					// upon return it's assumed the user has consumed from the stream and is done with it
-					var marker = new RingBufferPositionMarker(lightStream);
-
-					try
-					{
-						if (cb != null)
-							await cb(delivery).ConfigureAwait(false);
-						else
-							await consumerInstance.Consume(delivery).ConfigureAwait(false);
-					}
-					finally
-					{
-						// fingers crossed the user cloned the buffer if she needs it later
-						this.Return(properties);
-
-						marker.EnsureConsumed(bodySize);
-					}
-				}
-				else 
-				{
-					// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
-
-					if (mode == ConsumeMode.ParallelWithBufferCopy || 
-						mode == ConsumeMode.SerializedWithBufferCopy)
-					{
-						delivery.stream = delivery.bodySize == 0
-							? EmptyStream
-							: lightStream.CloneStream(bodySize);
-					}
-//					else if (mode == ConsumeMode.ParallelWithReadBarrier)
-//					{
-//						// create reader barrier. once they are all done, 
-//						// move the read pos forward. Shouldnt be too hard to implement and 
-//						// avoids the new buffer + GC and keeps the api Stream based consistently
-//
-//						delivery.stream = delivery.bodySize == 0 ? 
-//							EmptyStream : 
-//							new RingBufferStreamReadBarrier(ringBufferStream, delivery.bodySize);
-//
-//						if (delivery.bodySize != 0)
-//						{
-//							var skipped = await ringBufferStream._ringBuffer.Skip(delivery.bodySize);
-//							if (skipped != delivery.bodySize)
-//							{
-//								Console.Error.WriteLine("Skipped " + skipped + " but needed to skip " + delivery.bodySize);
-//							}
-//						}
-//					}
-
-					if (mode == ConsumeMode.SerializedWithBufferCopy)
-					{
-						
-					}
-					else if (mode == ConsumeMode.ParallelWithBufferCopy)
-					{
-						Task.Factory.StartNew(async state =>
-						{
-							var tuple = (Tuple<MessageDelivery, Func<MessageDelivery, Task>, IQueueConsumer, Channel>)state;
-							var delivery1 = tuple.Item1;
-							var cb1 = tuple.Item2;
-							var conInstance = tuple.Item3;
-							var pThis = tuple.Item4;
-
-							try
-							{
-								if (cb1 != null)
-								{
-									await cb1(delivery1).ConfigureAwait(false);
-								}
-								else
-								{
-									await conInstance.Consume(delivery1).ConfigureAwait(false);
-								}
-							}
-							catch (Exception e)
-							{
-								LogAdapter.LogError("Channel", "Error processing message (user code)", e);
-							}
-							finally
-							{
-								pThis.Return(delivery1.properties);
-
-								if (delivery1.bodySize != 0)
-									delivery1.stream.Dispose();
-							}
-
-						}, Tuple.Create(delivery, cb, consumerInstance, this), // tuple avoids the closure capture
-							TaskCreationOptions.PreferFairness)
-							.Unwrap()
-							.IntentionallyNotAwaited();
-					}
-				}
-			}
-			else
+			if (!_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
 			{
 				// received msg but nobody was subscribed to get it (?)
-
 				LogAdapter.LogWarn("Channel", "Received message without a matching subscription. Discarding. " +
 								   "Exchange: " + exchange + " routing: " + routingKey + 
 								   " consumer tag: " + consumerTag + " and channel " + this.ChannelNumber);
 
-				// Ensure moved ahead
+				// Ensure moved cursor ahead
 				var marker = new RingBufferPositionMarker(lightStream);
 				marker.EnsureConsumed(bodySize);
+				return;
 			}
+
+			var delivery = new MessageDelivery
+			{
+				bodySize = bodySize,
+				properties = properties,
+				routingKey = routingKey,
+				deliveryTag = deliveryTag,
+				redelivered = redelivered
+			};
+
+			var mode = consumer.Mode;
+			var cb = consumer.Callback;
+			var consumerInstance = consumer._consumer;
+
+			if (mode == ConsumeMode.SingleThreaded)
+			{
+				// run with scissors, we're letting 
+				// the user code mess with the ring buffer in the name of performance
+				delivery.stream = bodySize == 0 ? EmptyStream : lightStream;
+
+				// upon return it's assumed the user has consumed from the stream and is done with it
+				var marker = new RingBufferPositionMarker(lightStream);
+
+				try
+				{
+					if (cb != null)
+						await cb(delivery).ConfigureAwait(false);
+					else
+						await consumerInstance.Consume(delivery).ConfigureAwait(false);
+				}
+				finally
+				{
+					// fingers crossed the user cloned the buffer if she needs it later
+					this.Return(properties);
+
+					marker.EnsureConsumed(bodySize);
+				}
+			}
+			else 
+			{
+				// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
+
+				if (mode == ConsumeMode.ParallelWithBufferCopy || 
+					mode == ConsumeMode.SerializedWithBufferCopy)
+				{
+					delivery.stream = delivery.bodySize == 0
+						? EmptyStream
+						: lightStream.CloneStream(bodySize);
+
+					delivery.properties = delivery.properties.Clone();
+				}
+//				else if (mode == ConsumeMode.ParallelWithReadBarrier)
+//				{
+//					// create reader barrier. once they are all done, 
+//					// move the read pos forward. Shouldnt be too hard to implement and 
+//					// avoids the new buffer + GC and keeps the api Stream based consistently
+//
+//					delivery.stream = delivery.bodySize == 0 ? 
+//						EmptyStream : 
+//						new RingBufferStreamReadBarrier(ringBufferStream, delivery.bodySize);
+//
+//					if (delivery.bodySize != 0)
+//					{
+//						var skipped = await ringBufferStream._ringBuffer.Skip(delivery.bodySize);
+//						if (skipped != delivery.bodySize)
+//						{
+//							Console.Error.WriteLine("Skipped " + skipped + " but needed to skip " + delivery.bodySize);
+//						}
+//					}
+//				}
+
+				if (mode == ConsumeMode.SerializedWithBufferCopy)
+				{
+					if (consumer._consumerThread == null)
+					{
+						consumer._receivedMessages = new ConcurrentQueue<MessageDelivery>();
+						consumer._messageAvailableEv = new AutoResetEvent(false);
+						consumer._consumerThread = ThreadFactory.BackgroundThread(SerializedDelivery, "Delivery_" + consumer.ConsumerTag,
+							consumer);
+					}
+					else
+					{
+						consumer._receivedMessages.Enqueue(delivery);
+						consumer._messageAvailableEv.Set();
+					}
+				}
+				else if (mode == ConsumeMode.ParallelWithBufferCopy)
+				{
+					Task.Factory.StartNew(async state =>
+					{
+						var tuple = (Tuple<MessageDelivery, Func<MessageDelivery, Task>, IQueueConsumer, Channel>)state;
+						var delivery1 = tuple.Item1;
+						var cb1 = tuple.Item2;
+						var conInstance = tuple.Item3;
+						var pThis = tuple.Item4;
+
+						try
+						{
+							if (cb1 != null)
+							{
+								await cb1(delivery1).ConfigureAwait(false);
+							}
+							else
+							{
+								await conInstance.Consume(delivery1).ConfigureAwait(false);
+							}
+						}
+						catch (Exception e)
+						{
+							LogAdapter.LogError("Channel", "Error processing message (user code)", e);
+						}
+						finally
+						{
+							pThis.Return(delivery1.properties);
+
+							if (delivery1.bodySize != 0)
+								delivery1.stream.Dispose();
+						}
+
+					}, Tuple.Create(delivery, cb, consumerInstance, this), // tuple avoids the closure capture
+						TaskCreationOptions.PreferFairness)
+						.Unwrap()
+						.IntentionallyNotAwaited();
+				}
+			}
+		}
+
+		// Thread proc when using ConsumeMode.SerializedWithBufferCopy
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private void SerializedDelivery(BasicConsumerSubscriptionInfo consumer)
+		{
+			while (!consumer._cancelThread && !this.IsClosed)
+			{
+				consumer._messageAvailableEv.WaitOne();
+
+				MessageDelivery delivery;
+				while (consumer._receivedMessages.TryDequeue(out delivery))
+				{
+					try
+					{
+						if (consumer.Callback != null)
+						{
+							consumer.Callback(delivery).Wait();
+							continue;
+						}
+
+						consumer._consumer.Consume(delivery).Wait();
+					}
+					catch (Exception ex)
+					{
+						LogAdapter.LogError("Channel", "Consumer error. Tag " + consumer.ConsumerTag, ex);
+					}
+				}
+			}
+
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug("Channel", "Consumer exiting. Tag " + consumer.ConsumerTag);
 		}
 
 		internal async Task DispatchBasicReturn(ushort replyCode, string replyText, 
@@ -538,15 +596,27 @@
 
 		class BasicConsumerSubscriptionInfo
 		{
+			public string ConsumerTag;
 			public ConsumeMode Mode;
 			public Func<MessageDelivery, Task> Callback;
 			public IQueueConsumer _consumer;
+
+			public Thread _consumerThread;
+			public ConcurrentQueue<MessageDelivery> _receivedMessages;
+			public AutoResetEvent _messageAvailableEv;
+			public bool _cancelThread;
 
 			public void SignalCancel()
 			{
 				if (_consumer != null)
 				{
 					_consumer.Cancelled();
+				}
+
+				_cancelThread = true;
+				if (_messageAvailableEv != null)
+				{
+					_messageAvailableEv.Set();
 				}
 			}
 		}
