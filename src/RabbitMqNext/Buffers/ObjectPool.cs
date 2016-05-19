@@ -1,6 +1,7 @@
 ﻿namespace RabbitMqNext.Internals
 {
 	using System;
+	using System.Collections.Concurrent;
 	using System.ComponentModel;
 	using System.Threading;
 
@@ -16,7 +17,8 @@
 //		private readonly SemaphoreSlim _semaphore;
 		private readonly T[] _array;
 		private readonly int _capacity;
-
+		// private readonly ConcurrentQueue<T> _queue;
+		
 		public ObjectPool(Func<T> objectGenerator, int capacity = DefaultCapacity, bool preInitialize = false)
 		{
 			if (objectGenerator == null) throw new ArgumentNullException("objectGenerator");
@@ -25,15 +27,47 @@
 //			_semaphore = new SemaphoreSlim(_capacity, _capacity);
 			_array = new T[_capacity];
 			_objectGenerator = objectGenerator;
+			// _queue = new ConcurrentQueue<T>();
 
 			if (preInitialize)
 			{
 				for (int i = 0; i < _capacity; i++)
 				{
 					_array[i] = objectGenerator();
+					// _queue.Enqueue( objectGenerator() );
+//					PutObject(objectGenerator());
 				}
 			}
 		}
+
+//		public T GetObject()
+//		{
+//			T item;
+//			if (_queue.TryDequeue(out item))
+//			{
+//				var initer = item as ISupportInitialize;
+//				if (initer != null) initer.BeginInit();
+//				return item;
+//			}
+//
+//			var newObj = _objectGenerator();
+//			{
+//				var initer = newObj as ISupportInitialize;
+//				if (initer != null) initer.BeginInit();
+//			}
+//			return newObj;
+//		}
+//
+//		public void PutObject(T item)
+//		{
+//			var disposable = item as IDisposable;
+//			if (disposable != null) disposable.Dispose();
+//
+//			if (_queue.Count < _capacity)
+//			{
+//				_queue.Enqueue(item);
+//			}
+//		}
 
 		public T GetObject()
 		{
