@@ -107,7 +107,8 @@ TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, bool i
 Can be done using a delegate or a QueueConsumer subclass. There are two modes:
 
 * ConsumeMode.SingleThreaded: uses the same frame_reader thread to invoke your callback. Pros: no context switches, no buffer duplications. Cons: if you code takes too long it hogs the processing of incoming frames from the server.
-* ConsumeMode.ParallelWithBufferCopy: takes a copy of the message body, and calls your callback from the threadpool. Pros: robust. Cons: buffer duplication = GC. also more context switches.
+* ConsumeMode.ParallelWithBufferCopy: takes a copy of the message body, and calls your callback from the threadpool. Pros: robust. Cons: buffer duplication = GC; no order guarantees. also more context switches.
+* ConsumeMode.SerializedWithBufferCopy: takes a copy of the message body, and calls your callback from a bg thread - one thread per Consumer. Pros: robust and order guarantees. Cons: buffer duplication = GC. also more context switches.
 * ~~ConsumeMode.ParallelWithReadBarrier~~: experimental.
 
 ```C#
@@ -120,3 +121,15 @@ Task<string> BasicConsume(ConsumeMode mode, Func<MessageDelivery, Task> consumer
 			string queue, string consumerTag, bool withoutAcks, bool exclusive,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 ```
+
+##### Improvements / TODO
+
+Mostly focused on decreasing allocs. 
+
+* Support a Publish overload that takes a delegate for writing to the stream. This would save the upfront buffer allocation. The issue here is that
+  the side of the frame body is written before the body content. We would have to call the user code, let it write to the stream, seek backwards 
+  and write the size. Even harder if the content is larger than the max frame size. OTOH way less GC allocs. 
+
+* Support a Publish overload with buffer pools. User rents a buffer, Publish releases the buffer once the frame is written to the ring buffer. 
+  Harder thing for the user is to anticipate the overall size of the buffer needed. 
+
