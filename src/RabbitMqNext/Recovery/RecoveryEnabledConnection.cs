@@ -20,6 +20,7 @@
 
 		private readonly IEnumerable<string> _hostnames;
 		internal readonly Connection _connection;
+		private readonly AutoRecoverySettings _recoverySettings;
 		private readonly List<RecoveryEnabledChannel> _channelRecoveries;
 		private volatile bool _disableRecovery;
 		private string _selectedHostname;
@@ -31,15 +32,16 @@
 		public event Action RecoveryCompleted;
 		public event Action RecoveryFailed;
 
-		public RecoveryEnabledConnection(string hostname, Connection connection) 
-			: this(new [] { hostname }, connection)
+		public RecoveryEnabledConnection(string hostname, Connection connection, AutoRecoverySettings recoverySettings)
+			: this(new[] { hostname }, connection, recoverySettings)
 		{
 		}
 
-		public RecoveryEnabledConnection(IEnumerable<string> hostnames, Connection connection)
+		public RecoveryEnabledConnection(IEnumerable<string> hostnames, Connection connection, AutoRecoverySettings recoverySettings)
 		{
 			_hostnames = hostnames;
 			_connection = connection;
+			_recoverySettings = recoverySettings;
 			_connection.Recovery = this;
 			_channelRecoveries = new List<RecoveryEnabledChannel>();
 
@@ -48,7 +50,7 @@
 
 		internal RecoveryEnabledChannel CreateChannelRecovery(Channel channel)
 		{
-			var channelRecovery = new RecoveryEnabledChannel(channel);
+			var channelRecovery = new RecoveryEnabledChannel(channel, _recoverySettings);
 			lock (_channelRecoveries)
 			{
 				_channelRecoveries.Add(channelRecovery);

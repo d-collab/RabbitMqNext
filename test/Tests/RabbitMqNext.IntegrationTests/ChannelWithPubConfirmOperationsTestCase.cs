@@ -14,7 +14,7 @@
 		{
 			Console.WriteLine("Parallel_Consumer_Publish");
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			
 			// !!!
 			var channel1 = await conn.CreateChannelWithPublishConfirmation(100);

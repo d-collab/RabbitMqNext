@@ -16,7 +16,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("BasicQos");
 
-			using (var conn = await base.StartConnection())
+			using (var conn = await base.StartConnection(AutoRecoverySettings.Off))
 			using (var channel = await conn.CreateChannel())
 			{
 				await channel.BasicQos(0, 250, true);
@@ -31,7 +31,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("BasicAck");
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
 			{
@@ -47,7 +47,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("BasicNAck");
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
 			{
@@ -63,7 +63,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("QueueDeclare_with_wait_Should_return_queueInfo");
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
 			{
@@ -80,7 +80,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("ExchangeDeclare_with_wait_Should_waitconfirmation");
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
 			{
@@ -97,7 +97,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("QueueBind_should_await_confirmation");
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
 			channel.OnError += error =>
 			{

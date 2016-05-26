@@ -15,7 +15,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("UnroutedMessage_TriggerEvents");
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
 
 			UndeliveredMessage undelivered = default(UndeliveredMessage);
@@ -45,7 +45,7 @@ namespace RabbitMqNext.IntegrationTests
 			Console.WriteLine("Parallel_Consumer_FastPublish");
 
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel1 = await conn.CreateChannel();
 			channel1.OnError += error =>
 			{
@@ -94,7 +94,7 @@ namespace RabbitMqNext.IntegrationTests
 			Console.WriteLine("SingleThreaded_Consumer_AwaitedPublish");
 
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel1 = await conn.CreateChannel();
 			channel1.OnError += error =>
 			{
@@ -144,7 +144,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("SerializedWithCopy_Consumer_FastPublish");
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel1 = await conn.CreateChannel();
 			channel1.OnError += error =>
 			{

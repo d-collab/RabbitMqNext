@@ -16,9 +16,9 @@
 		{
 			Console.WriteLine("BasicRpcWithSingleReply");
 
-			using (var conn1 = await base.StartConnection())
+			using (var conn1 = await base.StartConnection(AutoRecoverySettings.Off))
 			{
-				var conn2 = await base.StartConnection();
+				var conn2 = await base.StartConnection(AutoRecoverySettings.Off);
 				var channelWorker = await conn1.CreateChannel();
 				channelWorker.OnError += error =>
 				{
@@ -69,9 +69,9 @@
 		{
 			Console.WriteLine("BasicRpcWithMultipleReplies");
 
-			using (var conn1 = await base.StartConnection())
+			using (var conn1 = await base.StartConnection(AutoRecoverySettings.Off))
 			{
-				var conn2 = await base.StartConnection();
+				var conn2 = await base.StartConnection(AutoRecoverySettings.Off);
 				var channelWorker = await conn1.CreateChannel();
 				channelWorker.OnError += error =>
 				{
@@ -150,9 +150,9 @@
 
 			var content = new String(charBuffer);
 
-			using (var conn1 = await base.StartConnection())
+			using (var conn1 = await base.StartConnection(AutoRecoverySettings.Off))
 			{
-				var conn2 = await base.StartConnection();
+				var conn2 = await base.StartConnection(AutoRecoverySettings.Off);
 				var channelWorker = await conn1.CreateChannel();
 				channelWorker.OnError += error =>
 				{

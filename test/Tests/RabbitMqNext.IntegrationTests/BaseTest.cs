@@ -27,7 +27,7 @@ namespace RabbitMqNext.IntegrationTests
 			_password = ConfigurationManager.AppSettings["password"];
 		}
 
-		public async Task<IConnection> StartConnection(bool autoRecovery = false)
+		public async Task<IConnection> StartConnection(AutoRecoverySettings autoRecovery)
 		{
 			using (var console = new RestConsole(_host, _username, _password))
 			{
@@ -62,7 +62,7 @@ namespace RabbitMqNext.IntegrationTests
 				Console.ForegroundColor = color;
 			};
 
-			var conn = await ConnectionFactory.Connect(_host, _vhost, _username, _password, autoRecovery: autoRecovery);
+			var conn = await ConnectionFactory.Connect(_host, _vhost, _username, _password, recoverySettings: autoRecovery);
 
 			if (conn is Connection)
 			{

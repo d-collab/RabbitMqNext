@@ -6,13 +6,29 @@
 	using Recovery;
 
 
+	public class AutoRecoverySettings
+	{
+		public static readonly AutoRecoverySettings Off = new AutoRecoverySettings { Enabled = false };
+		public static readonly AutoRecoverySettings All = new AutoRecoverySettings { Enabled = true };
+		public static readonly AutoRecoverySettings AllExceptBindings = new AutoRecoverySettings { Enabled = true, RecoverBindings = false };
+
+		public bool Enabled { get; set; }
+		
+		/// <summary>
+		/// 
+		/// </summary>
+		public bool RecoverBindings { get; set; }
+	}
+
 	public static class ConnectionFactory
 	{
 		public static async Task<IConnection> Connect(IEnumerable<string> hostnames,
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672, 
-			bool autoRecovery = true, string connectionName = null)
+			AutoRecoverySettings recoverySettings = null, string connectionName = null)
 		{
+			recoverySettings = recoverySettings ?? AutoRecoverySettings.Off;
+
 			var conn = new Connection();
 
 			try
@@ -27,8 +43,8 @@
 					{
 						LogAdapter.LogWarn("ConnectionFactory", "Selected " + hostname);
 
-						return autoRecovery ? 
-							(IConnection) new RecoveryEnabledConnection(hostnames, conn) : 
+						return recoverySettings.Enabled ?
+							(IConnection) new RecoveryEnabledConnection(hostnames, conn, recoverySettings) : 
 							conn;
 					}
 				}
@@ -48,8 +64,10 @@
 		public static async Task<IConnection> Connect(string hostname, 
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672,
-			bool autoRecovery = true, string connectionName = null)
+			AutoRecoverySettings recoverySettings = null, string connectionName = null)
 		{
+			recoverySettings = recoverySettings ?? AutoRecoverySettings.Off;
+
 			var conn = new Connection();
 
 			try
@@ -61,7 +79,7 @@
 				if (LogAdapter.ExtendedLogEnabled)
 					LogAdapter.LogDebug("ConnectionFactory", "Connected to " + hostname + ":" + port);
 
-				return autoRecovery ? (IConnection)new RecoveryEnabledConnection(hostname, conn) : conn;
+				return recoverySettings.Enabled ? (IConnection)new RecoveryEnabledConnection(hostname, conn, recoverySettings) : conn;
 			}
 			catch (Exception e)
 			{

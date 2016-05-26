@@ -13,6 +13,7 @@
 		const string LogSource = "RecoveryEnabledChannel";
 		
 		private Channel _channel;
+		private readonly AutoRecoverySettings _recoverySettings;
 
 		private QosSettingRecovery? _qosSetting;
 		private readonly List<ExchangeDeclaredRecovery> _declaredExchanges;
@@ -24,9 +25,10 @@
 
 		private int _isRecovering;
 
-		public RecoveryEnabledChannel(Channel channel)
+		public RecoveryEnabledChannel(Channel channel, AutoRecoverySettings recoverySettings)
 		{
 			_channel = channel;
+			_recoverySettings = recoverySettings;
 
 			_declaredExchanges = new List<ExchangeDeclaredRecovery>();
 			_boundExchanges = new List<ExchangeBindRecovery>();
@@ -117,7 +119,7 @@
 
 			var recovery = new ExchangeBindRecovery(source, destination, routingKey, arguments);
 
-			lock(_boundExchanges) _boundExchanges.Add(recovery);
+			lock (_boundExchanges) _boundExchanges.Add(recovery);
 		}
 
 		public async Task ExchangeUnbind(string source, string destination, string routingKey, IDictionary<string, object> arguments, bool waitConfirmation)
@@ -128,7 +130,7 @@
 
 			var recovery = new ExchangeBindRecovery(source, destination, routingKey, arguments);
 
-			lock(_boundExchanges) _boundExchanges.Remove(recovery);
+			lock (_boundExchanges) _boundExchanges.Remove(recovery);
 		}
 
 		public async Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
@@ -166,15 +168,21 @@
 
 			await _channel.QueueBind(queue, exchange, routingKey, arguments, waitConfirmation).ConfigureAwait(false);
 
-			lock(_boundQueues) _boundQueues.Add(new QueueBoundRecovery(queue, exchange, routingKey, arguments));
+			if (_recoverySettings.RecoverBindings)
+			{
+				lock (_boundQueues) _boundQueues.Add(new QueueBoundRecovery(queue, exchange, routingKey, arguments));
+			}
 		}
 
 		public Task QueueUnbind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments)
 		{
 			ThrowIfRecoveryInProcess();
 
-			lock (_boundQueues) _boundQueues.Remove(new QueueBoundRecovery(queue, exchange, routingKey, arguments));
-
+			if (_recoverySettings.RecoverBindings)
+			{
+				lock (_boundQueues) _boundQueues.Remove(new QueueBoundRecovery(queue, exchange, routingKey, arguments));
+			}
+			
 			return _channel.QueueUnbind(queue, exchange, routingKey, arguments);
 		}
 

@@ -13,7 +13,7 @@ namespace RabbitMqNext.IntegrationTests
 		{
 			Console.WriteLine("ServerErrorShouldTriggerReconnect");
 
-			var conn = await base.StartConnection(autoRecovery: true);
+			var conn = await base.StartConnection(AutoRecoverySettings.All);
 
 			_io._socketHolder.Writer.Write(123456);
 			_io._socketHolder.Writer.Write(123456);

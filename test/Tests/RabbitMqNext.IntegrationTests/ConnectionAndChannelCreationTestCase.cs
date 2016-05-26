@@ -31,7 +31,7 @@
 			Console.WriteLine("OpenAndCloseCleanlyUponDispose");
 
 			IConnection conn = null;
-			using (conn = await base.StartConnection())
+			using (conn = await base.StartConnection(AutoRecoverySettings.Off))
 			{
 				conn.IsClosed.Should().BeFalse();
 			}
@@ -44,7 +44,7 @@
 			Console.WriteLine("OpenAndCloseChannelsCleanly");
 
 
-			using (var conn = await base.StartConnection())
+			using (var conn = await base.StartConnection(AutoRecoverySettings.Off))
 			{
 				var newChannel1 = await conn.CreateChannel();
 				var newChannel2 = await conn.CreateChannel();
@@ -70,7 +70,7 @@
 			Console.WriteLine("ClosingConnection_Should_CloseAllChannels");
 
 
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 
 			var newChannel1 = await conn.CreateChannel();
 			var newChannel2 = await conn.CreateChannel();
@@ -92,7 +92,7 @@
 			Console.WriteLine("Opens_PubConfirm_Channel");
 
 
-			using (var conn = await base.StartConnection())
+			using (var conn = await base.StartConnection(AutoRecoverySettings.Off))
 			{
 				var newChannel1 = await conn.CreateChannelWithPublishConfirmation();
 

@@ -23,7 +23,7 @@ namespace RabbitMqNext.IntegrationTests
 		[Test]
 		public async Task BasicRpcWithSingleReply()
 		{
-			var conn = await base.StartConnection();
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
 
 			var cancelToken = new CancellationTokenSource();

@@ -61,8 +61,8 @@
 
 			var conn = (RecoveryEnabledConnection)
 				await ConnectionFactory
-					.Connect(_host, _vhost, 
-					_username, _password, autoRecovery: true);
+					.Connect(_host, _vhost,
+					_username, _password, recoverySettings: AutoRecoverySettings.All);
 
 			conn.RecoveryCompleted += async () =>
 			{
@@ -131,7 +131,7 @@
 			var conn = (RecoveryEnabledConnection)
 				await ConnectionFactory
 					.Connect(_host, _vhost,
-					_username, _password, autoRecovery: true);
+					_username, _password, recoverySettings: AutoRecoverySettings.All);
 
 			var channel = await conn.CreateChannel();
 
