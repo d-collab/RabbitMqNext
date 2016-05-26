@@ -14,7 +14,7 @@ assembly_info:
 
 init:
   - echo %APPVEYOR_BUILD_VERSION%
-  - cinst rabbitmq
+  
 
 before_build:
   - nuget restore -DisableParallelProcessing
@@ -36,3 +36,8 @@ after_build:
   - ps: |
       $ver = ${env:APPVEYOR_BUILD_VERSION}
       nuget pack RabbitMqNext.nuspec -version $ver -symbols
+
+test:
+  categories:
+    only:
+      - Fast
