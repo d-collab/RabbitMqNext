@@ -25,6 +25,7 @@
 		private volatile bool _disableRecovery;
 		private string _selectedHostname;
 		private int _inRecovery;
+		private bool _disposed;
 
 		private readonly CancellationTokenSource _recoveryCancellationTokenSource;
 
@@ -125,6 +126,9 @@
 
 		public void Dispose()
 		{
+			if (_disposed) return;
+			_disposed = true;
+
 			if (LogAdapter.ExtendedLogEnabled)
 				LogAdapter.LogDebug(LogSource, "Dispose called");
 

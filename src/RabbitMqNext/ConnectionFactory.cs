@@ -22,12 +22,15 @@
 
 	public static class ConnectionFactory
 	{
+		private const string DefaultConnectionName = "unnamed_connection";
+
 		public static async Task<IConnection> Connect(IEnumerable<string> hostnames,
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672, 
 			AutoRecoverySettings recoverySettings = null, string connectionName = null)
 		{
 			recoverySettings = recoverySettings ?? AutoRecoverySettings.Off;
+			connectionName = connectionName ?? DefaultConnectionName;
 
 			var conn = new Connection();
 
@@ -67,6 +70,7 @@
 			AutoRecoverySettings recoverySettings = null, string connectionName = null)
 		{
 			recoverySettings = recoverySettings ?? AutoRecoverySettings.Off;
+			connectionName = connectionName ?? DefaultConnectionName;
 
 			var conn = new Connection();
 
