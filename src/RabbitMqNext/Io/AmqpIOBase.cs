@@ -176,11 +176,11 @@
 			if (tcs == null) return;
 			if (error != null)
 			{
-				tcs.SetException(new Exception("Error: " + error.ToErrorString()));
+				tcs.TrySetException(new Exception("Error: " + error.ToErrorString()));
 			}
 			else if (classMethodId == 0)
 			{
-				tcs.SetException(new Exception("The server closed the connection"));
+				tcs.TrySetException(new Exception("The server closed the connection"));
 			}
 			else
 			{
@@ -189,7 +189,7 @@
 
 				LogAdapter.LogError("AmqpIOBase", "Unexpected situation: classId " + classId + " method " + methodId + " and error = null");
 
-				tcs.SetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
+				tcs.TrySetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
 			}
 		}
 	}

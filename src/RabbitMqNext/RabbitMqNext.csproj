@@ -114,6 +114,7 @@
     <Compile Include="Rpc\RpcAggregateHelper.cs" />
     <Compile Include="Rpc\RpcHelper.cs" />
     <Compile Include="TplExtensions\TaskExtensions.cs" />
+    <Compile Include="TplExtensions\ValueTaskSlim.cs" />
     <Compile Include="UndeliveredMessage.cs" />
     <Compile Include="Internals\BufferUtil.cs" />
     <Compile Include="Internals\AmqpClassMethodChannelLevelConstants.cs" />

@@ -15,16 +15,22 @@ namespace RabbitMqNext.TplExtensions
 	/// </remarks>
 	public class BaseTaskSlim<TDerived> : IDisposable
 	{
-		private const byte HasContinuationSetMask = 1;
-		private const byte IsCompleteMask = 2;
-		private const byte HasExceptionMask = 4;
-		private const byte RunContinuationAsyncMask = 8;
+		private static readonly byte CompletionStateMask = 0x03;
+		private static readonly byte CompletionStatePos = 0;
+		private static readonly byte NotCompletedState = 0;
+		private static readonly byte CompletedWithResultState = 1;
+		private static readonly byte CompletedWithExceptionState = 2;
+		private static readonly byte HasContinuationSetMask = 0x04;
+//		private static readonly byte HasContinuationPos = 2;
+		private static readonly byte RunContinuationAsyncMask = 0x08;
+//		private static readonly byte RunContinuationAsyncPos = 3;
 
 		private volatile int _state;
 
 		private readonly Action<TDerived> _recycler;
+
 		protected Action _continuation;
-		protected Exception _exception;
+		protected volatile Exception _exception;
 
 		public TDerived GetDerived()
 		{
@@ -43,28 +49,55 @@ namespace RabbitMqNext.TplExtensions
 			_exception = null;
 		}
 
-		public void SetCompleted(bool runContinuationAsync = false)
+		public bool TrySetCompleted(bool runContinuationAsync = false)
 		{
+			if (!CompareAndSwap(CompletedWithResultState, NotCompletedState, CompletionStatePos, CompletionStateMask)) return false;
+
 			if (runContinuationAsync)
 				RunContinuationAsync = true;
 
+			RunContinuation(runContinuationAsync);
+
+			return true;
+		}
+
+		public void SetCompleted(bool runContinuationAsync = false)
+		{
 			// we cannot EVER complete more than once. 
-			if (IsCompleted) throw new Exception("Already set as completed");
-			
-			IsCompleted = true;
+			if (!CompareAndSwap(CompletedWithResultState, NotCompletedState, CompletionStatePos, CompletionStateMask))
+				throw new Exception("Already set as completed");
+
+			if (runContinuationAsync)
+				RunContinuationAsync = true;
 
 			RunContinuation(runContinuationAsync);
 		}
 
-		public void SetException(Exception exception, bool runContinuationAsync = false)
+		public bool TrySetException(Exception exception, bool runContinuationAsync = false)
 		{
+			if (!CompareAndSwap(CompletedWithExceptionState, NotCompletedState, CompletionStatePos, CompletionStateMask)) return false;
+
 			if (runContinuationAsync)
-				RunContinuationAsync = true;
+				RunContinuationAsync = true; // TODO: optimization, add with the TryAtomicXor so single CAS op
 
 			_exception = exception;
-			HasException = true;
 
-			SetCompleted(runContinuationAsync);
+			RunContinuation(runContinuationAsync);
+
+			return true;
+		}
+
+		public void SetException(Exception exception, bool runContinuationAsync = false)
+		{
+			if (!CompareAndSwap(CompletedWithExceptionState, NotCompletedState, CompletionStatePos, CompletionStateMask))
+				throw new Exception("Already set as completed");
+
+			if (runContinuationAsync)
+				RunContinuationAsync = true;  // TODO: optimization, add with the TryAtomicXor so single CAS op
+
+			_exception = exception;
+
+			RunContinuation(runContinuationAsync);
 		}
 
 		public void Dispose()
@@ -76,9 +109,9 @@ namespace RabbitMqNext.TplExtensions
 
 		public bool IsCompleted
 		{
-			get { return (_state & IsCompleteMask) != 0; }
+			get { return (_state & CompletedWithResultState) != 0; }
 			// ReSharper disable once ValueParameterNotUsed
-			protected set { AtomicChangeState(IsCompleteMask); }
+			// protected set { AtomicChangeState(IsCompleteMask); }
 		}
 
 		internal bool HasContinuation
@@ -97,9 +130,9 @@ namespace RabbitMqNext.TplExtensions
 
 		internal bool HasException
 		{
-			get { return (_state & HasExceptionMask) != 0; }
+			get { return (_state & CompletedWithExceptionState) != 0; }
 			// ReSharper disable once ValueParameterNotUsed
-			set { AtomicChangeState(HasExceptionMask); }
+			// set { AtomicChangeState(HasExceptionMask); }
 		}
 
 		internal void SetContinuation(Action continuation)
@@ -109,7 +142,7 @@ namespace RabbitMqNext.TplExtensions
 				_continuation = continuation;
 				HasContinuation = true;
 
-				if (IsCompleted)
+				if (IsCompleted || HasException)
 				{
 					RunContinuation(this.RunContinuationAsync);
 				}
@@ -134,10 +167,11 @@ namespace RabbitMqNext.TplExtensions
 				else
 				{
 					Task.Factory.FromAsync(cont.BeginInvoke, cont.EndInvoke, null)
-						.ContinueWith(t =>
+						.ContinueWith( (t, pointer) =>
 						{
-							DoRecycle();
-						});
+							(pointer as BaseTaskSlim<TDerived>).DoRecycle();
+
+						}, this);
 				}
 			}
 		}
@@ -163,8 +197,48 @@ namespace RabbitMqNext.TplExtensions
 				{
 					break;
 				}
-//				spinWait.SpinOnce();
 			}
+		}
+
+		// return TryAtomicXor(0, SignalledStatePos, SignalledStateMask);
+
+//		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+//		internal bool TryAtomicXor(int val, int shifts, int mask)
+//		{
+//			var curState = _state;
+//
+//			// (1) zero the updateBits.  eg oldState = [11111111]    flag=00111000  newState= [11000111]
+//			// (2) map in the newBits.              eg [11000111] newBits=00101000, newState= [11101111]
+//			int newState = (curState & ~mask) | (val << shifts);
+//
+//			// (1) zero the updateBits.  eg oldState = [11111111]    flag=00111000  newState= [11000111]
+//			// (2) map in the newBits.              eg [11000111] newBits=00101000, newState= [11101111]
+//			int expected = (newState ^ mask) | curState;
+//
+//			// newState [100001]
+//			// expected [000001]
+//
+//#pragma warning disable 420
+//			return (Interlocked.CompareExchange(ref _state, newState, expected) == expected);
+//#pragma warning restore 420
+//		}
+
+		/// <summary>
+		/// CaS version that preserves the state outside the mask
+		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal bool CompareAndSwap(int val, int requiredVal, int shifts, int mask)
+		{
+			var curState = _state;
+
+			// (1) zero the updateBits.  eg oldState = [11111111]    flag=00111000  newState= [11000111]
+			// (2) map in the newBits.              eg [11000111] newBits=00101000, newState= [11101111]
+			int newState = (curState & ~mask) | (val << shifts);
+			int expected = (curState & ~mask) | (requiredVal << shifts);
+
+#pragma warning disable 420
+			return (Interlocked.CompareExchange(ref _state, newState, expected) == expected);
+#pragma warning restore 420
 		}
 	}
 }

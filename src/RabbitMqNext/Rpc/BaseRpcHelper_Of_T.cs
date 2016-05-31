@@ -89,18 +89,11 @@ namespace RabbitMqNext
 				var pendingCall = Interlocked.Exchange(ref _pendingCalls[i], null);
 				if (pendingCall == null) continue;
 
-				try
-				{
-					// this races with OnReplyReceived. 
-					pendingCall.SetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true);
+				// this races with OnReplyReceived. 
+				pendingCall.TrySetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true);
 
-					// and we want just one call to Release
-					_semaphoreSlim.Release();
-				}
-				catch (Exception)
-				{
-					// race situation. ignores
-				}
+				// and we want just one call to Release
+				_semaphoreSlim.Release();
 			}
 		}
 
@@ -113,13 +106,7 @@ namespace RabbitMqNext
 				if (pendingCall == null) continue;
 				if (now - pendingCall.Started > _timeoutInTicks)
 				{
-					try
-					{
-						pendingCall.SetException(new Exception("Rpc call timeout"), runContinuationAsync: true);
-					}
-					catch (Exception)
-					{
-					}
+					pendingCall.TrySetException(new Exception("Rpc call timeout"), runContinuationAsync: true);
 				}
 			}
 		}

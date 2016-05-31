@@ -40,7 +40,7 @@ namespace RabbitMqNext
 			try
 			{
 				taskLight.Id = 0;
-				taskLight.SetResult(delivery); // <- this races with DrainPendingCalls. 
+				taskLight.TrySetResult(delivery); // <- this races with DrainPendingCalls. 
 				
 				// But we want just one call to semaphore.Release
 				_semaphoreSlim.Release();
@@ -76,7 +76,7 @@ namespace RabbitMqNext
 
 				// NOTE: If our use of semaphore is correct, this should never happen:
 				LogAdapter.LogError("RpcHelper", "Maxed calls: " + _maxConcurrentCalls);
-				task.SetException(new Exception("reached max calls"));
+				task.TrySetException(new Exception("reached max calls"));
 				return task;
 			}
 
@@ -103,7 +103,7 @@ namespace RabbitMqNext
 
 				_semaphoreSlim.Release();
 
-				task.SetException(ex);
+				task.TrySetException(ex);
 			}
 
 			return task;

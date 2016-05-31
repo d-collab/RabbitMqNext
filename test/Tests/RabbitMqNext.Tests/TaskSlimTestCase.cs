@@ -161,5 +161,11 @@
 
 			runCont.Should().BeTrue();
 		}
+
+		// Missing MT tests: 
+		// - Multiple attempts to call SetComplete at same time
+		// - Multiple attempts to call SetException at same time
+		// - Multiple attempts to call TrySetComplete at same time
+		// - Multiple attempts to call TrySetException at same time
 	}
 }

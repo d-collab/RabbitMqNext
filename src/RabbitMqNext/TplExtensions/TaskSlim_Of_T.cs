@@ -4,7 +4,7 @@ namespace RabbitMqNext
 	using System.Runtime.CompilerServices;
 	using TplExtensions;
 
-	public class TaskSlim<T> : BaseTaskSlim<TaskSlim<T>>, INotifyCompletion
+	public class TaskSlim<T> : BaseTaskSlim<TaskSlim<T>>, INotifyCompletion 
 	{
 		private T _result;
 
@@ -33,11 +33,11 @@ namespace RabbitMqNext
 			return _result; 
 		}
 
-		public void SetResult(T result, bool runContinuationAsync = false)
+		public bool TrySetResult(T result, bool runContinuationAsync = false)
 		{
+			// Ugh! May overwrite. let's hope the race is between setResult and SetException, not multiples setresult calls. 
 			_result = result;
-
-			SetCompleted(runContinuationAsync);
+			return TrySetCompleted(runContinuationAsync);
 		}
 
 		public override void Recycle()

@@ -54,6 +54,8 @@ namespace RabbitMqNext
 
 		protected async Task Setup()
 		{
+			Console.WriteLine("Setup Rpc...");
+
 			_replyQueueName = await _channel.QueueDeclare("", // temp
 				false, false, exclusive: true, autoDelete: true,
 				waitConfirmation: true, arguments: null).ConfigureAwait(false);
@@ -61,6 +63,8 @@ namespace RabbitMqNext
 			_subscription = await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name,
 				consumerTag: "",
 				withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true).ConfigureAwait(false);
+
+			Console.WriteLine("Setup Rpc done " + _replyQueueName + " " + _subscription);
 		}
 
 		protected abstract Task OnReplyReceived(MessageDelivery delivery);

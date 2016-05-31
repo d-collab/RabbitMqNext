@@ -398,7 +398,7 @@ namespace RabbitMqNext.Io
 					{
 						_channel.Return(properties); // the tcs is left for the confirmation keeper
 					}
-					tcs.SetCompleted();
+					tcs.TrySetCompleted();
 					return Task.CompletedTask;
 				},
 				expectsReply: false,

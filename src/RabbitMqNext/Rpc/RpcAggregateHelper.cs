@@ -108,7 +108,7 @@ namespace RabbitMqNext
 				try
 				{
 					taskLight.Id = 0;
-					taskLight.SetResult(aggreDeliveries);
+					taskLight.TrySetResult(aggreDeliveries);
 				}
 				finally
 				{
@@ -139,7 +139,7 @@ namespace RabbitMqNext
 
 				// NOTE: If our use of semaphore is correct, this should never happen:
 				LogAdapter.LogError("RpcAggregateHelper", "Maxed calls: " + _maxConcurrentCalls);
-				task.SetException(new Exception("reached max calls"));
+				task.TrySetException(new Exception("reached max calls"));
 				return task;
 			}
 
@@ -176,7 +176,7 @@ namespace RabbitMqNext
 
 				_semaphoreSlim.Release();
 
-				task.SetException(ex);
+				task.TrySetException(ex);
 			}
 
 			return task;

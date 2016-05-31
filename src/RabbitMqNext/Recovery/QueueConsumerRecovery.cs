@@ -90,7 +90,7 @@
 
 		public override int GetHashCode()
 		{
-			return (_consumerTag != null ? _consumerTag.GetHashCode() : 0);
+			return _consumerTag != null ? _consumerTag.GetHashCode() : 0;
 		}
 	}
 }

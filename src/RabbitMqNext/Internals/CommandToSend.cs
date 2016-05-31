@@ -103,7 +103,7 @@
 						Tcs.SetResult(true);
 
 					if (TcsSlim != null)
-						TcsSlim.SetCompleted();
+						TcsSlim.TrySetCompleted();
 				}
 			}
 

@@ -65,7 +65,7 @@ namespace RabbitMqNext.Internals
 			if (!success) // probably will never happen due to the semaphore, but just in case. 
 			{
 				// fail fast, better than leaving the task hanging forever
-				tcs.SetException(new Exception("MessagesPendingConfirmationKeeper: Could not find free spot for the waiting task"));
+				tcs.TrySetException(new Exception("MessagesPendingConfirmationKeeper: Could not find free spot for the waiting task"));
 			}
 		}
 		
@@ -85,9 +85,9 @@ namespace RabbitMqNext.Internals
 				if (tcs == null) throw new Exception("_tasks is broken!");
 
 				if (isAck)
-					tcs.SetCompleted(runContinuationAsync: true);
-				else 
-					tcs.SetException(new Exception("Server said it rejected this message. Sorry"), runContinuationAsync: true);
+					tcs.TrySetCompleted(runContinuationAsync: true);
+				else
+					tcs.TrySetException(new Exception("Server said it rejected this message. Sorry"), runContinuationAsync: true);
 			}
 
 			_lastConfirmed = deliveryTag;
@@ -100,7 +100,7 @@ namespace RabbitMqNext.Internals
 				var tcs = Interlocked.Exchange(ref _tasks[i], null);
 				if (tcs == null) continue;
 
-				tcs.SetException(new Exception("Cancelled due to error " + error.ToErrorString()), runContinuationAsync: true);
+				tcs.TrySetException(new Exception("Cancelled due to error " + error.ToErrorString()), runContinuationAsync: true);
 			}
 		}
 
@@ -110,8 +110,8 @@ namespace RabbitMqNext.Internals
 			{
 				var tcs = Interlocked.Exchange(ref _tasks[i], null);
 				if (tcs == null) continue;
-				
-				tcs.SetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true);
+
+				tcs.TrySetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true);
 			}
 		}
 

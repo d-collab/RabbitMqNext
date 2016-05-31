@@ -77,7 +77,7 @@ namespace RabbitMqNext.IntegrationTests
 			}, "queue_direct", consumerTag: "", withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true);
 
 
-			channel1.BasicPublish("test_direct", "routing", true, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
+			channel1.BasicPublishFast("test_direct", "routing", true, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
 			await Task.Delay(1000);
 
 			deliveries.Should().HaveCount(1);
@@ -126,7 +126,7 @@ namespace RabbitMqNext.IntegrationTests
 			}, "queue_direct", consumerTag: "", withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true);
 
 
-			channel1.BasicPublish("test_direct", "routing", true, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
+			channel1.BasicPublishFast("test_direct", "routing", true, BasicProperties.Empty, new ArraySegment<byte>(new byte[] { 4, 3, 2, 1, 0 }));
 			Console.WriteLine("BasicPublish done");
 
 			await Task.Delay(1000);
@@ -180,7 +180,7 @@ namespace RabbitMqNext.IntegrationTests
 			var count = 1000;
 			for (int i = 0; i < count; i++)
 			{
-				channel1.BasicPublish("test_direct", "routing", true, BasicProperties.Empty, BitConverter.GetBytes(i));
+				channel1.BasicPublishFast("test_direct", "routing", true, BasicProperties.Empty, BitConverter.GetBytes(i));
 			}
 
 			await Task.Delay(3500);

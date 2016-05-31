@@ -59,26 +59,28 @@
 			var replier = await StartRpcReplyThread();
 
 
-			var conn = (RecoveryEnabledConnection)
+			var conn = // (RecoveryEnabledConnection)
 				await ConnectionFactory
 					.Connect(_host, _vhost,
-					_username, _password, recoverySettings: AutoRecoverySettings.All);
+							 _username, _password, 
+							 recoverySettings: AutoRecoverySettings.All, 
+							 connectionName: "main");
 
-			conn.RecoveryCompleted += async () =>
-			{
-				Console.WriteLine("Recovery completed!!");
-			};
+//			conn.RecoveryCompleted += () =>
+//			{
+//				Console.WriteLine("Recovery completed!!");
+//			};
 
 			var channel1 = await conn.CreateChannel();
 			await channel1.ExchangeDeclare("exchange_rec_1", "direct", false, autoDelete: true, arguments: null, waitConfirmation: true);
-			await channel1.QueueDeclare("qrpc1", false, true, false, true, null, waitConfirmation: true);
-			await channel1.QueueDeclare("queue_rec_1", false, true, false, true, null, waitConfirmation: true);
+//			await channel1.QueueDeclare("qrpc1", false, durable: true, exclusive: false, autoDelete: false, arguments: null, waitConfirmation: true);
+			await channel1.QueueDeclare("queue_rec_1", false, durable: true, exclusive: false, autoDelete: true, arguments: null, waitConfirmation: true);
 			await channel1.QueueBind("queue_rec_1", "exchange_rec_1", "routing1", null, waitConfirmation: true);
 			var rpcHelper = await channel1.CreateRpcHelper(ConsumeMode.ParallelWithBufferCopy, 1000);
 
 			var channel2 = await conn.CreateChannel();
 			await channel2.ExchangeDeclare("exchange_rec_2", "direct", false, autoDelete: true, arguments: null, waitConfirmation: true);
-			await channel2.QueueDeclare("queue_rec_2", false, true, false, true, null, waitConfirmation: true);
+			await channel2.QueueDeclare("queue_rec_2", false, durable: true, exclusive: false, autoDelete: true, arguments: null, waitConfirmation: true);
 			await channel2.QueueBind("queue_rec_2", "exchange_rec_2", "routing2", null, waitConfirmation: true);
 
 			int counter = 0;
@@ -131,11 +133,13 @@
 			var conn = (RecoveryEnabledConnection)
 				await ConnectionFactory
 					.Connect(_host, _vhost,
-					_username, _password, recoverySettings: AutoRecoverySettings.All);
+							 _username, _password, 
+							 recoverySettings: AutoRecoverySettings.All, 
+							 connectionName: "replier");
 
 			var channel = await conn.CreateChannel();
 
-			await channel.QueueDeclare("qrpc1", false, true, false, true, null, waitConfirmation: true);
+			await channel.QueueDeclare("qrpc1", false, true, false, false, null, waitConfirmation: true);
 
 			await channel.BasicConsume(ConsumeMode.SingleThreaded, (delivery) =>
 			{
