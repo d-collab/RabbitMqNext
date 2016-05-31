@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{1C5509A6-AE8F-42B8-8E21-C8BE264F1A5C}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>RabbitMqNext.Tests</RootNamespace>
     <AssemblyName>RabbitMqNext.Tests</AssemblyName>
@@ -30,6 +30,9 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>RabbitMqNext.Tests.TestProgram</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="FluentAssertions, Version=4.6.3.0, Culture=neutral, PublicKeyToken=33f2691a05b67b6a, processorArchitecture=MSIL">
@@ -70,6 +73,7 @@
     <Compile Include="ObjectPoolTestCase.cs" />
     <Compile Include="RingBuffer2OpsTestCase.cs" />
     <Compile Include="TaskSlimTestCase.cs" />
+    <Compile Include="TestProgram.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

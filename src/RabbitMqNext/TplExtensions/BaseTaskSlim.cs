@@ -200,41 +200,18 @@ namespace RabbitMqNext.TplExtensions
 			}
 		}
 
-		// return TryAtomicXor(0, SignalledStatePos, SignalledStateMask);
-
-//		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-//		internal bool TryAtomicXor(int val, int shifts, int mask)
-//		{
-//			var curState = _state;
-//
-//			// (1) zero the updateBits.  eg oldState = [11111111]    flag=00111000  newState= [11000111]
-//			// (2) map in the newBits.              eg [11000111] newBits=00101000, newState= [11101111]
-//			int newState = (curState & ~mask) | (val << shifts);
-//
-//			// (1) zero the updateBits.  eg oldState = [11111111]    flag=00111000  newState= [11000111]
-//			// (2) map in the newBits.              eg [11000111] newBits=00101000, newState= [11101111]
-//			int expected = (newState ^ mask) | curState;
-//
-//			// newState [100001]
-//			// expected [000001]
-//
-//#pragma warning disable 420
-//			return (Interlocked.CompareExchange(ref _state, newState, expected) == expected);
-//#pragma warning restore 420
-//		}
-
 		/// <summary>
 		/// CaS version that preserves the state outside the mask
 		/// </summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal bool CompareAndSwap(int val, int requiredVal, int shifts, int mask)
+		internal bool CompareAndSwap(int newVal, int comparand, int shifts, int mask)
 		{
 			var curState = _state;
 
 			// (1) zero the updateBits.  eg oldState = [11111111]    flag=00111000  newState= [11000111]
 			// (2) map in the newBits.              eg [11000111] newBits=00101000, newState= [11101111]
-			int newState = (curState & ~mask) | (val << shifts);
-			int expected = (curState & ~mask) | (requiredVal << shifts);
+			int newState = (curState & ~mask) | (newVal << shifts);
+			int expected = (curState & ~mask) | (comparand << shifts);
 
 #pragma warning disable 420
 			return (Interlocked.CompareExchange(ref _state, newState, expected) == expected);

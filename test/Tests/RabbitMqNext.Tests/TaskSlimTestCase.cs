@@ -1,7 +1,11 @@
 ﻿namespace RabbitMqNext.Tests
 {
 	using System;
+	using System.ComponentModel;
+	using System.Threading;
+	using System.Threading.Tasks;
 	using FluentAssertions;
+	using Internals.RingBuffer;
 	using NUnit.Framework;
 
 
@@ -162,10 +166,63 @@
 			runCont.Should().BeTrue();
 		}
 
-		// Missing MT tests: 
-		// - Multiple attempts to call SetComplete at same time
-		// - Multiple attempts to call SetException at same time
-		// - Multiple attempts to call TrySetComplete at same time
-		// - Multiple attempts to call TrySetException at same time
+		[TestCase(true, 1)]
+		[TestCase(true, 2)]
+		[TestCase(true, 3)]
+		[TestCase(true, 4)]
+		[TestCase(true, 5)]
+		[TestCase(true, 6)]
+		[TestCase(true, 7)]
+		[TestCase(true, 8)]
+		[TestCase(false, 1)]
+		[TestCase(false, 2)]
+		[TestCase(false, 3)]
+		[TestCase(false, 4)]
+		[TestCase(false, 5)]
+		[TestCase(false, 6)]
+		[TestCase(false, 7)]
+		[TestCase(false, 8)]
+		public void MultiThreaded_TrySetComplete(bool isSetCompleteTest, int howManyThreads)
+		{
+			int continuationCalledCounter = 0;
+			int completedGainedCounter = 0;
+			int completedLossedCounter = 0;
+
+			var taskSlim = new TaskSlim(null);
+			taskSlim.SetContinuation(() =>
+			{
+				Interlocked.Increment(ref continuationCalledCounter);
+			});
+
+			var @syncEvent = new ManualResetEventSlim(false);
+
+			for (int i = 0; i < howManyThreads; i++)
+			{
+				ThreadFactory.BackgroundThread((index) =>
+				{
+					@syncEvent.Wait();
+
+					var result = isSetCompleteTest ? 
+						taskSlim.TrySetCompleted() : 
+						taskSlim.TrySetException(new Exception("bah"));
+
+					if (result)
+						Interlocked.Increment(ref completedGainedCounter);
+					else
+						Interlocked.Increment(ref completedLossedCounter);
+
+				}, "T_" + i, i);
+			}
+
+			Thread.Sleep(0);
+
+			@syncEvent.Set();
+
+			Thread.Sleep(1000);
+
+			continuationCalledCounter.Should().Be(1, "continuation cannot be called more than once");
+			completedGainedCounter.Should().Be(1, "only 1 thread could have taken the lock successfully");
+			completedLossedCounter.Should().Be(howManyThreads - 1, "all other threads should have been unsuccessful");
+		}
 	}
 }
