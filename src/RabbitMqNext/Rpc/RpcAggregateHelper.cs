@@ -157,7 +157,7 @@ namespace RabbitMqNext
 
 			try
 			{
-				var prop = properties ?? _channel.RentBasicProperties();
+				var prop = (properties == null || properties == BasicProperties.Empty) ? _channel.RentBasicProperties() : properties;
 				prop.CorrelationId = correlationId + Separator[0].ToString() + cookie;
 				prop.ReplyTo = _replyQueueName.Name;
 

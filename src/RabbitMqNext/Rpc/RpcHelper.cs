@@ -85,7 +85,7 @@ namespace RabbitMqNext
 
 			try
 			{
-				var prop = properties ?? _channel.RentBasicProperties();
+				var prop = (properties == null || properties == BasicProperties.Empty) ? _channel.RentBasicProperties() : properties;
 				prop.CorrelationId = correlationId.ToString();
 				prop.ReplyTo = _replyQueueName.Name;
 				// TODO: confirm this doesnt cause more overhead to rabbitmq
