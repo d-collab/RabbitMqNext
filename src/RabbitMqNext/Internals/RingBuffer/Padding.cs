@@ -10,7 +10,8 @@
 	internal static class Padding
 	{
 		/// <summary>A size greater than or equal to the size of the most common CPU cache lines.</summary>
-		internal const int CACHE_LINE_SIZE = 128;
+		// internal const int CACHE_LINE_SIZE = 128;
+		internal const int CACHE_LINE_SIZE = 64;
 	}
 
 	/// <summary>Padding structure used to minimize false sharing in SingleProducerSingleConsumerQueue{T}.</summary>
