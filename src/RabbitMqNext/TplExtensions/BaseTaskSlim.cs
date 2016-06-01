@@ -15,15 +15,13 @@ namespace RabbitMqNext.TplExtensions
 	/// </remarks>
 	public class BaseTaskSlim<TDerived> : IDisposable
 	{
-		private static readonly byte CompletionStateMask = 0x03;
-		private static readonly byte CompletionStatePos = 0;
-		private static readonly byte NotCompletedState = 0;
-		private static readonly byte CompletedWithResultState = 1;
-		private static readonly byte CompletedWithExceptionState = 2;
-		private static readonly byte HasContinuationSetMask = 0x04;
-//		private static readonly byte HasContinuationPos = 2;
-		private static readonly byte RunContinuationAsyncMask = 0x08;
-//		private static readonly byte RunContinuationAsyncPos = 3;
+		private const byte CompletionStateMask = 0x03;
+		private const byte CompletionStatePos = 0;
+		private const byte NotCompletedState = 0;
+		private const byte CompletedWithResultState = 1;
+		private const byte CompletedWithExceptionState = 2;
+		private const byte HasContinuationSetMask = 0x04;
+		private const byte RunContinuationAsyncMask = 0x08;
 
 		private volatile int _state;
 
