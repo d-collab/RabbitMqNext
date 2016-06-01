@@ -18,6 +18,7 @@ namespace RabbitMqNext.Tests
 
 			autoResSlim1.IsSet.Should().BeFalse();
 			autoResSlim1.Waiters.Should().Be(0);
+			autoResSlim1.Operational.Should().BeTrue();
 
 			autoResSlim1.Waiters = 34;
 			autoResSlim1.Waiters.Should().Be(34);
@@ -191,6 +192,39 @@ namespace RabbitMqNext.Tests
 				semaphore.Wait();
 
 			countOfObtained.Should().Be(4000);
+
+			autoResSlim.IsSet.Should().BeFalse();
+		}
+
+		[Test]
+		public void Reset_WithWaiters()
+		{
+			var autoResSlim = new AutoResetSuperSlimLock(false);
+
+			int releasedCounter = 0;
+			const int totalThreads = 5;
+
+			for (int i = 0; i < totalThreads; i++)
+			{
+				new Thread(() =>
+				{
+					autoResSlim.Wait();
+
+					Interlocked.Increment(ref releasedCounter);
+
+				}) { IsBackground = true }.Start();
+			}
+
+			Thread.Sleep(2000);
+
+			autoResSlim.Waiters.Should().Be(totalThreads);
+
+			autoResSlim.Reset();
+
+			Thread.Sleep(100);
+
+			autoResSlim.Waiters.Should().Be(0);
+			releasedCounter.Should().Be(totalThreads);
 
 			autoResSlim.IsSet.Should().BeFalse();
 		}

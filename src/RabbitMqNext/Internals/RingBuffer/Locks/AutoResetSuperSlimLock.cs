@@ -20,18 +20,20 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			internal PaddingForInt32 _pad0;
 			internal volatile int _state;
 			internal PaddingForInt32 _pad1;
-			internal volatile bool _operational;
+			// internal volatile bool _operational;
 		}
 
 		private LockState _lockState;
 
-		internal const int SignalledStateMask = 0x8000;      // 1000 0000 0000 0000
+		internal const int OperationalStateMask = 0x4000;  // 0100 0000 0000 0000
+		internal const int OperationalStatePos = 14;
+		internal const int SignalledStateMask = 0x8000;    // 1000 0000 0000 0000
 		internal const int SignalledStatePos = 15;
-		internal const int NumWaitersStateMask = (0xFF);     // 0000 0000 1111 1111
+		internal const int NumWaitersStateMask = 0xFF;     // 0000 0000 1111 1111
 		internal const int NumWaitersStatePos = 0;
+		internal const int WaiterMax = 255; // 0xFF
 
 //		private readonly ConcurrentQueue<TaskCompletionSource<bool>> _waiters = new ConcurrentQueue<TaskCompletionSource<bool>>();
-		// private volatile int _state;
 
 		private readonly object _lock = new object();
 		
@@ -44,39 +46,18 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		public AutoResetSuperSlimLock(bool initialState = false)
 		{
-			if (initialState)
-			{
-				_lockState._state = SignalledStateMask;
-			}
-			_lockState._operational = true;
+			_lockState._state = (1 << OperationalStatePos) | (initialState ? SignalledStateMask : 0);
 		}
-
-//		public Task WaitAsync()
-//		{
-//			return WaitAsync(Timeout.Infinite);
-//		}
-//
-//		public Task WaitAsync(int millisecondsTimeout) //, CancellationToken cancellationToken)
-//		{
-////			cancellationToken.Register(OnCancelled)
-//
-//			if (!CheckForIsSetAndResetIfTrue())
-//			{
-//				if (SpinAndTryToObtainLock()) 
-//					return Task.CompletedTask;
-//
-//				var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-//				_waiters.Enqueue(tcs);
-//				return tcs.Task;
-//			}
-//
-//			return Task.CompletedTask;
-//		}
 
 		public void Restore()
 		{
-			_lockState._state = 0;
-			_lockState._operational = true; // allow waiters
+			lock (_lock)
+			{
+				// _lockState._state = 0;
+				// _lockState.Operational = true; // allow waiters
+
+				_lockState._state = (1 << OperationalStatePos); // operational again
+			}
 		}
 
 		/// <summary>
@@ -88,21 +69,23 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			// Free waiters
 			lock (_lock)
 			{
-				_lockState._operational = false; // disallow waiters
+				Operational = false; // disallow waiters
 
-				var waiters = Waiters;
-				while (--waiters >= 0)
-				{
-					// _lockState._state = 1 << SignalledStatePos; // Ugly Shortcut, but we're reseting, all bets are off.
-					AtomicChange(1, SignalledStatePos, SignalledStateMask);
-					Monitor.Pulse(_lock); // release one waiting thread
+				Monitor.PulseAll(_lock);
 
-					waiters = Waiters;
-				}
+				// var waiters = Waiters;
+//				while (Waiters > 0)
+//				{
+//					// _lockState._state = 1 << SignalledStatePos; // Ugly Shortcut, but we're reseting, all bets are off.
+//					// AtomicChange(1, SignalledStatePos, SignalledStateMask);
+//					Monitor.PulseAll(_lock); // release one waiting thread
+//					// Thread.Sleep(0);
+//					// Console.WriteLine("Ran " + Waiters);
+//				}
 			}
 
 			// reset state
-			_lockState._state = 0;
+			// _lockState._state = 0;
 		}
 
 		public bool Wait()
@@ -112,7 +95,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		public bool Wait(int millisecondsTimeout)
 		{
-			if (!_lockState._operational) // volatile read perf hit
+			if (!Operational) // volatile read perf hit
 				throw new Exception("Cannot wait when not operational");
 
 			if (!CheckForIsSetAndResetIfTrue())
@@ -122,6 +105,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 				lock (_lock)
 				{
+					if (!Operational) // volatile read perf hit
+						throw new Exception("Cannot wait when not operational");
+
 					// if (!CheckForIsSetAndResetIfTrue())
 					{
 						Waiters++;
@@ -142,8 +128,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 								}
 								else
 								{
-									if (CheckForIsSetAndResetIfTrue())
-										break;
+									var gained = CheckForIsSetAndResetIfTrue();
+
+									if (gained) break;
 								}
 							}
 						}
@@ -161,10 +148,11 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void Set()
 		{
-			if (!_lockState._operational) // volatile read perf hit
+			if (!Operational) // volatile read perf hit
 				throw new Exception("Cannot Set when not operational");
 
-			if (_lockState._state == SignalledStateMask) return;
+			// shortcut - if already set
+			if (IsSet) return;
 
 			AtomicChange(1, SignalledStatePos, SignalledStateMask);
 
@@ -212,7 +200,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private bool CheckForIsSetAndResetIfTrue()
 		{
-			return TryAtomicXor(0, SignalledStatePos, SignalledStateMask);
+			return TryAtomicXor(0, SignalledStatePos, SignalledStateMask) || !Operational;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -256,7 +244,8 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			// expected [000001]
 
 #pragma warning disable 420
-			return (Interlocked.CompareExchange(ref _lockState._state, newState, expected) == expected);
+			var result = (Interlocked.CompareExchange(ref _lockState._state, newState, expected) );
+			return result == expected;
 #pragma warning restore 420
 		}
 
@@ -308,8 +297,20 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			set
 			{
+				if (value >= WaiterMax) throw new ArgumentOutOfRangeException("waiters", "Waiters cannot be greater than "+ WaiterMax + ". Assigned value: " + value);
 				AtomicChange(value, NumWaitersStatePos, NumWaitersStateMask);
 			}
+		}
+
+		internal bool Operational
+		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get
+			{
+				return ExtractStatePortionAndShiftRight(_lockState._state, OperationalStateMask, OperationalStatePos) == 1; 
+			}
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			set { AtomicChange(value ? 1 : 0, OperationalStatePos, OperationalStateMask); }
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
