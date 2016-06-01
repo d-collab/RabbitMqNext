@@ -153,8 +153,8 @@
 			_state._readPosition = _state._readPositionCopy = 0;
 			_state._writePosition = _state._writePositionCopy = 0;
 
-			_readLock.Restore();
 			_writeLock.Restore();
+			_readLock.Restore();
 
 			_state._resetApplied = false;
 
@@ -165,8 +165,8 @@
 		{
 			_state._resetApplied = true;
 
-			_readLock.Reset();
 			_writeLock.Reset();
+			_readLock.Reset();
 
 			_state._readPosition = _state._readPositionCopy = 0;
 			_state._writePosition = _state._writePositionCopy = 0;

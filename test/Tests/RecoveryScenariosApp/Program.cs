@@ -135,7 +135,7 @@
 				await ConnectionFactory
 					.Connect(_host, _vhost,
 							 _username, _password, 
-							 recoverySettings: AutoRecoverySettings.Off, 
+							 recoverySettings: AutoRecoverySettings.All, 
 							 connectionName: "replier");
 
 			var channel = await conn.CreateChannel();

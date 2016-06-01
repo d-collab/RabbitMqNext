@@ -163,7 +163,11 @@
 				{
 					try
 					{
-						LogAdapter.LogDebug(LogSource, "Starting Recovery");
+						LogAdapter.LogDebug(LogSource, "Starting Recovery. Waiting for connection clean up");
+
+						await pthis.AwaitConnectionReset();
+
+						LogAdapter.LogDebug(LogSource, "Connection is ready");
 
 						pthis.FireWillRecover();
 
@@ -273,6 +277,21 @@
 		{
 			var ev = this.RecoveryCompleted;
 			if (ev != null) ev();
+		}
+
+		/// <summary>
+		/// Returning Tasks is completed with the connection is wiped clean
+		/// </summary>
+		private Task AwaitConnectionReset()
+		{
+			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+			_connection._io.TriggerOnceOnFreshState(() =>
+			{
+				tcs.SetResult(true);
+			});
+
+			return tcs.Task;
 		}
 
 		private void FireWillRecover()

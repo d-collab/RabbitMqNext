@@ -42,6 +42,7 @@ namespace RabbitMqNext.Io
 		private uint _frameMax;
 
 		private volatile bool _readThreadRunning, _writeThreadRunning;
+		private Action _connectionCleanPendingAction;
 
 		#endregion
 		
@@ -320,6 +321,8 @@ namespace RabbitMqNext.Io
 			finally
 			{
 				_writeThreadRunning = false;
+
+				TryTriggerClean();
 			}
 		}
 
@@ -354,9 +357,10 @@ namespace RabbitMqNext.Io
 			finally
 			{
 				_readThreadRunning = false;
+
+				TryTriggerClean();
 			}
 		}
-
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
 			Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
@@ -603,5 +607,27 @@ namespace RabbitMqNext.Io
 		}
 
 		#endregion
+
+		public void TriggerOnceOnFreshState(Action action)
+		{
+			if (!_readThreadRunning && !_writeThreadRunning)
+			{
+				action();
+			}
+			else
+			{
+				_connectionCleanPendingAction = action;
+			}
+		}
+
+		private void TryTriggerClean()
+		{
+			if (!_readThreadRunning && !_writeThreadRunning && _connectionCleanPendingAction != null)
+			{
+				_connectionCleanPendingAction();
+
+				_connectionCleanPendingAction = null;
+			}
+		}
 	}
 }
