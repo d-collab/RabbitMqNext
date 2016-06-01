@@ -30,12 +30,6 @@ namespace System.Buffers
                 _poolId = poolId;
             }
 
-	        /// <summary>Gets an ID for the bucket to use with events.</summary>
-//	        internal int Id
-//	        {
-//		        get { return GetHashCode(); }
-//	        }
-
 	        /// <summary>Takes an array from the bucket.  If the bucket is empty, returns null.</summary>
             internal T[] Rent()
             {
