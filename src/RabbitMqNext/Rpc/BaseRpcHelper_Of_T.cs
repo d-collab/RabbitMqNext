@@ -2,7 +2,6 @@ namespace RabbitMqNext
 {
 	using System;
 	using System.Threading;
-	using System.Threading.Tasks;
 	using Internals;
 
 
@@ -90,10 +89,11 @@ namespace RabbitMqNext
 				if (pendingCall == null) continue;
 
 				// this races with OnReplyReceived. 
-				pendingCall.TrySetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true);
-
-				// and we want just one call to Release
-				_semaphoreSlim.Release();
+				if (pendingCall.TrySetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true))
+				{
+					// and we want just one call to Release
+					_semaphoreSlim.Release();
+				}
 			}
 		}
 

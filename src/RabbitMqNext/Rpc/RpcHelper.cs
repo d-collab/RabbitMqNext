@@ -40,10 +40,11 @@ namespace RabbitMqNext
 			try
 			{
 				taskLight.Id = 0;
-				taskLight.TrySetResult(delivery); // <- this races with DrainPendingCalls. 
-				
-				// But we want just one call to semaphore.Release
-				_semaphoreSlim.Release();
+				if (taskLight.TrySetResult(delivery)) // <- this races with DrainPendingCalls. 
+				{
+					// But we want just one call to semaphore.Release
+					_semaphoreSlim.Release();
+				}
 			}
 			catch (Exception ex)
 			{
@@ -64,9 +65,12 @@ namespace RabbitMqNext
 		/// <returns></returns>
 		public TaskSlim<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			if (!_operational) throw new Exception("Can't make RPC call when connection in recovery");
+
 			_semaphoreSlim.Wait();
 
 			var task = _taskResultPool.GetObject();
+			task.Started = DateTime.Now.Ticks;
 
 			uint correlationId;
 			long pos;
@@ -81,7 +85,6 @@ namespace RabbitMqNext
 			}
 
 			task.Id = correlationId; // so we can confirm we have the right instance later
-			task.Started = DateTime.Now.Ticks;
 
 			try
 			{

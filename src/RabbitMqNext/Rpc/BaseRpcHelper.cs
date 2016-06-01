@@ -17,6 +17,8 @@ namespace RabbitMqNext
 		protected AmqpQueueInfo _replyQueueName;
 		protected string _subscription;
 
+		protected bool _operational;
+
 
 		protected BaseRpcHelper(ConsumeMode mode, Channel channel, int maxConcurrentCalls)
 		{
@@ -36,6 +38,8 @@ namespace RabbitMqNext
 		public void SignalInRecovery()
 		{
 			this.DrainPendingCalls();
+
+			_operational = false;
 		}
 
 		/// <summary>
@@ -63,6 +67,8 @@ namespace RabbitMqNext
 			_subscription = await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name,
 				consumerTag: "",
 				withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true).ConfigureAwait(false);
+
+			_operational = true; 
 
 			Console.WriteLine("Setup Rpc done " + _replyQueueName + " " + _subscription);
 		}

@@ -127,9 +127,12 @@ namespace RabbitMqNext
 		public TaskSlim<IEnumerable<MessageDelivery>> CallAggregate(string exchange, string routing, BasicProperties properties,
 			ArraySegment<byte> buffer, int minExpectedReplies)
 		{
+			if (!_operational) throw new Exception("Can't make RPC call when connection in recovery");
+
 			_semaphoreSlim.Wait();
 
 			var task = _taskResultPool.GetObject();
+			task.Started = DateTime.Now.Ticks;
 
 			uint correlationId;
 			long pos;
@@ -153,7 +156,6 @@ namespace RabbitMqNext
 			}
 
 			task.Id = correlationId; // so we can confirm we have the right instance later
-			task.Started = DateTime.Now.Ticks;
 
 			try
 			{
