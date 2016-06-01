@@ -107,7 +107,11 @@
 				int available;
 				var writePos = this.InternalGetReadyToWriteEntries(count - totalwritten, out available);
 
-				if (_state._resetApplied) break;
+				if (_state._resetApplied)
+				{
+					throw new Exception("Can't be Written since the buffer is in Reset state"); 
+					// break;
+				}
 
 				if (available == 0)
 				{
@@ -122,7 +126,6 @@
 				Buffer.BlockCopy(buffer, offset + totalwritten, _buffer, writePos + _bufferPadding, available);
 
 				totalwritten += available;
-
 				
 				var newWritePos = _state._writePosition + (uint) available;
 				_state._writePosition = newWritePos;      // volative write
@@ -150,7 +153,11 @@
 			{
 				writePos = this.InternalGetReadyToWriteEntries(BufferSize, out available);
 
-				if (_state._resetApplied) break;
+				if (_state._resetApplied)
+				{
+					throw new Exception("Can't be read since the buffer is in Reset state");
+					// break;
+				}
 
 				if (available == 0)
 					_readLock.Wait();
@@ -186,7 +193,11 @@
 				int available;
 				int readPos = this.InternalGetReadyToReadEntries(count - totalRead, out available, fromGate);
 
-				if (_state._resetApplied) break;
+				if (_state._resetApplied)
+				{
+					throw new Exception("Can't be read since the buffer is in Reset state");
+					// break;
+				}
 
 				if (available == 0)
 				{
@@ -233,7 +244,11 @@
 				int totalRead;
 				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out totalRead, null);
 
-				if (_state._resetApplied) break;
+				if (_state._resetApplied)
+				{
+					throw new Exception("Can't be read since the buffer is in Reset state");
+					// break;
+				}
 
 				// buffer is empty.. return and expect to be called again when something gets written
 				if (totalRead == 0) 
@@ -271,7 +286,11 @@
 				int available;
 				int readPos = this.InternalGetReadyToReadEntries(offset - totalSkipped, out available, null);
 
-				if (_state._resetApplied) break;
+				if (_state._resetApplied)
+				{
+					throw new Exception("Can't be Skipped since the buffer is in Reset state"); 
+					// break;
+				}
 
 				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
 				if (available == 0)

@@ -20,6 +20,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			internal PaddingForInt32 _pad0;
 			internal volatile int _state;
 			internal PaddingForInt32 _pad1;
+			internal volatile bool _operational;
 		}
 
 		private LockState _lockState;
@@ -43,7 +44,11 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		public AutoResetSuperSlimLock(bool initialState = false)
 		{
-			if (initialState) _lockState._state = SignalledStateMask;
+			if (initialState)
+			{
+				_lockState._state = SignalledStateMask;
+			}
+			_lockState._operational = true;
 		}
 
 //		public Task WaitAsync()
@@ -68,6 +73,12 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 //			return Task.CompletedTask;
 //		}
 
+		public void Restore()
+		{
+			_lockState._state = 0;
+			_lockState._operational = true; // allow waiters
+		}
+
 		/// <summary>
 		/// For advanced scenarios, since it releases waiters 
 		/// without a corresponding 'Set'
@@ -77,11 +88,16 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 			// Free waiters
 			lock (_lock)
 			{
+				_lockState._operational = false; // disallow waiters
+
 				var waiters = Waiters;
 				while (--waiters >= 0)
 				{
-					_lockState._state = 1 << SignalledStatePos; // Ugly Shortcut, but we're reseting, all bets are off.
-					Monitor.Pulse(_lock); // release a waiting thread
+					// _lockState._state = 1 << SignalledStatePos; // Ugly Shortcut, but we're reseting, all bets are off.
+					AtomicChange(1, SignalledStatePos, SignalledStateMask);
+					Monitor.Pulse(_lock); // release one waiting thread
+
+					waiters = Waiters;
 				}
 			}
 
@@ -96,6 +112,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 		public bool Wait(int millisecondsTimeout)
 		{
+			if (!_lockState._operational) // volatile read perf hit
+				throw new Exception("Cannot wait when not operational");
+
 			if (!CheckForIsSetAndResetIfTrue())
 			{
 				if (SpinAndTryToObtainLock()) 
@@ -142,6 +161,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void Set()
 		{
+			if (!_lockState._operational) // volatile read perf hit
+				throw new Exception("Cannot Set when not operational");
+
 			if (_lockState._state == SignalledStateMask) return;
 
 			AtomicChange(1, SignalledStatePos, SignalledStateMask);

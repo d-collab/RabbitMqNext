@@ -23,7 +23,7 @@
 			internal PaddingForInt32 _pad2;
 			internal uint _bufferSize;
 
-			internal volatile bool _resetApplied;
+			internal volatile bool _resetApplied; // TODO: does this need to be volatile? the state change will happen in a dif thread, though. 
 		}
 
 		internal State _state;
@@ -146,15 +146,22 @@
 //			return minGatePos;
 //		}
 
-		internal void Restart()
+		internal void ReenableBuffers()
 		{
-			Reset(); // ensure positions are properly set
+			// Reset(); // ensure positions are properly set
+
+			_state._readPosition = _state._readPositionCopy = 0;
+			_state._writePosition = _state._writePositionCopy = 0;
+
+			_readLock.Restore();
+			_writeLock.Restore();
 
 			_state._resetApplied = false;
-			Thread.MemoryBarrier();
+
+//			Thread.MemoryBarrier();
 		}
 
-		internal void Reset()
+		internal void StopAndBlockBuffers()
 		{
 			_state._resetApplied = true;
 
@@ -163,8 +170,6 @@
 
 			_state._readPosition = _state._readPositionCopy = 0;
 			_state._writePosition = _state._writePositionCopy = 0;
-
-			Thread.MemoryBarrier();
 		}
 
 #if !DEBUG

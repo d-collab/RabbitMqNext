@@ -40,7 +40,9 @@ namespace RabbitMqNext.Io
 		public string KnownHosts { get; private set; }
 		private ushort _channelMax;
 		private uint _frameMax;
-		
+
+		private volatile bool _readThreadRunning, _writeThreadRunning;
+
 		#endregion
 		
 		public ConnectionIO(Connection connection) : base(channelNum: 0)
@@ -166,7 +168,10 @@ namespace RabbitMqNext.Io
 		{
 			if (_threadCancelSource != null)
 			{
+				LogAdapter.LogDebug("ConnectionIO", "Socket closed. Stopping loops");
+
 				_threadCancelSource.Cancel();
+				_socketHolder.StopAndBlockBuffers();
 				_commandOutboxEvent.Set(); // <- gets it out of the Wait state, and fast exit
 			}
 
@@ -177,24 +182,26 @@ namespace RabbitMqNext.Io
 		{
 			var index = Interlocked.Increment(ref _counter);
 
+			// read and write threads should not be running at this point
+			if (_readThreadRunning) throw new Exception("Read thread should not be running");
+			if (_writeThreadRunning) throw new Exception("Write thread should not be running");
+
 			var result = await _socketHolder.Connect(hostname, port, index, throwOnError).ConfigureAwait(false);
 
-			if (!throwOnError && !result)
+			if (!result)
 			{
-				Interlocked.Decrement(ref _counter);
+				// Interlocked.Decrement(ref _counter);
 				return false;
 			}
 
-			// Reset state
-			_lastError = null;
-			while (!_commandOutbox.IsEmpty)
-			{
-				CommandToSend cmd;
-				_commandOutbox.TryDequeue(out cmd);
-			}
+			LogAdapter.LogDebug("ConnectionIO", "Connected socket to " + hostname + " port " + port);
+
+			DrainCommandsAndResetErrorState();
 
 			if (_threadCancelSource != null)
 			{
+				LogAdapter.LogDebug("ConnectionIO", "Disposing existing cancellation token source");
+
 				_threadCancelSource.Dispose();
 			}
 
@@ -211,6 +218,20 @@ namespace RabbitMqNext.Io
 			ThreadFactory.BackgroundThread(ReadFramesLoop,  "ReadFramesLoop_"  + index);
 
 			return true;
+		}
+
+		private void DrainCommandsAndResetErrorState()
+		{
+			_lastError = null;
+			while (!_commandOutbox.IsEmpty)
+			{
+				CommandToSend cmd;
+				_commandOutbox.TryDequeue(out cmd);
+				if (cmd != null)
+				{
+					cmd.Dispose();
+				}
+			}
 		}
 
 		internal async Task<bool> Handshake(string vhost, string username, string password, string connectionName, bool throwOnError)
@@ -230,10 +251,11 @@ namespace RabbitMqNext.Io
 		// Run on its own thread, and invokes user code from it (task continuations)
 		private void WriteFramesLoop()
 		{
-			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "WriteFramesLoop starting");
+			LogAdapter.LogDebug("ConnectionIO", "WriteFramesLoop starting");
 
 			CommandToSend cmdToSend = null;
+
+			_writeThreadRunning = true;
 
 			try
 			{
@@ -242,6 +264,8 @@ namespace RabbitMqNext.Io
 				while (!token.IsCancellationRequested)
 				{
 					_commandOutboxEvent.WaitOne(1000); // maybe it's better to _cancellationToken.Register(action) ?
+
+					if (token.IsCancellationRequested) break; // perf hit?
 
 					while (_commandOutbox.TryDequeue(out cmdToSend))
 					{
@@ -255,8 +279,8 @@ namespace RabbitMqNext.Io
 							_waitingServerReply.Reset(); // cannot send anything else
 
 							var queue = cmdToSend.Channel == 0
-								? _awaitingReplyQueue : 
-								  _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
+								? _awaitingReplyQueue
+								: _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
 
 							queue.Enqueue(cmdToSend);
 						}
@@ -269,7 +293,8 @@ namespace RabbitMqNext.Io
 						}
 						else
 						{
-							cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+							cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId,
+								cmdToSend.OptionalArg);
 						}
 
 						// if writing to socket is enough, set as complete
@@ -292,13 +317,18 @@ namespace RabbitMqNext.Io
 
 				this.InitiateAbruptClose(ex);
 			}
+			finally
+			{
+				_writeThreadRunning = false;
+			}
 		}
 
 		// Run on its own thread, and invokes user code from it
 		private void ReadFramesLoop()
 		{
-			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "ReadFramesLoop starting");
+			LogAdapter.LogDebug("ConnectionIO", "ReadFramesLoop starting");
+
+			_readThreadRunning = true;
 
 			try
 			{
@@ -321,7 +351,12 @@ namespace RabbitMqNext.Io
 
 				this.InitiateAbruptClose(ex);
 			}
+			finally
+			{
+				_readThreadRunning = false;
+			}
 		}
+
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
 			Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,

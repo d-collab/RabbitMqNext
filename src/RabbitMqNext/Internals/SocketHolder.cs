@@ -10,7 +10,7 @@ namespace RabbitMqNext.Internals
 
 	// TODO: Needs lots of unit testing
 	// The idea here is to be able to replace the sockets and re-use the ringbuffers. we dont want 
-	// to allocate new ones. that said, the cancellation tokens are one time one. and we need to break
+	// to allocate new ones. that said, the cancellation tokens are one time cancel. and we need to break
 	// the consumer loops before reutilizing the ring buffers.
 	public class SocketHolder
 	{
@@ -109,7 +109,7 @@ namespace RabbitMqNext.Internals
 
 		internal void WireStreams(CancellationToken cancellationToken, Action notifyWhenClosed)
 		{
-			_inputBuffer.Restart();
+			_inputBuffer.ReenableBuffers();
 
 			// _socket = newSocket;
 			_notifyWhenClosed = notifyWhenClosed;
@@ -130,12 +130,13 @@ namespace RabbitMqNext.Internals
 		{
 			if (Interlocked.CompareExchange(ref _socketIsClosed, 1, 0) == 0)
 			{
-				try
-				{
-					this._notifyWhenClosed();
-				}
-				catch (Exception) { }
+				this._notifyWhenClosed();
 			}
+		}
+
+		internal void StopAndBlockBuffers()
+		{
+			_inputBuffer.StopAndBlockBuffers();
 		}
 	}
 }

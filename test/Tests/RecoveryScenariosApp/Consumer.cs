@@ -22,7 +22,7 @@ namespace RecoveryScenariosApp
 
 		public void Broken()
 		{
-			Console.WriteLine("[Consumer " + _name + "] Broken");
+			// Console.WriteLine("[Consumer " + _name + "] Broken");
 		}
 
 		public void Recovered()

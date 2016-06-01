@@ -91,7 +91,8 @@
 
 				try
 				{
-					await rpcHelper.Call("", "qrpc1", null, BitConverter.GetBytes(counter++));
+					var reply = await rpcHelper.Call("", "qrpc1", BasicProperties.Empty, BitConverter.GetBytes(counter++));
+					Console.WriteLine("rpc reply received. size " + reply.bodySize);
 					await channel1.BasicPublish("exchange_rec_1", "routing1", false, BasicProperties.Empty, Buffer1);
 					await channel2.BasicPublish("exchange_rec_2", "routing2", false, BasicProperties.Empty, Buffer2);
 				}
@@ -100,7 +101,7 @@
 					Console.WriteLine("Error sending message " + ex.Message);
 				}
 
-			}, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(1));
+			}, null, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(1));
 
 
 			var channel3 = await conn.CreateChannel();
@@ -130,11 +131,11 @@
 
 		private static async Task<IDisposable> StartRpcReplyThread()
 		{
-			var conn = (RecoveryEnabledConnection)
+			var conn = // (RecoveryEnabledConnection)
 				await ConnectionFactory
 					.Connect(_host, _vhost,
 							 _username, _password, 
-							 recoverySettings: AutoRecoverySettings.All, 
+							 recoverySettings: AutoRecoverySettings.Off, 
 							 connectionName: "replier");
 
 			var channel = await conn.CreateChannel();
