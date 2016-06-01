@@ -47,6 +47,9 @@
       <HintPath>..\..\..\packages\NUnitTDNet.3.0.1.0\lib\net45\nunit.framework.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="nunit.tdnet">
+      <HintPath>..\..\..\packages\NUnitTDNet.3.0.1.0\lib\net45\nunit.tdnet.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
