@@ -39,7 +39,7 @@ using System.Runtime.Versioning;
 [assembly: InternalsVisibleTo("EchoClient")]
 [assembly: InternalsVisibleTo("RingBufferPerfTest")]
 [assembly: InternalsVisibleTo("RabbitMqNext.IntegrationTests")]
-[assembly: InternalsVisibleTo("RabbitMqNext.Tests")]
+[assembly: InternalsVisibleTo("RabbitMqNextTests")]
 [assembly: InternalsVisibleTo("RecoveryScenariosApp")]
 
 

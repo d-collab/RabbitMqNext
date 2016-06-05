@@ -30,7 +30,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoClient", "test\Stress\E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoTestServer", "test\Stress\EchoTestServer\EchoTestServer.csproj", "{4D213E22-6C45-4865-BF21-67400DD5EFCF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMqNext.Tests", "test\Tests\RabbitMqNext.Tests\RabbitMqNext.Tests.csproj", "{1C5509A6-AE8F-42B8-8E21-C8BE264F1A5C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMqNextTests", "test\Tests\RabbitMqNext.Tests\RabbitMqNextTests.csproj", "{1C5509A6-AE8F-42B8-8E21-C8BE264F1A5C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMqNext.IntegrationTests", "test\Tests\RabbitMqNext.IntegrationTests\RabbitMqNext.IntegrationTests.csproj", "{75DE4826-7CE9-4FBD-B358-A29198B7E3E9}"
 EndProject

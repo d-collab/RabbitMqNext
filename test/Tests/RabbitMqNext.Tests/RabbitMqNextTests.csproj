@@ -7,8 +7,8 @@
     <ProjectGuid>{1C5509A6-AE8F-42B8-8E21-C8BE264F1A5C}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>RabbitMqNext.Tests</RootNamespace>
-    <AssemblyName>RabbitMqNext.Tests</AssemblyName>
+    <RootNamespace>RabbitMqNextTests</RootNamespace>
+    <AssemblyName>RabbitMqNextTests</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\..\</SolutionDir>
