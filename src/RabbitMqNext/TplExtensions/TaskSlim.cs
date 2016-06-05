@@ -5,7 +5,7 @@ namespace RabbitMqNext
 	using TplExtensions;
 
 
-	public class TaskSlim : BaseTaskSlim<TaskSlim>, INotifyCompletion
+	public class TaskSlim : BaseTaskSlim<TaskSlim>, ICriticalNotifyCompletion
 	{
 		public TaskSlim(Action<TaskSlim> recycler) : base(recycler)
 		{
@@ -14,6 +14,11 @@ namespace RabbitMqNext
 		public void OnCompleted(Action continuation)
 		{
 			SetContinuation(continuation);
+		}
+
+		public void UnsafeOnCompleted(Action continuation)
+		{
+			this.OnCompleted(continuation);
 		}
 
 		public TaskSlim GetAwaiter()
