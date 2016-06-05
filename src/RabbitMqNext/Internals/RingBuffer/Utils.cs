@@ -4,11 +4,13 @@ namespace RabbitMqNext.Internals.RingBuffer
 	{
 		public static bool IsPowerOfTwo(int n)
 		{
+			if (n == 1) return false;
+
 			var bitcount = 0;
 
 			for (int i = 0; i < 4; i++)
 			{
-				var b = (byte)n & 0xFF;
+				var b = (byte) n & 0xFF;
 
 				for (int j = 0; j < 8; j++)
 				{
