@@ -198,31 +198,15 @@
 			if (!waitConfirmation && string.IsNullOrEmpty(consumerTag))
 				throw new ArgumentException("You must specify a consumer tag if waitConfirmation = false");
 
-			// TODO: refactor
-
 			if (!string.IsNullOrEmpty(consumerTag))
 			{
-				var added = _consumerSubscriptions.TryAdd(consumerTag, new BasicConsumerSubscriptionInfo
-				{
-					ConsumerTag = consumerTag,
-					Mode = mode,
-					_consumer = consumer
-				});
-
-				if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
+				RegisterConsumer(mode, consumer, consumerTag);
 			}
 
 			return _io.__BasicConsume(mode, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation,
 				consumerTag2 =>
 				{
-					var added = _consumerSubscriptions.TryAdd(consumerTag2, new BasicConsumerSubscriptionInfo
-					{
-						ConsumerTag = consumerTag,
-						Mode = mode,
-						_consumer = consumer
-					});
-
-					if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
+					RegisterConsumer(mode, consumer, consumerTag2);
 				});
 		}
 
@@ -236,30 +220,15 @@
 			if (!waitConfirmation && string.IsNullOrEmpty(consumerTag)) 
 				throw new ArgumentException("You must specify a consumer tag if waitConfirmation = false");
 
-			// TODO: refactor
-
 			if (!string.IsNullOrEmpty(consumerTag))
 			{
-				var added = _consumerSubscriptions.TryAdd(consumerTag, new BasicConsumerSubscriptionInfo
-				{
-					ConsumerTag = consumerTag,
-					Mode = mode,
-					Callback = consumer
-				});
-				if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
+				RegisterConsumer(mode, consumer, consumerTag);
 			}
 
 			return _io.__BasicConsume(mode, queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation,
 				consumerTag2 =>
 				{
-					var added = _consumerSubscriptions.TryAdd(consumerTag2, new BasicConsumerSubscriptionInfo
-					{
-						ConsumerTag = consumerTag,
-						Mode = mode,
-						Callback = consumer
-					});
-
-					if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
+					RegisterConsumer(mode, consumer, consumerTag2);
 				});
 		}
 
@@ -604,6 +573,32 @@
 					_messageAvailableEv.Set();
 				}
 			}
+		}
+
+		private void RegisterConsumer(ConsumeMode mode, IQueueConsumer consumer, string consumerTag)
+		{
+			RegisterConsumer(consumerTag, new BasicConsumerSubscriptionInfo
+			{
+				ConsumerTag = consumerTag,
+				Mode = mode,
+				_consumer = consumer
+			});
+		}
+
+		private void RegisterConsumer(ConsumeMode mode, Func<MessageDelivery, Task> consumer, string consumerTag)
+		{
+			RegisterConsumer(consumerTag, new BasicConsumerSubscriptionInfo
+			{
+				ConsumerTag = consumerTag,
+				Mode = mode,
+				Callback = consumer
+			});
+		}
+
+		private void RegisterConsumer(string consumerTag, BasicConsumerSubscriptionInfo info)
+		{
+			var added = _consumerSubscriptions.TryAdd(consumerTag, info);
+			if (!added) throw new Exception("Consumer already exists for tag " + consumerTag);
 		}
 
 		internal void DrainPendingIfNeeded(AmqpError error)
