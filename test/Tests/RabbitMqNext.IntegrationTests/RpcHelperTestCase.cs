@@ -64,7 +64,7 @@
 			}
 		}
 
-		[Test, Ignore("doesnt work on appveyor for some reason")]
+		[Test]
 		public async Task BasicRpcWithMultipleReplies()
 		{
 			Console.WriteLine("BasicRpcWithMultipleReplies");

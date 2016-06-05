@@ -89,7 +89,6 @@
     <Compile Include="Connection.cs" />
     <Compile Include="Io\ConnectionIO.cs" />
     <Compile Include="ConsumeMode.cs" />
-    <Compile Include="Internals\RingBuffer\ReadingGate.cs" />
     <Compile Include="Internals\SocketHolder.cs" />
     <Compile Include="LogAdapter.cs" />
     <Compile Include="MConsole\BindingInfo.cs" />

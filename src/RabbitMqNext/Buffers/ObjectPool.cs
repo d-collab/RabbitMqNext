@@ -7,7 +7,9 @@
 
 	/// <summary>
 	/// TODO: implement a faster version. 
-	/// all these memory barried ops in a loop are very inneficient
+	/// all these memory barried ops in a loop are very inneficient.
+	/// 
+	/// Array based lock-free stack will be better. Watch out for ABA.
 	/// </summary>
 	public sealed class ObjectPool<T> : IDisposable where T : class 
 	{

@@ -332,7 +332,7 @@
 			{
 				var maxUnconfirmed = this._channel._confirmationKeeper != null ? (int) this._channel._confirmationKeeper.Max : 0;
 
-				var replacementChannel = (Channel)await connection.InternalCreateChannel(this.ChannelNumber, maxUnconfirmed, this.IsConfirmationEnabled).ConfigureAwait(false);
+				var replacementChannel = (Channel) await connection.InternalCreateChannel(this.ChannelNumber, maxUnconfirmed, this.IsConfirmationEnabled).ConfigureAwait(false);
 
 				// _channel.Dispose(); need to dispose in a way that consumers do not receive the cancellation signal, but drain any pending task
 
