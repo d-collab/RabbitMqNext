@@ -41,3 +41,8 @@ test:
   categories:
     only:
       - Fast
+
+test:
+  assemblies:
+    - '**\RabbitMqNextTests.exe'
+
