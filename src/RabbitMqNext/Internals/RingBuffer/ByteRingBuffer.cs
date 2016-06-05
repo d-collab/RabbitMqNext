@@ -59,7 +59,7 @@
 		// public const int DefaultBufferSize = 0x200000;  //  2.097.152 2mb
 		// public const int DefaultBufferSize = 0x20000;   //    131.072
 		// public const int DefaultBufferSize = 0x10000;   //     65.536
-		public const int DefaultBufferSize = 0x80000;     //     524.288
+		public const int DefaultBufferSize    = 0x80000;   //    524.288
 
 		private readonly byte[] _buffer;
 		// private const int _bufferPadding = 128;
@@ -179,7 +179,7 @@
 			_writeLock.Set(); // signal - if someone is waiting
 		}
 
-		public int Read(byte[] buffer, int offset, int count, bool fillBuffer = false, ReadingGate fromGate = null)
+		public int Read(byte[] buffer, int offset, int count, bool fillBuffer = false/*, ReadingGate fromGate = null*/)
 		{
 #if DEBUG
 			if (offset < 0) throw new ArgumentOutOfRangeException("offset", "must be greater or equal to 0");
@@ -191,7 +191,7 @@
 			while (totalRead < count)
 			{
 				int available;
-				int readPos = this.InternalGetReadyToReadEntries(count - totalRead, out available, fromGate);
+				int readPos = this.InternalGetReadyToReadEntries(count - totalRead, out available/*, fromGate*/);
 
 				if (_state._resetApplied)
 				{
@@ -215,15 +215,15 @@
 
 				totalRead += available;
 
-				if (fromGate != null)
-				{
-					lock (fromGate)
-					{
-						fromGate.gpos += (uint)available;
-						fromGate.length -= (uint)available;
-					}
-				}
-				else
+//				if (fromGate != null)
+//				{
+//					lock (fromGate)
+//					{
+//						fromGate.gpos += (uint)available;
+//						fromGate.length -= (uint)available;
+//					}
+//				}
+//				else
 				{
 					// if (!fillBuffer) break;
 					var newReadPos = _state._readPosition + (uint) available;
@@ -242,7 +242,7 @@
 			while(true)
 			{
 				int totalRead;
-				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out totalRead, null);
+				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out totalRead/*, null*/);
 
 				if (_state._resetApplied)
 				{
@@ -284,7 +284,7 @@
 			while (totalSkipped < offset)
 			{
 				int available;
-				int readPos = this.InternalGetReadyToReadEntries(offset - totalSkipped, out available, null);
+				int readPos = this.InternalGetReadyToReadEntries(offset - totalSkipped, out available/*, null*/);
 
 				if (_state._resetApplied)
 				{

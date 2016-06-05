@@ -172,10 +172,10 @@
 			_state._writePosition = _state._writePositionCopy = 0;
 		}
 
-#if !DEBUG
-		// [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-		internal int InternalGetReadyToReadEntries(int desiredCount, out int available, ReadingGate fromGate = null)
+//#if !DEBUG
+//		// [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//#endif
+		internal int InternalGetReadyToReadEntries(int desiredCount, out int available/*, ReadingGate fromGate = null*/)
 		{
 			uint bufferSize = _state._bufferSize;
 
@@ -194,15 +194,15 @@
 
 			uint entriesFree;
 
-			if (fromGate != null)
-			{
+//			if (fromGate != null)
+//			{
 //				Console.WriteLine("Reading from gate " + fromGate.index + ". Real readCursor g: " + readCursor + " l: readPos " + readPos + 
 //					" replaced by g: " + fromGate.gpos + " l: " + (fromGate.gpos & (bufferSize - 1)) +
 //					" diff is " + (writeCursor - fromGate.gpos));
-				readPos = fromGate.gpos & (bufferSize - 1);
+//				readPos = fromGate.gpos & (bufferSize - 1);
 				// entriesFree = fromGate.length;
-				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
-			}
+//				desiredCount = Math.Min(desiredCount, (int) fromGate.length);
+//			}
 
 			// else
 			{
@@ -227,11 +227,11 @@
 			}
 #endif
 
-			if (fromGate != null)
-			{
-				available = InternalMin(entriesFree, desiredCount);
-			}
-			else
+//			if (fromGate != null)
+//			{
+//				available = InternalMin(entriesFree, desiredCount);
+//			}
+//			else
 			{
 				available = InternalMin(entriesFree, desiredCount);
 			}
