@@ -38,11 +38,6 @@ after_build:
       nuget pack RabbitMqNext.nuspec -version $ver -symbols
 
 test:
-  categories:
-    only:
-      - Fast
-
-test:
   assemblies:
     - '**\RabbitMqNextTests.exe'
 
