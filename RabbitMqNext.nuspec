@@ -1,40 +1,41 @@
 <?xml version="1.0"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
-  <metadata>
-    <id>RabbitMqNext</id>
-    <version>$version$</version>
-    <authors>hamilton verissimo (aka hammett)</authors>
-    <owners>Clear CTVM</owners>
-    <licenseUrl>https://github.com/clearctvm/RabbitMqNext/blob/master/LICENSE.txt</licenseUrl>
-    <projectUrl>https://github.com/clearctvm/RabbitMqNext</projectUrl>
-    <!-- <iconUrl>http://docs.castleproject.org/GetFile.aspx?File=/castleLogo100px.png</iconUrl> -->
-    <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>Alternative rabbitmq client implementation for advanced usage</description>
-    <summary>
-	Alternative rabbitmq client implementation (does not use the official client) for advanced usage, 
-	with the goal of reduced GC pauses, increased throughput and no contention.
-	Check the project website before using it.
-	</summary>
-    <copyright>Copyright 2015-2016 Clear CTVM - (http://www.clear.com.br) </copyright>
-    <tags>amqp rabbitmq messaging broker rabbitclient</tags>
+	<metadata>
+		<id>RabbitMqNext</id>
+		<title>RabbitMq.Next RabbitMQ client</title>
+		<version>$version$</version>
+		<authors>hamilton verissimo (aka hammett)</authors>
+		<owners>Clear CTVM</owners>
+		<licenseUrl>https://github.com/clearctvm/RabbitMqNext/blob/master/LICENSE.txt</licenseUrl>
+		<projectUrl>https://github.com/clearctvm/RabbitMqNext</projectUrl>
+		<!-- <iconUrl>http://docs.castleproject.org/GetFile.aspx?File=/castleLogo100px.png</iconUrl> -->
+		<requireLicenseAcceptance>true</requireLicenseAcceptance>
+		<description>Alternative rabbitmq client implementation for advanced usage</description>
+		<summary>
+			Alternative RabbitMQ client implementation (does not use the official client) for advanced usage,
+			with the goal of low allocations (thus reduced GC pauses), increased throughput and no contention.
+			Check the project website before using it.
+		</summary>
+		<copyright>Copyright 2015-2016 Clear CTVM - (http://www.clear.com.br) </copyright>
+		<tags>amqp rabbitmq messaging broker rabbitclient</tags>
 
 		<dependencies>
 			<group>
 				<dependency id="Microsoft.Net.Http" version="2.2.29" />
-				<dependency id="Newtonsoft.Json"    version="8.0.2"  />
+				<dependency id="Newtonsoft.Json" version="8.0.2" />
 			</group>
 		</dependencies>
 
 		<frameworkAssemblies>
 			<frameworkAssembly assemblyName="System.Core" targetFramework="net461" />
 		</frameworkAssemblies>
-  </metadata>
-	
-  <files>
-    <file src="LICENSE.txt" />
-    <file src="src/RabbitMqNext/bin/Release/RabbitMqNext.dll" target="lib/net461" />
-    <file src="src/RabbitMqNext/bin/Release/RabbitMqNext.pdb" target="lib/net461" />
-    <file src="src/RabbitMqNext/bin/Release/RabbitMqNext.xml" target="lib/net461" />
-  </files>
-  
+	</metadata>
+
+	<files>
+		<file src="LICENSE.txt" />
+		<file src="src\RabbitMqNext\bin\Release\RabbitMqNext.dll" target="lib/net461" />
+		<file src="src\RabbitMqNext\bin\Release\RabbitMqNext.pdb" target="lib/net461" />
+		<file src="src\RabbitMqNext\bin\Release\RabbitMqNext.xml" target="lib/net461" />
+	</files>
+
 </package>
