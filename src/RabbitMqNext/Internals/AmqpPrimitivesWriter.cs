@@ -202,20 +202,20 @@ namespace RabbitMqNext.Internals
 				this.WriteOctet((byte)'I');
 				_writer.Write((int)value);
 			}
-//			else if (value is decimal)
-//			{
-//				_writer.WriteOctet((byte)'D');
-//				_writer.WriteDecimal((decimal)value);
-//			}
-//			else if (value is AmqpTimestamp)
-//			{
-//				_writer.WriteOctet((byte)'T');
-//				_writer.WriteTimestamp((AmqpTimestamp)value);
-//			}
+			else if (value is decimal)
+			{
+				this.WriteOctet((byte)'D');
+				WriteDecimal((decimal)value);
+			}
+			else if (value is AmqpTimestamp)
+			{
+				this.WriteOctet((byte)'T');
+				WriteTimestamp((AmqpTimestamp)value);
+			}
 			else if (value is IDictionary)
 			{
 				WriteOctet((byte)'F');
-				WriteTable((IDictionary<string,object>)value);
+				WriteTable(value as IDictionary<string, object>);
 			}
 			else if (value is IList)
 			{
@@ -282,6 +282,13 @@ namespace RabbitMqNext.Internals
 		public void WriteTimestamp(AmqpTimestamp ts)
 		{
 			_writer.Write((ulong)ts.UnixTime);
+		}
+
+		public void WriteDecimal(decimal val)
+		{
+			// TODO: convert to Amqp decimal from .net decimal
+
+			throw new NotImplementedException();
 		}
 
 		public void WriteBufferWithPayloadFirst(Action<AmqpPrimitivesWriter> writeFn)

@@ -130,10 +130,10 @@ namespace RabbitMqNext.Internals
 					value = (Int32) _reader.ReadInt32();
 					break;
 				case 'A':
-					value = (IList) this.ReadArray();
+					value = this.ReadArray();
 					break;
 				case 'b':
-					value = (sbyte)_reader.ReadSByte();
+					value = (sbyte) _reader.ReadSByte();
 					break;
 				case 'd':
 					value = (double) _reader.ReadDouble();
@@ -153,14 +153,14 @@ namespace RabbitMqNext.Internals
 //				case 'x':
 //					value = new BinaryTableValue(ReadLongstr(reader));
 //					break;
-//				case 'D':
-//					// value = ReadDecimal(reader);
-//					break;
+				case 'D':
+					value = _reader.ReadDecimal();
+					break;
 				case 'T':
-					value = (AmqpTimestamp) ReadTimestamp();
+					value = ReadTimestamp();
 					break;
 				case 'F':
-					value = (IDictionary<string,object>) this.ReadTable();
+					value = this.ReadTable();
 					break;
 				case 'V':
 					value = null;

@@ -99,5 +99,14 @@ namespace RabbitMqNext.Internals
 		{
 			return _ringBufferStream._ringBuffer.Skip(offset);
 		}
+
+		public decimal ReadDecimal()
+		{
+			// byte + long (9 total)
+			
+			// TODO: convert from Amqp decimal to .net decimal
+
+			return 0;
+		}
 	}
 }
