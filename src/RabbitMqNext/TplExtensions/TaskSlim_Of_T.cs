@@ -4,7 +4,7 @@ namespace RabbitMqNext
 	using System.Runtime.CompilerServices;
 	using TplExtensions;
 
-	public class TaskSlim<T> : BaseTaskSlim<TaskSlim<T>>, ICriticalNotifyCompletion 
+	public class TaskSlim<T> : BaseTaskSlim<TaskSlim<T>>, INotifyCompletion // ICriticalNotifyCompletion 
 	{
 		private T _result;
 

@@ -11,11 +11,7 @@
 		<!-- <iconUrl>http://docs.castleproject.org/GetFile.aspx?File=/castleLogo100px.png</iconUrl> -->
 		<requireLicenseAcceptance>true</requireLicenseAcceptance>
 		<description>Alternative rabbitmq client implementation for advanced usage</description>
-		<summary>
-			Alternative RabbitMQ client implementation (does not use the official client) for advanced usage,
-			with the goal of low allocations (thus reduced GC pauses), increased throughput and no contention.
-			Check the project website before using it.
-		</summary>
+		<summary>Alternative RabbitMQ client implementation (does not use the official client) for advanced usage, with the goal of low allocations (thus reduced GC pauses), increased throughput and no contention. Check the project website before using it.</summary>
 		<copyright>Copyright 2015-2016 Clear CTVM - (http://www.clear.com.br) </copyright>
 		<tags>amqp rabbitmq messaging broker rabbitclient</tags>
 

@@ -5,7 +5,7 @@ namespace RabbitMqNext
 	using TplExtensions;
 
 
-	public class TaskSlim : BaseTaskSlim<TaskSlim>, ICriticalNotifyCompletion
+	public class TaskSlim : BaseTaskSlim<TaskSlim>, INotifyCompletion // ICriticalNotifyCompletion
 	{
 		public TaskSlim(Action<TaskSlim> recycler) : base(recycler)
 		{
