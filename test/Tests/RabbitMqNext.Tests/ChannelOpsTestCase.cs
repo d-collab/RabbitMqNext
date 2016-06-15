@@ -46,15 +46,15 @@ namespace RabbitMqNext.Tests
 		}
 
 		[Test]
-		public void BasicProperties_When_returning_more_than_once_same_instance_Should_Throw()
+		public void BasicProperties_When_returning_more_than_once_same_instance_Should_Ignore()
 		{
 			// Arrange
 			var prop = _channel.RentBasicProperties();
 
 			// Act & Assert
 			_channel.Return(prop);
-
-			Assert.That(() => _channel.Return(prop), Throws.Exception);
+			_channel.Return(prop);
+			_channel.Return(prop);
 		}
 
 		[Test]

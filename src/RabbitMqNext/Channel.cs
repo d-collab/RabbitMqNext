@@ -66,8 +66,7 @@
 		public void Return(BasicProperties properties)
 		{
 			if (properties == null) throw new ArgumentNullException("properties");
-			if (!properties.IsReusable) return;
-			if (properties.IsRecycled) throw new ArgumentException("properties was already returned");
+			if (!properties.IsReusable || properties.IsRecycled) return;
 
 			_propertiesPool.PutObject(properties);
 		}
