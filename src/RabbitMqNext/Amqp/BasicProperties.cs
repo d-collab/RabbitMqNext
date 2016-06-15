@@ -11,8 +11,9 @@ namespace RabbitMqNext
 
 		private const byte FrozenMask = 0x01;
 		private const byte ReusableMask = 0x02; // vs ephemeral. eg came from objpool instance of direct allocation
+		private const byte RecycledMask = 0x04; // indicates that it is in the objpool already
 
-		private readonly byte _options = 0;
+		private byte _options = 0;
 
 		// 0x01 is reserved for continuation flag. 
 		private const ushort ContentTypePresence = 1 << 15;
@@ -51,11 +52,11 @@ namespace RabbitMqNext
 		{
 		}
 
-		internal BasicProperties(bool isFrozen, bool reusable)
+		internal BasicProperties(bool isFrozen, bool reusable, IDictionary<string, object> headers = null) 
 		{
 			_options = (byte) ((isFrozen ? FrozenMask : 0) | (reusable ? ReusableMask : 0));
 
-			_headers = new Dictionary<string, object>(StringComparer.Ordinal);
+			_headers = headers ?? new Dictionary<string, object>(StringComparer.Ordinal);
 		}
 
 		public bool IsContentTypePresent
@@ -291,7 +292,11 @@ namespace RabbitMqNext
 
 		public IDictionary<string, object> Headers
 		{
-			get { return _headers; }
+			get
+			{
+				ThrowIfFrozen();
+				return _headers;
+			}
 //			private set
 //			{
 //				ThrowIfFrozen();
@@ -304,7 +309,11 @@ namespace RabbitMqNext
 
 		object ICloneable.Clone()
 		{
-			var cloned = new BasicProperties(false, false)
+			var headersCopy = (this._headers != null && this._headers.Count != 0)
+				? new Dictionary<string, object>(this._headers, StringComparer.Ordinal)
+				: null;
+
+			var cloned = new BasicProperties(false, false, headersCopy)
 			{
 				_presenceSWord = this._presenceSWord,
 				_timestamp = this._timestamp,
@@ -321,10 +330,7 @@ namespace RabbitMqNext
 				_appId = this._appId,
 				_clusterId = this._clusterId,
 			};
-			if (this._headers != null && this._headers.Count != 0)
-			{
-				cloned._headers = new Dictionary<string, object>(this._headers);
-			}
+			
 			return cloned;
 		}
 
@@ -346,6 +352,11 @@ namespace RabbitMqNext
 		{
 			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			get { return (_options & ReusableMask) != 0; }
+		}
+		internal bool IsRecycled
+		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get { return (_options & RecycledMask) != 0; }
 		}
 
 		internal bool IsEmpty
@@ -376,6 +387,18 @@ namespace RabbitMqNext
 			_replyTo = _expiration = _messageId = _type = null;
 			_userId = _appId = _clusterId = null;
 			_timestamp = null;
+
+			if (IsReusable)
+			{
+				_options = ReusableMask | FrozenMask | RecycledMask;
+			}
+		}
+
+		internal void ResetSafeFlags()
+		{
+			// _options is not volative, so safety is not guaranteed. 
+
+			_options = ReusableMask;
 		}
 
 		internal void Prepare()

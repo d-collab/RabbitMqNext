@@ -74,6 +74,7 @@
   <ItemGroup>
     <Compile Include="AmqpPrimitivesWriterTestCase.cs" />
     <Compile Include="AutoResetSuperSlimLockTestCase.cs" />
+    <Compile Include="ChannelOpsTestCase.cs" />
     <Compile Include="ObjectPoolTestCase.cs" />
     <Compile Include="RingBuffer2OpsTestCase.cs" />
     <Compile Include="TaskSlimTestCase.cs" />

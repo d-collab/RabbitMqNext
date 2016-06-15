@@ -58,13 +58,16 @@
 
 		public BasicProperties RentBasicProperties()
 		{
-			return _propertiesPool.GetObject();
+			var properties = _propertiesPool.GetObject();
+			properties.ResetSafeFlags();
+			return properties;
 		}
 
 		public void Return(BasicProperties properties)
 		{
 			if (properties == null) throw new ArgumentNullException("properties");
 			if (!properties.IsReusable) return;
+			if (properties.IsRecycled) throw new ArgumentException("properties was already returned");
 
 			_propertiesPool.PutObject(properties);
 		}

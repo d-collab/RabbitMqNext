@@ -3,7 +3,7 @@ namespace RabbitMqNext
 	using System;
 	using System.IO;
 	using Internals;
-	using Internals.RingBuffer;
+
 
 	public struct MessageDelivery
 	{
