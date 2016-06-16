@@ -30,6 +30,8 @@ namespace RabbitMqNext
 			_semaphoreSlim = new SemaphoreSlim(maxConcurrentCalls, maxConcurrentCalls);
 		}
 
+		public IChannel Channel { get { return _channel; } }
+
 		// recovery support
 
 		/// <summary>
