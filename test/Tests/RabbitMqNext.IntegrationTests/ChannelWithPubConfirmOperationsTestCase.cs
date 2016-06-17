@@ -17,7 +17,7 @@
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			
 			// !!!
-			var channel1 = await conn.CreateChannelWithPublishConfirmation(100);
+			var channel1 = await conn.CreateChannelWithPublishConfirmation();
 			channel1.OnError += error =>
 			{
 				Console.WriteLine("error " + error.ReplyText);

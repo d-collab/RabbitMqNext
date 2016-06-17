@@ -19,12 +19,18 @@
 
 		internal readonly ChannelIO _io;
 		internal MessagesPendingConfirmationKeeper _confirmationKeeper;
+		internal readonly ChannelOptions _options;
+		internal readonly TaskScheduler _schedulerToDeliverMessages;
 
 		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
 		private readonly ObjectPool<BasicProperties> _propertiesPool;
 
-		public Channel(ushort channelNumber, ConnectionIO connectionIo, CancellationToken cancellationToken)
+		public Channel(ChannelOptions options, ushort channelNumber, ConnectionIO connectionIo, CancellationToken cancellationToken)
 		{
+			_options = options;
+
+			_schedulerToDeliverMessages = (options != null ? options.Scheduler : null) ?? TaskScheduler.Default;
+
 			_cancellationToken = cancellationToken;
 			_io = new ChannelIO(this, channelNumber, connectionIo)
 			{
@@ -362,7 +368,7 @@
 						: lightStream.CloneStream(bodySize);
 				}
 
-				if (mode == ConsumeMode.SerializedWithBufferCopy)
+				if (mode == ConsumeMode.SerializedWithBufferCopy) // Posts to a thread
 				{
 					if (consumer._consumerThread == null)
 					{
@@ -376,9 +382,9 @@
 					consumer._receivedMessages.Enqueue(delivery);
 					consumer._messageAvailableEv.Set();
 				}
-				else if (mode == ConsumeMode.ParallelWithBufferCopy)
+				else if (mode == ConsumeMode.ParallelWithBufferCopy) // Posts to TaskScheduler
 				{
-					Task.Factory.StartNew(async state =>
+					new Task(async state =>
 					{
 						var tuple = (Tuple<MessageDelivery, Func<MessageDelivery, Task>, IQueueConsumer, Channel>)state;
 						var delivery1 = tuple.Item1;
@@ -409,10 +415,9 @@
 								delivery1.stream.Dispose();
 						}
 
-					}, Tuple.Create(delivery, cb, consumerInstance, this), // tuple avoids the closure capture
-						TaskCreationOptions.PreferFairness)
-						.Unwrap()
-						.IntentionallyNotAwaited();
+					}, Tuple.Create(delivery, cb, consumerInstance, this)) // tuple avoids the closure capture
+						// Start task in the given scheduler	
+						.Start(_schedulerToDeliverMessages); 
 				}
 			}
 		}
@@ -432,11 +437,11 @@
 					{
 						if (consumer.Callback != null)
 						{
-							consumer.Callback(delivery).Wait();
+							consumer.Callback(delivery).ConfigureAwait(false).GetAwaiter().GetResult();
 							continue;
 						}
 
-						consumer._consumer.Consume(delivery).Wait();
+						consumer._consumer.Consume(delivery).ConfigureAwait(false).GetAwaiter().GetResult();
 					}
 					catch (Exception ex)
 					{

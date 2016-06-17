@@ -15,7 +15,7 @@ namespace RabbitMqNext.Tests
 		[SetUp]
 		public void Init()
 		{
-			_channel = new Channel(0, new ConnectionIO(new Connection()), new CancellationToken());
+			_channel = new Channel(new ChannelOptions(), 0, new ConnectionIO(new Connection()), new CancellationToken());
 		}
 
 		[Test]

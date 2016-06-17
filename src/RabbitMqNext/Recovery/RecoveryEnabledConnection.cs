@@ -19,13 +19,14 @@
 		const string LogSource = "RecoveryEnabledConnection";
 
 		private readonly IEnumerable<string> _hostnames;
-		internal readonly Connection _connection;
 		private readonly AutoRecoverySettings _recoverySettings;
 		private readonly List<RecoveryEnabledChannel> _channelRecoveries;
 		private volatile bool _disableRecovery;
 		private string _selectedHostname;
 		private int _inRecovery;
 		private bool _disposed;
+
+		internal readonly Connection _connection;
 
 		private readonly CancellationTokenSource _recoveryCancellationTokenSource;
 
@@ -114,14 +115,16 @@
 			get { return _connection.IsClosed; }
 		}
 		
-		public async Task<IChannel> CreateChannel()
+		public async Task<IChannel> CreateChannel(ChannelOptions options)
 		{
-			return CreateChannelRecovery(await _connection.CreateChannel().ConfigureAwait(false) as Channel);
+			var channel = (Channel) await _connection.CreateChannel(options).ConfigureAwait(false);
+			return CreateChannelRecovery(channel);
 		}
 
-		public async Task<IChannel> CreateChannelWithPublishConfirmation(int maxunconfirmedMessages = 100)
+		public async Task<IChannel> CreateChannelWithPublishConfirmation(ChannelOptions options, int maxunconfirmedMessages = 100)
 		{
-			return CreateChannelRecovery(await _connection.CreateChannelWithPublishConfirmation(maxunconfirmedMessages).ConfigureAwait(false) as Channel);
+			var channel = (Channel) await _connection.CreateChannelWithPublishConfirmation(options, maxunconfirmedMessages).ConfigureAwait(false);
+			return CreateChannelRecovery(channel);
 		}
 
 		public void Dispose()

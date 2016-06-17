@@ -75,14 +75,14 @@
 
 		public bool IsClosed { get { return _io.IsClosed; } }
 
-		public Task<IChannel> CreateChannel()
+		public Task<IChannel> CreateChannel(ChannelOptions options)
 		{
-			return InternalCreateChannel(null, withPubConfirm: false);
+			return InternalCreateChannel(options, null, withPubConfirm: false);
 		}
 
-		public Task<IChannel> CreateChannelWithPublishConfirmation(int maxunconfirmedMessages = 100)
+		public Task<IChannel> CreateChannelWithPublishConfirmation(ChannelOptions options, int maxunconfirmedMessages = 100)
 		{
-			return InternalCreateChannel(null, maxunconfirmedMessages, withPubConfirm: true);
+			return InternalCreateChannel(options, null, maxunconfirmedMessages, withPubConfirm: true);
 		}
 
 		public void Dispose()
@@ -144,7 +144,7 @@
 			}
 		}
 
-		internal async Task<IChannel> InternalCreateChannel(int? desiredChannelNum, int maxunconfirmedMessages = 0, bool withPubConfirm = false)
+		internal async Task<IChannel> InternalCreateChannel(ChannelOptions options, int? desiredChannelNum, int maxunconfirmedMessages = 0, bool withPubConfirm = false)
 		{
 			var channelNum = desiredChannelNum.HasValue ?
 				(ushort) desiredChannelNum.Value : 
@@ -153,7 +153,7 @@
 			if (channelNum > MaxChannels)
 				throw new Exception("Exceeded channel limits");
 
-			var channel = new Channel(channelNum, this._io, _channelCancellationTokenSource.Token);
+			var channel = new Channel(options, channelNum, this._io, _channelCancellationTokenSource.Token);
 
 			try
 			{
