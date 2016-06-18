@@ -1,6 +1,7 @@
 namespace RabbitMqNext
 {
 	using System;
+	using System.Diagnostics;
 	using System.IO;
 	using Internals;
 
@@ -15,6 +16,7 @@ namespace RabbitMqNext
 		public int bodySize;
 		public BasicProperties properties;
 		public Stream stream;
+		public Stopwatch started; // not initialized by us
 
 		/// <summary>
 		/// Very important:
@@ -34,7 +36,8 @@ namespace RabbitMqNext
 				routingKey = routingKey, 
 				bodySize = bodySize, 
 				properties = properties.Clone(),
-				stream = CloneStream(stream, bodySize)
+				stream = CloneStream(stream, bodySize),
+				started = started
 			};
 		}
 
