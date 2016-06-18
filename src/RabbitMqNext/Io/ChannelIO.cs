@@ -45,16 +45,16 @@ namespace RabbitMqNext.Io
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicReturn:
-					await _connectionIo._frameReader.Read_BasicReturn(_channel.DispatchBasicReturn, _channel.RentBasicProperties()).ConfigureAwait(false);
+					await _connectionIo._frameReader.Read_BasicReturn(_channel, _channel.RentBasicProperties()).ConfigureAwait(false);
 					break;
 
 				// Basic Ack and NAck will be sent by the server if we enabled confirmation for this channel
 				case AmqpClassMethodChannelLevelConstants.BasicAck:
-					_connectionIo._frameReader.Read_BasicAck(_channel.ProcessAcks);
+					_connectionIo._frameReader.Read_BasicAck(_channel);
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicNAck:
-					_connectionIo._frameReader.Read_BasicNAck(_channel.ProcessNAcks);
+					_connectionIo._frameReader.Read_BasicNAck(_channel);
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.ChannelFlow:
@@ -500,7 +500,8 @@ namespace RabbitMqNext.Io
 					}
 
 					return Task.CompletedTask;
-				}, expectsReply: waitConfirmation);
+				}, 
+				expectsReply: waitConfirmation);
 
 			return tcs.Task;
 		}

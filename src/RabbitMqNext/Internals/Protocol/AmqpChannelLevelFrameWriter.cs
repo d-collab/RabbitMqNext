@@ -289,7 +289,6 @@ namespace RabbitMqNext.Internals
 
 				// what's the max frame size we can write?
 				if (!writer.FrameMaxSize.HasValue) throw new Exception("wtf? no frame max set!");
-				
 
 				// Frame body
 

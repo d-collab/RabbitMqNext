@@ -1,9 +1,9 @@
 namespace RabbitMqNext.Internals
 {
 	using System;
-	using System.IO;
+	using System.Runtime.CompilerServices;
 	using System.Threading.Tasks;
-	using RingBuffer;
+
 
 	internal partial class FrameReader
 	{
@@ -110,6 +110,7 @@ namespace RabbitMqNext.Internals
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void ReadRestOfContentHeader(BasicProperties properties, bool skipFrameEnd)
 		{
 			var presence = _reader.ReadUInt16();
@@ -154,8 +155,9 @@ namespace RabbitMqNext.Internals
 			continuation(consumerTag);
 		}
 
-		public async Task Read_BasicReturn(Func<ushort, string, string, string, int, BasicProperties, BaseLightStream, Task> continuation, 
-										   BasicProperties properties)
+		public async Task Read_BasicReturn(Channel channelImpl,
+			// Func<ushort, string, string, string, int, BasicProperties, BaseLightStream, Task> continuation, 
+			BasicProperties properties)
 		{
 			ushort replyCode = _amqpReader.ReadShort();
 			string replyText = _amqpReader.ReadShortStr();
@@ -207,22 +209,29 @@ namespace RabbitMqNext.Internals
 
 				if (length == bodySize)
 				{
-					await continuation(replyCode, replyText, exchange, routingKey, (int)length, properties, _reader._ringBufferStream).ConfigureAwait(false);
+					// TODO: Experimenting in making sure the body is available ...
+					// TODO: ... before invoking the callback so we block this IO thread only
+
+					// _reader._ringBufferStream.EnsureAvailableToRead(bodySize);
+
+					await channelImpl.DispatchBasicReturn(replyCode, replyText, exchange,
+						routingKey, (int)length, properties, _reader._ringBufferStream).ConfigureAwait(false);
 				}
 				else
 				{
-					throw new NotSupportedException("Multi body not supported yet. Total body size is " + bodySize + " and first body is " + length + " bytes");
+					await channelImpl.DispatchBasicReturn(replyCode, replyText, exchange,
+						routingKey, (int)bodySize, properties, new MultiBodyStreamWrapper(_reader._ringBufferStream, (int)length, bodySize)).ConfigureAwait(false);
 				}
 			}
 			else
 			{
 				// no body
 
-				await continuation(replyCode, replyText, exchange, routingKey, 0, properties, null).ConfigureAwait(false);
+				await channelImpl.DispatchBasicReturn(replyCode, replyText, exchange, routingKey, 0, properties, null).ConfigureAwait(false);
 			}
 		}
 
-		public void Read_BasicAck(Action<ulong, bool> continuation)
+		public void Read_BasicAck(Channel channel)
 		{
 			ulong deliveryTags = _amqpReader.ReadULong();
 			bool multiple = _amqpReader.ReadBits() != 0;
@@ -230,10 +239,10 @@ namespace RabbitMqNext.Internals
 			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogError(LogSource, "< BasicAck : " + deliveryTags + " multiple " + multiple);
 
-			continuation(deliveryTags, multiple);
+			channel.ProcessAcks(deliveryTags, multiple);
 		}
 
-		public void Read_BasicNAck(Action<ulong, bool, bool> continuation)
+		public void Read_BasicNAck(Channel channel)
 		{
 			ulong deliveryTags = _amqpReader.ReadULong();
 			byte bits = _amqpReader.ReadBits();
@@ -243,7 +252,7 @@ namespace RabbitMqNext.Internals
 			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogError(LogSource, "< BasicNAck from server for  " + deliveryTags + " multiple:  " + multiple + " requeue " + requeue);
 
-			continuation(deliveryTags, multiple, requeue);
+			channel.ProcessNAcks(deliveryTags, multiple, requeue);
 		}
 
 		public void Read_ChannelFlow(Action<bool> continuation)
