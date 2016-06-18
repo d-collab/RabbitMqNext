@@ -47,20 +47,22 @@ namespace RabbitMqNext.IntegrationTests
 
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel1 = await conn.CreateChannel();
-			channel1.OnError += error =>
+			channel1.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			await channel1.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);
 			await channel1.QueueDeclare("queue_direct", false, true, false, false, null, waitConfirmation: true);
 			await channel1.QueueBind("queue_direct", "test_direct", "routing", null, waitConfirmation: true);
 
 			var channel2 = await conn.CreateChannel();
-			channel2.OnError += error =>
+			channel2.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			var deliveries = new List<MessageDelivery>();
 
@@ -96,20 +98,22 @@ namespace RabbitMqNext.IntegrationTests
 
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel1 = await conn.CreateChannel();
-			channel1.OnError += error =>
+			channel1.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			await channel1.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);
 			await channel1.QueueDeclare("queue_direct", false, true, false, false, null, waitConfirmation: true);
 			await channel1.QueueBind("queue_direct", "test_direct", "routing", null, waitConfirmation: true);
 
 			var channel2 = await conn.CreateChannel();
-			channel2.OnError += error =>
+			channel2.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			var deliveries = new List<MessageDelivery>();
 
@@ -146,20 +150,22 @@ namespace RabbitMqNext.IntegrationTests
 
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel1 = await conn.CreateChannel();
-			channel1.OnError += error =>
+			channel1.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			await channel1.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);
 			await channel1.QueueDeclare("queue_direct", false, true, false, false, null, waitConfirmation: true);
 			await channel1.QueueBind("queue_direct", "test_direct", "routing", null, waitConfirmation: true);
 
 			var channel2 = await conn.CreateChannel();
-			channel2.OnError += error =>
+			channel2.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			var deliveries = new List<int>();
 

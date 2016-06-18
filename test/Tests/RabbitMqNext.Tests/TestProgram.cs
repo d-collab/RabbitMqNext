@@ -32,7 +32,7 @@
 				}
 				catch (Exception e)
 				{
-					Console.WriteLine("Error  " + e);
+					Console.Error.WriteLine("Error  " + e);
 				}
 			});
 

@@ -33,11 +33,12 @@ namespace RabbitMqNext.IntegrationTests
 
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
-			channel.OnError += error =>
+			channel.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
+				Console.Error.WriteLine("error " + error.ReplyText);
 				error.ReplyText.Should().Be("PRECONDITION_FAILED - unknown delivery tag 2");
-			};
+				return Task.CompletedTask;
+			});
 
 			channel.BasicAck(2, true); // will cause the channel to close, since its invalid
 		}
@@ -49,11 +50,12 @@ namespace RabbitMqNext.IntegrationTests
 
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
-			channel.OnError += error =>
+			channel.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
+				Console.Error.WriteLine("error " + error.ReplyText);
 				error.ReplyText.Should().Be("PRECONDITION_FAILED - unknown delivery tag 2");
-			};
+				return Task.CompletedTask;
+			});
 
 			channel.BasicNAck(2, false, requeue: true); // will cause the channel to close, since its invalid
 		}
@@ -65,10 +67,11 @@ namespace RabbitMqNext.IntegrationTests
 
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
-			channel.OnError += error =>
+			channel.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			var queueInfo = await channel.QueueDeclare("queue1", false, true, false, false, null, waitConfirmation: true);
 			queueInfo.Should().NotBeNull();
@@ -82,10 +85,11 @@ namespace RabbitMqNext.IntegrationTests
 
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
-			channel.OnError += error =>
+			channel.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			await channel.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);
 			await channel.ExchangeDeclare("test_fanout", "fanout", true, false, null, waitConfirmation: true);
@@ -99,10 +103,11 @@ namespace RabbitMqNext.IntegrationTests
 
 			var conn = await base.StartConnection(AutoRecoverySettings.Off);
 			var channel = await conn.CreateChannel();
-			channel.OnError += error =>
+			channel.AddErrorCallback(error =>
 			{
-				Console.WriteLine("error " + error.ReplyText);
-			};
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
 
 			await channel.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);
 			await channel.QueueDeclare("queue_direct", false, true, false, false, null, waitConfirmation: true);

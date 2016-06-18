@@ -20,10 +20,11 @@
 			{
 				var conn2 = await base.StartConnection(AutoRecoverySettings.Off);
 				var channelWorker = await conn1.CreateChannel();
-				channelWorker.OnError += error =>
+				channelWorker.AddErrorCallback(error =>
 				{
-					Console.WriteLine("error " + error.ReplyText);
-				};
+					Console.Error.WriteLine("error " + error.ReplyText);
+					return Task.CompletedTask;
+				});
 
 				await channelWorker.QueueDeclare("queue_rpc1", false, false, false, true, null, waitConfirmation: true);
 
@@ -45,10 +46,11 @@
 				using (conn2)
 				{
 					var channelSender = await conn2.CreateChannel();
-					channelSender.OnError += error =>
+					channelSender.AddErrorCallback(error =>
 					{
-						Console.WriteLine("error " + error.ReplyText);
-					};
+						Console.Error.WriteLine("error " + error.ReplyText);
+						return Task.CompletedTask;
+					});
 
 					var rpcHelper = await channelSender.CreateRpcHelper(ConsumeMode.SingleThreaded, timeoutInMs: 1000);
 
@@ -73,10 +75,11 @@
 			{
 				var conn2 = await base.StartConnection(AutoRecoverySettings.Off);
 				var channelWorker = await conn1.CreateChannel();
-				channelWorker.OnError += error =>
+				channelWorker.AddErrorCallback(error =>
 				{
-					Console.WriteLine("error " + error.ReplyText);
-				};
+					Console.Error.WriteLine("error " + error.ReplyText);
+					return Task.CompletedTask;
+				});
 
 				await channelWorker.ExchangeDeclare("rpc_exchange1", "fanout", true, false,null, waitConfirmation: true);
 				await channelWorker.QueueDeclare("queue_rpc_fan1", false, false, false, true, null, waitConfirmation: true);
@@ -154,10 +157,11 @@
 			{
 				var conn2 = await base.StartConnection(AutoRecoverySettings.Off);
 				var channelWorker = await conn1.CreateChannel();
-				channelWorker.OnError += error =>
+				channelWorker.AddErrorCallback(error =>
 				{
-					Console.WriteLine("error " + error.ReplyText);
-				};
+					Console.Error.WriteLine("error " + error.ReplyText);
+					return Task.CompletedTask;
+				});
 
 				await channelWorker.QueueDeclare("queue_rpc3", false, false, false, true, null, waitConfirmation: true);
 
@@ -177,10 +181,11 @@
 				using (conn2)
 				{
 					var channelSender = await conn2.CreateChannel();
-					channelSender.OnError += error =>
+					channelSender.AddErrorCallback(error =>
 					{
-						Console.WriteLine("error " + error.ReplyText);
-					};
+						Console.Error.WriteLine("error " + error.ReplyText);
+						return Task.CompletedTask;
+					});
 
 					var rpcHelper = await channelSender.CreateRpcHelper(ConsumeMode.SingleThreaded, timeoutInMs: 30000);
 

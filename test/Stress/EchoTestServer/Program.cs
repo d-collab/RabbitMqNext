@@ -127,7 +127,7 @@
 					}
 					catch (Exception ex)
 					{
-						Console.WriteLine("Error  " + ex);
+						Console.Error.WriteLine("Error  " + ex);
 
 						socket.Close();
 					}

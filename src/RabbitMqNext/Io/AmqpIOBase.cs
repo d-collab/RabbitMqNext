@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.Collections.Concurrent;
+	using System.Collections.Generic;
 	using System.Threading;
 	using System.Threading.Tasks;
 	using RabbitMqNext;
@@ -26,7 +27,7 @@
 			_awaitingReplyQueue = new ConcurrentQueue<CommandToSend>();
 		}
 
-		public Action<AmqpError> OnError;
+		internal List<Func<AmqpError, Task>> ErrorCallbacks;
 
 		public bool IsClosed { get { return _isClosed; } }
 
@@ -50,17 +51,17 @@
 		internal abstract Task SendStartClose();
 
 		// To be use in case of exceptions on our end. Close everything asap
-		internal virtual void InitiateAbruptClose(Exception reason)
+		internal virtual async Task InitiateAbruptClose(Exception reason)
 		{
 			if (_isClosed) return;
 			Thread.MemoryBarrier();
 			_isClosed = true;
 
-			var syntheticError = new AmqpError() {ReplyText = reason.Message};
+			var syntheticError = new AmqpError {ReplyText = reason.Message};
 
 			DrainPending(syntheticError);
 
-			FireErrorEvent(syntheticError);
+			await FireErrorEvent(syntheticError);
 
 			this.Dispose();
 		}
@@ -80,7 +81,7 @@
 
 			DrainPending(error);
 
-			FireErrorEvent(error);
+			await FireErrorEvent(error);
 
 			return true;
 		}
@@ -140,12 +141,19 @@
 			}
 		}
 
-		private void FireErrorEvent(AmqpError error)
+		private async Task FireErrorEvent(AmqpError error)
 		{
-			var ev = this.OnError;
-			if (ev != null && error != null)
+			Func<AmqpError,Task>[] copy = null;
+			lock (ErrorCallbacks)
 			{
-				ev(error);
+				if (ErrorCallbacks == null || ErrorCallbacks.Count == 0) return;
+
+				copy = ErrorCallbacks.ToArray();
+			}
+
+			foreach (var errorCallback in copy)
+			{
+				await errorCallback(error);
 			}
 		}
 
@@ -154,11 +162,11 @@
 			if (tcs == null) return;
 			if (error != null)
 			{
-				tcs.SetException(new Exception("Error: " + error.ToErrorString()));
+				tcs.TrySetException(new Exception("Error: " + error.ToErrorString()));
 			}
 			else if (classMethodId == 0)
 			{
-				tcs.SetException(new Exception("The server closed the connection"));
+				tcs.TrySetException(new Exception("The server closed the connection"));
 			}
 			else
 			{
@@ -167,7 +175,7 @@
 
 				LogAdapter.LogError("AmqpIOBase", "Unexpected situation: classId " + classId + " method " + methodId + " and error = null");
 
-				tcs.SetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
+				tcs.TrySetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
 			}
 		}
 

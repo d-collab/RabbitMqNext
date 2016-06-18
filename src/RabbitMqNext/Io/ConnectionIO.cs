@@ -143,17 +143,19 @@ namespace RabbitMqNext.Io
 			return true;
 		}
 
-		internal override void InitiateAbruptClose(Exception reason)
+		internal override Task InitiateAbruptClose(Exception reason)
 		{
 			_conn.CloseAllChannels(reason);
 
 			if (_conn.NotifyAbruptClose(reason) == RecoveryAction.WillReconnect)
 			{
 				CancelPendingCommands(reason);
+
+				return Task.CompletedTask;
 			}
 			else
 			{
-				base.InitiateAbruptClose(reason);
+				return base.InitiateAbruptClose(reason);
 			}
 		}
 
@@ -316,7 +318,7 @@ namespace RabbitMqNext.Io
 			{
 				LogAdapter.LogError("ConnectionIO", "WriteFramesLoop error. Last command " + cmdToSend.ToDebugInfo(), ex);
 
-				this.InitiateAbruptClose(ex);
+				this.InitiateAbruptClose(ex).IntentionallyNotAwaited();
 			}
 			finally
 			{
@@ -352,7 +354,7 @@ namespace RabbitMqNext.Io
 			{
 				LogAdapter.LogError("ConnectionIO", "ReadFramesLoop error", ex);
 
-				this.InitiateAbruptClose(ex);
+				this.InitiateAbruptClose(ex).IntentionallyNotAwaited();
 			}
 			finally
 			{

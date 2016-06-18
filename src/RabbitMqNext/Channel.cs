@@ -4,6 +4,7 @@
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.Diagnostics;
+	using System.Diagnostics.Contracts;
 	using System.IO;
 	using System.Runtime.CompilerServices;
 	using System.Threading;
@@ -25,6 +26,7 @@
 
 		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
 		private readonly ObjectPool<BasicProperties> _propertiesPool;
+		private List<Func<AmqpError, Task>> _errorsCallbacks = new List<Func<AmqpError, Task>>();
 
 		public Channel(ChannelOptions options, ushort channelNumber, ConnectionIO connectionIo, CancellationToken cancellationToken)
 		{
@@ -35,11 +37,7 @@
 			_cancellationToken = cancellationToken;
 			_io = new ChannelIO(this, channelNumber, connectionIo)
 			{
-				OnError = error =>
-				{
-					var ev = this.OnError;
-					if (ev != null) ev(error);
-				}
+				ErrorCallbacks = _errorsCallbacks
 			};
 
 			_consumerSubscriptions = new ConcurrentDictionary<string, BasicConsumerSubscriptionInfo>(StringComparer.Ordinal);
@@ -47,7 +45,19 @@
 			_propertiesPool = new ObjectPool<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
 		}
 
-		public event Action<AmqpError> OnError;
+		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
+		{
+			Contract.Requires(errorCallback != null);
+
+			lock (_errorsCallbacks) _errorsCallbacks.Add(errorCallback);
+		}
+
+		public void RemoveErrorCallback(Func<AmqpError, Task> errorCallback)
+		{
+			Contract.Requires(errorCallback != null);
+
+			lock (_errorsCallbacks) _errorsCallbacks.Remove(errorCallback);
+		}
 
 		public bool IsConfirmationEnabled
 		{
@@ -627,11 +637,7 @@
 		{
 			replacementChannel.MessageUndeliveredHandler = this.MessageUndeliveredHandler;
 
-			var onErrorEv = this.OnError;
-			if (onErrorEv != null)
-			{
-				replacementChannel.OnError = onErrorEv;
-			}
+			replacementChannel._errorsCallbacks = _errorsCallbacks;
 		}
 	}
 }

@@ -98,7 +98,7 @@
 				}
 				catch (Exception ex)
 				{
-					Console.WriteLine("Error sending message " + ex.Message);
+					Console.Error.WriteLine("Error sending message " + ex.Message);
 				}
 
 			}, null, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(1));

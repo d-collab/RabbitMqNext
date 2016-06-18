@@ -1,7 +1,9 @@
 ﻿namespace RabbitMqNext
 {
 	using System;
+	using System.Collections.Generic;
 	using System.Diagnostics;
+	using System.Diagnostics.Contracts;
 	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
@@ -20,18 +22,31 @@
 		private int _channelNumbers;
 		private ConnectionInfo _connectionInfo;
 		private CancellationTokenSource _channelCancellationTokenSource = new CancellationTokenSource();
+		private readonly List<Func<AmqpError, Task>> _errorsCallbacks = new List<Func<AmqpError, Task>>();
 
 		public Connection()
 		{
 			_io = new ConnectionIO(this)
 			{
-				OnError = this.OnError
+				ErrorCallbacks = _errorsCallbacks
 			};
 		}
 
 		public RecoveryEnabledConnection Recovery { get; internal set; }
 
-		public event Action<AmqpError> OnError;
+		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
+		{
+			Contract.Requires(errorCallback != null);
+
+			lock(_errorsCallbacks) _errorsCallbacks.Add(errorCallback);
+		}
+
+		public void RemoveErrorCallback(Func<AmqpError, Task> errorCallback)
+		{
+			Contract.Requires(errorCallback != null);
+
+			lock (_errorsCallbacks) _errorsCallbacks.Remove(errorCallback);
+		}
 
 		internal Task<bool> Connect(string hostname, string vhost, 
 									string username, string password, 
@@ -118,7 +133,7 @@
 			{
 				if (channel == null) continue;
 
-				channel._io.InitiateAbruptClose(reason);
+				channel._io.InitiateAbruptClose(reason).IntentionallyNotAwaited();
 			}
 		}
 

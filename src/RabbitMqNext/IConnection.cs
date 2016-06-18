@@ -11,7 +11,9 @@
 
 	public interface IConnection : IDisposable
 	{
-		event Action<AmqpError> OnError;
+		// event Action<AmqpError> OnError;
+		void AddErrorCallback(Func<AmqpError, Task> errorCallback);
+		void RemoveErrorCallback(Func<AmqpError, Task> errorCallback);
 		
 		bool IsClosed { get; }
 

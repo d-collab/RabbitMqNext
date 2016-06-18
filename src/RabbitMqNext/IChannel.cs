@@ -8,7 +8,9 @@ namespace RabbitMqNext
 
 	public interface IChannel : IDisposable
 	{
-		event Action<AmqpError> OnError;
+		// event Action<AmqpError> OnError;
+		void AddErrorCallback(Func<AmqpError, Task> errorCallback);
+		void RemoveErrorCallback(Func<AmqpError, Task> errorCallback);
 
 		Func<UndeliveredMessage, Task> MessageUndeliveredHandler { get; set; }
 

@@ -40,12 +40,16 @@
 
 		#region Implementation of IChannel
 
-		public event Action<AmqpError> OnError
+		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
-			add { _channel.OnError += value; }
-			remove { _channel.OnError -= value; }
+			_channel.AddErrorCallback(errorCallback);
 		}
-		
+
+		public void RemoveErrorCallback(Func<AmqpError, Task> errorCallback)
+		{
+			_channel.RemoveErrorCallback(errorCallback);
+		}
+
 		public Func<UndeliveredMessage, Task> MessageUndeliveredHandler 
 		{ 
 			get { return _channel.MessageUndeliveredHandler; } 

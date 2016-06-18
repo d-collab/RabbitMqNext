@@ -51,7 +51,7 @@ namespace RabbitMqNext.IntegrationTests
 			{
 				var color = Console.ForegroundColor;
 				Console.ForegroundColor = ConsoleColor.Red;
-				Console.WriteLine("ERROR [{0}] : {1} - {2}", cat, msg, exc);
+				Console.Error.WriteLine("ERROR [{0}] : {1} - {2}", cat, msg, exc);
 				Console.ForegroundColor = color;
 			};
 			LogAdapter.LogWarnFn = (cat, msg, exc) =>

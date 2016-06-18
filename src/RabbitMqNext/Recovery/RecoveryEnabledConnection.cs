@@ -104,10 +104,14 @@
 
 		#region Implementation of IConnection
 
-		public event Action<AmqpError> OnError
+		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
-			add { _connection.OnError += value; }
-			remove { _connection.OnError -= value; }
+			_connection.AddErrorCallback(errorCallback);
+		}
+
+		public void RemoveErrorCallback(Func<AmqpError, Task> errorCallback)
+		{
+			_connection.RemoveErrorCallback(errorCallback);
 		}
 
 		public bool IsClosed
