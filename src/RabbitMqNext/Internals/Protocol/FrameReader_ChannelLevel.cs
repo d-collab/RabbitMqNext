@@ -35,7 +35,8 @@ namespace RabbitMqNext.Internals
 		}
 
 		public async Task Read_BasicDelivery(
-			Func<string, ulong, bool, string, string, int, BasicProperties, BaseLightStream, Task> continuation, 
+			// Func<string, ulong, bool, string, string, int, BasicProperties, BaseLightStream, Task> continuation, 
+			Channel channelImpl,
 			BasicProperties properties)
 		{
 			string consumerTag = _amqpReader.ReadShortStr();
@@ -89,12 +90,15 @@ namespace RabbitMqNext.Internals
 
 					// _reader._ringBufferStream.EnsureAvailableToRead(bodySize);
 
-					await continuation(consumerTag, deliveryTag, redelivered, exchange,
-					    routingKey, (int) length, properties, _reader._ringBufferStream).ConfigureAwait(false);
+					await channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange,
+						routingKey, (int)length, properties, _reader._ringBufferStream).ConfigureAwait(false);
+
+//					await continuation(consumerTag, deliveryTag, redelivered, exchange,
+//					    routingKey, (int) length, properties, _reader._ringBufferStream).ConfigureAwait(false);
 				}
 				else
 				{
-					await continuation(consumerTag, deliveryTag, redelivered, exchange,
+					await channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange,
 						routingKey, (int)bodySize, properties, new MultiBodyStreamWrapper(_reader._ringBufferStream, (int)length, bodySize)).ConfigureAwait(false);
 				}
 			}
@@ -102,7 +106,7 @@ namespace RabbitMqNext.Internals
 			{
 				// Empty body size
 
-				await continuation(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, null).ConfigureAwait(false);
+				await channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, null).ConfigureAwait(false);
 			}
 		}
 
@@ -110,11 +114,8 @@ namespace RabbitMqNext.Internals
 		{
 			var presence = _reader.ReadUInt16();
 
-//			BasicProperties properties;
-
 			if (presence != 0) // no header content
 			{
-				// properties = new BasicProperties {_presenceSWord = presence};
 				properties._presenceSWord = presence;
 				if (properties.IsContentTypePresent) { properties.ContentType =  _amqpReader.ReadShortStr(); }
 				if (properties.IsContentEncodingPresent) { properties.ContentEncoding =  _amqpReader.ReadShortStr(); }

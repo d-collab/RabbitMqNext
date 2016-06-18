@@ -3,6 +3,7 @@
 	using System;
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
+	using System.Diagnostics;
 	using System.IO;
 	using System.Runtime.CompilerServices;
 	using System.Threading;
@@ -325,7 +326,7 @@
 				properties = properties,
 				routingKey = routingKey,
 				deliveryTag = deliveryTag,
-				redelivered = redelivered
+				redelivered = redelivered,
 			};
 
 			var mode = consumer.Mode;

@@ -41,7 +41,7 @@ namespace RabbitMqNext.Io
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicDeliver:
-					await _connectionIo._frameReader.Read_BasicDelivery(_channel.DispatchDeliveredMessage, _channel.RentBasicProperties()).ConfigureAwait(false);
+					await _connectionIo._frameReader.Read_BasicDelivery(_channel, _channel.RentBasicProperties()).ConfigureAwait(false);
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicReturn:
