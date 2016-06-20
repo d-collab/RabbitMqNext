@@ -16,7 +16,7 @@ namespace RabbitMqNext
 		public int bodySize;
 		public BasicProperties properties;
 		public Stream stream;
-		public Stopwatch started; // not initialized by us
+		// public Stopwatch started; // not initialized by us
 
 		/// <summary>
 		/// Very important:
@@ -37,7 +37,7 @@ namespace RabbitMqNext
 				bodySize = bodySize, 
 				properties = properties.Clone(),
 				stream = CloneStream(stream, bodySize),
-				started = started
+				// started = started
 			};
 		}
 
