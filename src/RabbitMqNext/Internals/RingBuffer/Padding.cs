@@ -19,4 +19,9 @@
 	internal struct PaddingForInt32
 	{
 	}
+
+	[StructLayout(LayoutKind.Explicit, Size = Padding.CACHE_LINE_SIZE - sizeof(Int64))] // Based on common case of 64-byte cache lines
+	internal struct PaddingForInt64
+	{
+	}
 }
