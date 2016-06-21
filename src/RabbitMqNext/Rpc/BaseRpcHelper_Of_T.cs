@@ -9,6 +9,7 @@ namespace RabbitMqNext
 
 	public abstract class BaseRpcHelper<T> : BaseRpcHelper, IDisposable
 	{
+		private const string LogSource = "BaseRpcHelper";
 		protected static readonly char[] Separator = { '_' };
 		protected static readonly string SeparatorStr = Separator[0].ToString();
 
@@ -91,6 +92,11 @@ namespace RabbitMqNext
 				{
 					_pendingCalls[pos].started = DateTime.Now.Ticks;
 					_pendingCalls[pos].tcs = tcs;
+
+					correlationId = correlationIndex;
+
+					// LogAdapter.LogDebug(LogSource, "Secured cookie " + tcs.Task.Id + " correlationIndex " + correlationIndex);
+
 					return tcs;
 				}
 
@@ -135,6 +141,8 @@ namespace RabbitMqNext
 			}
 
 			pos = correlationIdVal % _maxConcurrentCalls;
+
+			LogAdapter.LogDebug(LogSource, "Received cookie " + cookie + " correlationIndex " + correlationIdVal);
 		}
 
 		protected override void DrainPendingCalls()
@@ -182,7 +190,12 @@ namespace RabbitMqNext
 
 				if (tcs != null && now - pendingCall.started > _timeoutInTicks)
 				{
-					tcs.TrySetException(new Exception("Rpc call timeout"));
+					LogAdapter.LogDebug(LogSource, "Timeout'ing item " + pendingCall.cookie);
+
+					if (tcs.TrySetException(new Exception("Rpc call timeout")))
+					{
+						pendingCall.cookie = 0;
+					}
 				}
 			}
 		}
