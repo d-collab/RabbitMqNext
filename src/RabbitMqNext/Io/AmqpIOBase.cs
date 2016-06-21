@@ -3,6 +3,7 @@
 	using System;
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
+	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
 	using RabbitMqNext;
@@ -81,7 +82,10 @@
 
 			DrainPending(error);
 
-			await FireErrorEvent(error);
+			if (error != null)
+			{
+				await FireErrorEvent(error);
+			}
 
 			return true;
 		}
@@ -157,6 +161,7 @@
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static void SetException<T>(TaskCompletionSource<T> tcs, AmqpError error, int classMethodId)
 		{
 			if (tcs == null) return;
@@ -179,26 +184,26 @@
 			}
 		}
 
-		internal static void SetException(TaskSlim tcs, AmqpError error, int classMethodId)
-		{
-			if (tcs == null) return;
-			if (error != null)
-			{
-				tcs.TrySetException(new Exception("Error: " + error.ToErrorString()));
-			}
-			else if (classMethodId == 0)
-			{
-				tcs.TrySetException(new Exception("The server closed the connection"));
-			}
-			else
-			{
-				var classId = classMethodId >> 16;
-				var methodId = classMethodId & 0x0000FFFF;
-
-				LogAdapter.LogError("AmqpIOBase", "Unexpected situation: classId " + classId + " method " + methodId + " and error = null");
-
-				tcs.TrySetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
-			}
-		}
+//		internal static void SetException(TaskSlim tcs, AmqpError error, int classMethodId)
+//		{
+//			if (tcs == null) return;
+//			if (error != null)
+//			{
+//				tcs.TrySetException(new Exception("Error: " + error.ToErrorString()));
+//			}
+//			else if (classMethodId == 0)
+//			{
+//				tcs.TrySetException(new Exception("The server closed the connection"));
+//			}
+//			else
+//			{
+//				var classId = classMethodId >> 16;
+//				var methodId = classMethodId & 0x0000FFFF;
+//
+//				LogAdapter.LogError("AmqpIOBase", "Unexpected situation: classId " + classId + " method " + methodId + " and error = null");
+//
+//				tcs.TrySetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
+//			}
+//		}
 	}
 }

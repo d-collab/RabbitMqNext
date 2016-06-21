@@ -12,7 +12,7 @@ namespace RabbitMqNext.Io
 		private readonly Channel _channel;
 		internal readonly ConnectionIO _connectionIo;
 
-		private readonly ObjectPool<TaskSlim> _taskLightPool;
+//		private readonly ObjectPool<TaskSlim> _taskLightPool;
 		private readonly ObjectPool<FrameParameters.BasicPublishArgs> _basicPubArgsPool;
 
 		public ChannelIO(Channel channel, ushort channelNumber, ConnectionIO connectionIo)
@@ -21,8 +21,8 @@ namespace RabbitMqNext.Io
 			_channel = channel;
 			_connectionIo = connectionIo;
 
-			_taskLightPool = new ObjectPool<TaskSlim>(
-				() => new TaskSlim(i => _channel.GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
+//			_taskLightPool = new ObjectPool<TaskSlim>(
+//				() => new TaskSlim(i => _channel.GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
 
 			_basicPubArgsPool = new ObjectPool<FrameParameters.BasicPublishArgs>(
 				() => new FrameParameters.BasicPublishArgs(i => _channel.GenericRecycler(i, _basicPubArgsPool)), 1000, preInitialize: true); 
@@ -374,7 +374,7 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
-		internal TaskSlim __BasicPublishTask(string exchange, string routingKey, bool mandatory,
+		internal Task __BasicPublishTask(string exchange, string routingKey, bool mandatory,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (properties == null)
@@ -382,7 +382,8 @@ namespace RabbitMqNext.Io
 				properties = BasicProperties.Empty;
 			}
 
-			TaskSlim tcs = _taskLightPool.GetObject();
+//			TaskSlim tcs = _taskLightPool.GetObject();
+			var tcs = new TaskCompletionSource<bool>();
 			var args = _basicPubArgsPool.GetObject();
 			args.exchange = exchange;
 			args.routingKey = routingKey;
@@ -398,17 +399,17 @@ namespace RabbitMqNext.Io
 					{
 						_channel.Return(properties); // the tcs is left for the confirmation keeper
 					}
-					tcs.TrySetCompleted();
+					tcs.TrySetResult(true);
 					return Task.CompletedTask;
 				},
 				expectsReply: false,
-				tcsL: null,
+//				tcsL: null,
 				optArg: args);
 
-			return tcs;
+			return tcs.Task;
 		}
 
-		internal TaskSlim __BasicPublishConfirm(string exchange, string routingKey, bool mandatory, 
+		internal Task __BasicPublishConfirm(string exchange, string routingKey, bool mandatory, 
 												BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (properties == null)
@@ -418,7 +419,8 @@ namespace RabbitMqNext.Io
 
 			var confirmationKeeper = _channel._confirmationKeeper;
 
-			TaskSlim tcs = _taskLightPool.GetObject();
+//			TaskSlim tcs = _taskLightPool.GetObject();
+			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 			confirmationKeeper.WaitForSemaphore(); // make sure we're not over the limit
 			
 			var args = _basicPubArgsPool.GetObject();
@@ -439,11 +441,11 @@ namespace RabbitMqNext.Io
 					return Task.CompletedTask;
 				},
 				expectsReply: false,
-				tcsL: null, 
+//				tcsL: null, 
 				optArg: args,
 				prepare: () => _channel._confirmationKeeper.Add(tcs));
 
-			return tcs;
+			return tcs.Task;
 		}
 
 		internal void __BasicPublish(string exchange, string routingKey, bool mandatory, 

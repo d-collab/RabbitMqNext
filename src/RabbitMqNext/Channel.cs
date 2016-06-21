@@ -15,7 +15,7 @@
 
 	public sealed class Channel : IChannel
 	{
-		private static readonly Stream EmptyStream = new MemoryStream(new byte[0], writable: false);
+		private static readonly Stream EmptyStream = new EmptyStream();
 
 		private readonly CancellationToken _cancellationToken;
 
@@ -47,14 +47,14 @@
 
 		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
-			Contract.Requires(errorCallback != null);
+			if (errorCallback == null) throw new ArgumentNullException("errorCallback");
 
 			lock (_errorsCallbacks) _errorsCallbacks.Add(errorCallback);
 		}
 
 		public void RemoveErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
-			Contract.Requires(errorCallback != null);
+			if (errorCallback == null) throw new ArgumentNullException("errorCallback");
 
 			lock (_errorsCallbacks) _errorsCallbacks.Remove(errorCallback);
 		}
@@ -177,9 +177,12 @@
 			return _io.__QueuePurge(queue, waitConfirmation);
 		}
 
-		public TaskSlim BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory,
+		public Task BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory,
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			if (exchange == null) throw new ArgumentNullException("exchange");
+			if (routingKey == null) throw new ArgumentNullException("routingKey");
+
 			EnsureOpen();
 
 			if (_confirmationKeeper == null) throw new Exception("This channel is not set up for confirmations");
@@ -187,9 +190,12 @@
 			return _io.__BasicPublishConfirm(exchange, routingKey, mandatory, properties, buffer);
 		}
 
-		public TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, 
+		public Task BasicPublish(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			if (exchange == null) throw new ArgumentNullException("exchange");
+			if (routingKey == null) throw new ArgumentNullException("routingKey");
+
 			EnsureOpen();
 
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
@@ -200,6 +206,9 @@
 		public void BasicPublishFast(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
+			if (exchange == null) throw new ArgumentNullException("exchange");
+			if (routingKey == null) throw new ArgumentNullException("routingKey");
+
 			EnsureOpen();
 
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
@@ -361,9 +370,12 @@
 				}
 				finally
 				{
-					// fingers crossed the user cloned the buffer if she needs it later
-					this.Return(properties);
+					if (!delivery.TakenOver)
+					{
+						delivery.Dispose();
+					}
 
+					// fingers crossed the user cloned the buffer if she needs it later
 					marker.EnsureConsumed(bodySize);
 				}
 			}
@@ -401,7 +413,7 @@
 						var delivery1 = tuple.Item1;
 						var cb1 = tuple.Item2;
 						var conInstance = tuple.Item3;
-						var pThis = tuple.Item4;
+//						var pThis = tuple.Item4;
 
 						try
 						{
@@ -420,10 +432,13 @@
 						}
 						finally
 						{
-							pThis.Return(delivery1.properties);
-
-							if (delivery1.bodySize != 0)
-								delivery1.stream.Dispose();
+							if (!delivery1.TakenOver)
+							{
+								delivery1.Dispose();
+							}
+//							pThis.Return(delivery1.properties);
+//							if (delivery1.bodySize != 0)
+//								delivery1.stream.Dispose();
 						}
 
 					}, Tuple.Create(delivery, cb, consumerInstance, this)) // tuple avoids the closure capture
@@ -460,10 +475,13 @@
 					}
 					finally
 					{
-						this.Return(delivery.properties);
-
-						if (delivery.bodySize != 0)
-							delivery.stream.Dispose();
+						if (!delivery.TakenOver)
+						{
+							delivery.Dispose();
+						}
+//						this.Return(delivery.properties);
+//						if (delivery.bodySize != 0)
+//							delivery.stream.Dispose();
 					}
 				}
 			}
