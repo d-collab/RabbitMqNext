@@ -36,14 +36,14 @@
 
 		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
-			Contract.Requires(errorCallback != null);
+			if (errorCallback == null) throw new ArgumentNullException("errorCallback");
 
 			lock(_errorsCallbacks) _errorsCallbacks.Add(errorCallback);
 		}
 
 		public void RemoveErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
-			Contract.Requires(errorCallback != null);
+			if (errorCallback == null) throw new ArgumentNullException("errorCallback");
 
 			lock (_errorsCallbacks) _errorsCallbacks.Remove(errorCallback);
 		}
