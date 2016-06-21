@@ -3,7 +3,10 @@
 	using System;
 	using System.Collections.Concurrent;
 	using System.ComponentModel;
+	using System.Diagnostics.Contracts;
+	using System.Runtime.InteropServices;
 	using System.Threading;
+
 
 	/// <summary>
 	/// TODO: implement a faster version. 
@@ -11,15 +14,15 @@
 	/// 
 	/// Array based lock-free stack will be better. Watch out for ABA.
 	/// </summary>
-	public sealed class ObjectPool<T> : IDisposable where T : class 
+	public sealed class ObjectPool<T> where T : class 
 	{
 		private const int DefaultCapacity = 5;
 
 		private readonly Func<T> _objectGenerator;
 //		private readonly SemaphoreSlim _semaphore;
-		private readonly T[] _array;
+//		private readonly T[] _array;
 		private readonly int _capacity;
-		// private readonly ConcurrentQueue<T> _queue;
+		private readonly ConcurrentStack<T> _queue;
 		
 		public ObjectPool(Func<T> objectGenerator, int capacity = DefaultCapacity, bool preInitialize = false)
 		{
@@ -27,70 +30,31 @@
 
 			_capacity = capacity;
 //			_semaphore = new SemaphoreSlim(_capacity, _capacity);
-			_array = new T[_capacity];
+//			_array = new T[_capacity];
 			_objectGenerator = objectGenerator;
-			// _queue = new ConcurrentQueue<T>();
+			_queue = new ConcurrentStack<T>();
 
 			if (preInitialize)
 			{
 				for (int i = 0; i < _capacity; i++)
 				{
-					_array[i] = objectGenerator();
-					// _queue.Enqueue( objectGenerator() );
+//					_array[i] = objectGenerator();
+					_queue.Push( objectGenerator() );
 //					PutObject(objectGenerator());
 				}
 			}
 		}
 
-//		public T GetObject()
-//		{
-//			T item;
-//			if (_queue.TryDequeue(out item))
-//			{
-//				var initer = item as ISupportInitialize;
-//				if (initer != null) initer.BeginInit();
-//				return item;
-//			}
-//
-//			var newObj = _objectGenerator();
-//			{
-//				var initer = newObj as ISupportInitialize;
-//				if (initer != null) initer.BeginInit();
-//			}
-//			return newObj;
-//		}
-//
-//		public void PutObject(T item)
-//		{
-//			var disposable = item as IDisposable;
-//			if (disposable != null) disposable.Dispose();
-//
-//			if (_queue.Count < _capacity)
-//			{
-//				_queue.Enqueue(item);
-//			}
-//		}
-
 		public T GetObject()
 		{
-//			_semaphore.Wait();
-
-			for (var i = 0; i < _capacity; i++)
+			T item;
+			if (_queue.TryPop(out item))
 			{
-				// worst case scenario is O(n) and cmp exc is slow. so think about better impl
-				var v = Interlocked.Exchange(ref _array[i], null); 
-				if (v != null)
-				{
-					// Console.WriteLine("Pool " + typeof(T).Name + " GetObject at index " + i);
-
-					var initer = v as ISupportInitialize;
-					if (initer != null) initer.BeginInit();
-
-					return v;
-				}
+				var initer = item as ISupportInitialize;
+				if (initer != null) initer.BeginInit();
+				return item;
 			}
 
-			// Console.WriteLine("Pool " + typeof(T).Name + " run out of items. creating new one ");
 			var newObj = _objectGenerator();
 			{
 				var initer = newObj as ISupportInitialize;
@@ -104,24 +68,63 @@
 			var disposable = item as IDisposable;
 			if (disposable != null) disposable.Dispose();
 
-			for (int i = 0; i < _capacity; i++)
+			if (_queue.Count < _capacity)
 			{
-				// worst case scenario is O(n) and cmp exc is slow. so think about better impl
-				var v = Interlocked.CompareExchange(ref _array[i], item, null);
-				if (v == null)
-				{
-					return; // found spot. done
-				}
+				_queue.Push(item);
 			}
-
-			// Console.WriteLine("Pool " + typeof(T).Name + " PutObject: no empty slots ");
-
-//			_semaphore.Release();
 		}
 
-		public void Dispose()
-		{
+//		public T GetObject()
+//		{
+////			_semaphore.Wait();
+//
+//			for (var i = 0; i < _capacity; i++)
+//			{
+//				// worst case scenario is O(n) and cmp exc is slow. so think about better impl
+//				var v = Interlocked.Exchange(ref _array[i], null); 
+//				if (v != null)
+//				{
+//					// Console.WriteLine("Pool " + typeof(T).Name + " GetObject at index " + i);
+//
+//					var initer = v as ISupportInitialize;
+//					if (initer != null) initer.BeginInit();
+//
+//					return v;
+//				}
+//			}
+//
+//			// Console.WriteLine("Pool " + typeof(T).Name + " run out of items. creating new one ");
+//			var newObj = _objectGenerator();
+//			{
+//				var initer = newObj as ISupportInitialize;
+//				if (initer != null) initer.BeginInit();
+//			}
+//			return newObj;
+//		}
+//
+//		public void PutObject(T item)
+//		{
+//			var disposable = item as IDisposable;
+//			if (disposable != null) disposable.Dispose();
+//
+//			for (int i = 0; i < _capacity; i++)
+//			{
+//				// worst case scenario is O(n) and cmp exc is slow. so think about better impl
+//				var v = Interlocked.CompareExchange(ref _array[i], item, null);
+//				if (v == null)
+//				{
+//					return; // found spot. done
+//				}
+//			}
+//
+//			// Console.WriteLine("Pool " + typeof(T).Name + " PutObject: no empty slots ");
+//
+////			_semaphore.Release();
+//		}
+
+//		public void Dispose()
+//		{
 //			_semaphore.Dispose();
-		}
+//		}
 	}
 }
