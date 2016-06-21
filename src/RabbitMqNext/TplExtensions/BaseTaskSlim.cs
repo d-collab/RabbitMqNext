@@ -165,7 +165,7 @@ namespace RabbitMqNext.TplExtensions
 				else
 				{
 					Task.Factory.FromAsync(cont.BeginInvoke, cont.EndInvoke, null)
-						.ContinueWith( (t, pointer) =>
+						.ContinueWith((t, pointer) =>
 						{
 							(pointer as BaseTaskSlim<TDerived>).DoRecycle();
 

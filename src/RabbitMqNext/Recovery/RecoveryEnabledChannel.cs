@@ -206,7 +206,7 @@
 			return _channel.QueuePurge(queue, waitConfirmation);
 		}
 
-		public TaskSlim BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory, BasicProperties properties,
+		public Task BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory, BasicProperties properties,
 			ArraySegment<byte> buffer)
 		{
 			ThrowIfRecoveryInProcess();
@@ -214,7 +214,7 @@
 			return _channel.BasicPublishWithConfirmation(exchange, routingKey, mandatory, properties, buffer);
 		}
 
-		public TaskSlim BasicPublish(string exchange, string routingKey, bool mandatory, BasicProperties properties,
+		public Task BasicPublish(string exchange, string routingKey, bool mandatory, BasicProperties properties,
 			ArraySegment<byte> buffer)
 		{
 			ThrowIfRecoveryInProcess();

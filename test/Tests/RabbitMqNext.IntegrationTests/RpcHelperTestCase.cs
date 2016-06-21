@@ -52,7 +52,7 @@
 						return Task.CompletedTask;
 					});
 
-					var rpcHelper = await channelSender.CreateRpcHelper(ConsumeMode.SingleThreaded, timeoutInMs: 1000);
+					var rpcHelper = await channelSender.CreateRpcHelper(ConsumeMode.SingleThreaded, timeoutInMs: 2000);
 
 					var reply1 = await rpcHelper.Call("", "queue_rpc1", null, new ArraySegment<byte>(Encoding.UTF8.GetBytes("hello world")));
 
@@ -115,7 +115,7 @@
 				{
 					var channelSender = await conn2.CreateChannel();
 
-					var rpcHelper = await channelSender.CreateRpcAggregateHelper(ConsumeMode.SingleThreaded, timeoutInMs: 30000);
+					var rpcHelper = await channelSender.CreateRpcAggregateHelper(ConsumeMode.SingleThreaded, timeoutInMs: 5000);
 
 					var replies = await rpcHelper.CallAggregate("rpc_exchange1", "", null, 
 						new ArraySegment<byte>(Encoding.UTF8.GetBytes("hello world")), 
@@ -187,7 +187,7 @@
 						return Task.CompletedTask;
 					});
 
-					var rpcHelper = await channelSender.CreateRpcHelper(ConsumeMode.SingleThreaded, timeoutInMs: 30000);
+					var rpcHelper = await channelSender.CreateRpcHelper(ConsumeMode.SerializedWithBufferCopy, timeoutInMs: 30000);
 
 					var reply1 = await rpcHelper.Call("", "queue_rpc3", null, new ArraySegment<byte>(Encoding.UTF8.GetBytes("hello world")));
 

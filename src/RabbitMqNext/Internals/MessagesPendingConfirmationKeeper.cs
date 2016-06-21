@@ -3,6 +3,7 @@ namespace RabbitMqNext.Internals
 	using System;
 	using System.Runtime.CompilerServices;
 	using System.Threading;
+	using System.Threading.Tasks;
 
 	/// <summary>
 	/// Used when a channel is set up for publish confirm. 
@@ -14,7 +15,7 @@ namespace RabbitMqNext.Internals
 		private readonly ulong _max;
 		private readonly CancellationToken _token;
 		private readonly SemaphoreSlim _semaphoreSlim;
-		private readonly TaskSlim[] _tasks;
+		private readonly TaskCompletionSource<bool>[] _tasks;
 		
 		private ulong _lastSeq = 0;
 		private ulong _lastConfirmed = 0;
@@ -23,7 +24,7 @@ namespace RabbitMqNext.Internals
 		{
 			_max = (ulong) max;
 			_token = token;
-			_tasks = new TaskSlim[max];
+			_tasks = new TaskCompletionSource<bool>[max];
 			_semaphoreSlim = new SemaphoreSlim(max, max);
 		}
 
@@ -40,7 +41,7 @@ namespace RabbitMqNext.Internals
 			_semaphoreSlim.Wait(_token);
 		}
 
-		public void Add(TaskSlim tcs)
+		public void Add(TaskCompletionSource<bool> tcs)
 		{
 			// happens past semaphore, from the frame writing thread, thus "safe"
 
@@ -85,9 +86,9 @@ namespace RabbitMqNext.Internals
 				if (tcs == null) throw new Exception("_tasks is broken!");
 
 				if (isAck)
-					tcs.TrySetCompleted(runContinuationAsync: true);
+					tcs.TrySetResult(true);
 				else
-					tcs.TrySetException(new Exception("Server said it rejected this message. Sorry"), runContinuationAsync: true);
+					tcs.TrySetException(new Exception("Server said it rejected this message. Sorry"));
 			}
 
 			_lastConfirmed = deliveryTag;
@@ -100,7 +101,7 @@ namespace RabbitMqNext.Internals
 				var tcs = Interlocked.Exchange(ref _tasks[i], null);
 				if (tcs == null) continue;
 
-				tcs.TrySetException(new Exception("Cancelled due to error " + error.ToErrorString()), runContinuationAsync: true);
+				tcs.TrySetException(new Exception("Cancelled due to error " + error.ToErrorString()));
 			}
 		}
 
@@ -111,7 +112,7 @@ namespace RabbitMqNext.Internals
 				var tcs = Interlocked.Exchange(ref _tasks[i], null);
 				if (tcs == null) continue;
 
-				tcs.TrySetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true);
+				tcs.TrySetException(new Exception("Cancelled due to shutdown"));
 			}
 		}
 

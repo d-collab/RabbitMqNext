@@ -6,7 +6,6 @@
 	using System.Threading.Tasks;
 
 
-
 	public class RingBufferStreamAdapter : BaseLightStream
 	{
 		internal readonly ByteRingBuffer _ringBuffer;

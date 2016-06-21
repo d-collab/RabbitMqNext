@@ -28,7 +28,7 @@
 		public bool ExpectsReply;
 		public object OptionalArg;
 		public TaskCompletionSource<bool> Tcs;
-		public TaskSlim TcsSlim;
+//		public TaskSlim TcsSlim;
 
 		private ManualResetEventSlim _whenReplyReceived;
 		private int _inUse = 0;
@@ -85,7 +85,7 @@
 						ReplyText = ex.Message
 					};
 					AmqpIOBase.SetException(Tcs, error, classMethodId);
-					AmqpIOBase.SetException(TcsSlim, error, classMethodId);
+//					AmqpIOBase.SetException(TcsSlim, error, classMethodId);
 
 					throw;
 				}
@@ -95,15 +95,14 @@
 				if (error != null)
 				{
 					AmqpIOBase.SetException(Tcs, error, classMethodId);
-					AmqpIOBase.SetException(TcsSlim, error, classMethodId);
+//					AmqpIOBase.SetException(TcsSlim, error, classMethodId);
 				}
 				else
 				{
 					if (Tcs != null)
 						Tcs.SetResult(true);
-
-					if (TcsSlim != null)
-						TcsSlim.TrySetCompleted();
+//					if (TcsSlim != null)
+//						TcsSlim.TrySetCompleted();
 				}
 			}
 
@@ -119,7 +118,7 @@
 			OptionalArg = null;
 			PrepareAction = null;
 			Tcs = null;
-			TcsSlim = null;
+//			TcsSlim = null;
 			_whenReplyReceived = null;
 
 			if (Interlocked.CompareExchange(ref _inUse, value: 0, comparand: 1) != 1)

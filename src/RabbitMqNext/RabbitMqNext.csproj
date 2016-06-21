@@ -66,6 +66,7 @@
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="IChannel.cs" />
     <Compile Include="IConnection.cs" />
+    <Compile Include="Internals\RingBuffer\EmptyStream.cs" />
     <Compile Include="Internals\RingBuffer\MemoryStream2.cs" />
     <Compile Include="Internals\RingBuffer\MultiBodyStreamWrapper.cs" />
     <Compile Include="Internals\RingBuffer\BaseLightStream.cs" />
@@ -104,7 +105,10 @@
     <Compile Include="Rpc\BaseRpcHelper_Of_T.cs" />
     <Compile Include="Rpc\RpcAggregateHelper.cs" />
     <Compile Include="Rpc\RpcHelper.cs" />
+    <Compile Include="TplExtensions\BaseTaskSlim.cs" />
     <Compile Include="TplExtensions\TaskExtensions.cs" />
+    <Compile Include="TplExtensions\TaskSlim.cs" />
+    <Compile Include="TplExtensions\TaskSlim_Of_T.cs" />
     <Compile Include="TplExtensions\ValueTaskSlim.cs" />
     <Compile Include="UndeliveredMessage.cs" />
     <Compile Include="Internals\BufferUtil.cs" />
@@ -148,9 +152,6 @@
     <Compile Include="MessageDelivery.cs" />
     <Compile Include="Internals\MessagesPendingConfirmationKeeper.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
-    <Compile Include="TplExtensions\BaseTaskSlim.cs" />
-    <Compile Include="TplExtensions\TaskSlim.cs" />
-    <Compile Include="TplExtensions\TaskSlim_Of_T.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Utils\" />
