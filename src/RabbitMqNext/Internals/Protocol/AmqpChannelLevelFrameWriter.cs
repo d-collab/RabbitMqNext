@@ -251,6 +251,8 @@ namespace RabbitMqNext.Internals
 
 			try
 			{
+				memStream.EnsureMaxFrameSizeSet(writerX.FrameMaxSize);
+
 				InternalBasicPublish(memStream._writer2, channel, classId, methodId, args);
 
 				writerX._writer.Write(memStream._memoryStream.InternalBuffer, 0, (int)memStream._memoryStream.Position);
