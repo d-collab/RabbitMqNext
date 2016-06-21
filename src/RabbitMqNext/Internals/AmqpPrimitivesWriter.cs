@@ -17,7 +17,7 @@ namespace RabbitMqNext.Internals
 
 		private readonly byte[] _smallBuffer = new byte[300];
 
-		public uint? FrameMaxSize { get; set; }
+		public uint? FrameMaxSize; // { get; set; }
 
 		public AmqpPrimitivesWriter() : this(null, null)
 		{
@@ -35,7 +35,7 @@ namespace RabbitMqNext.Internals
 						LogAdapter.LogDebug("AmqpPrimitivesWriter", "Creating new writer");
 
 					return new ReusableTempWriter(new DefaultArrayPool<byte>(BufferSize, 5), _memStreamPool);
-				}, 6);
+				}, 6, preInitialize: false);
 			}
 			_memStreamPool = memStreamPool;
 		}
