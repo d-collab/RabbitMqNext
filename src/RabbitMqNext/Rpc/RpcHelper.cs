@@ -1,6 +1,7 @@
 namespace RabbitMqNext
 {
 	using System;
+	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -21,39 +22,6 @@ namespace RabbitMqNext
 			return instance;
 		}
 
-		protected override Task OnReplyReceived(MessageDelivery delivery)
-		{
-			var correlationIndex = UInt32.Parse(delivery.properties.CorrelationId);
-			var pos = correlationIndex % _maxConcurrentCalls;
-
-			var taskLight = Interlocked.Exchange(ref _pendingCalls[pos], null);
-
-			if (taskLight == null || taskLight.Id != correlationIndex)
-			{
-				// the helper was disposed and the task list was drained.
-				
-				// other situation, the call timeout'ed previously
-
-				return Task.CompletedTask;
-			}
-
-			try
-			{
-				taskLight.Id = 0;
-				if (taskLight.TrySetResult(delivery)) // <- this races with DrainPendingCalls. 
-				{
-					// But we want just one call to semaphore.Release
-					_semaphoreSlim.Release();
-				}
-			}
-			catch (Exception ex)
-			{
-				LogAdapter.LogError(LogSource, "OnReplyReceived error", ex);
-			}
-
-			return Task.CompletedTask;
-		}
-
 		/// <summary>
 		/// Sends a requests message and awaits for a reply in the temporary and exclusive queue created, matching the correlationid
 		/// that is unique to this request.
@@ -63,34 +31,32 @@ namespace RabbitMqNext
 		/// <param name="properties"></param>
 		/// <param name="buffer"></param>
 		/// <returns></returns>
-		public TaskSlim<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
+		public Task<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (!_operational) throw new Exception("Can't make RPC call when connection in recovery");
 
 			_semaphoreSlim.Wait();
 
-			var task = _taskResultPool.GetObject();
-			task.Started = DateTime.Now.Ticks;
-
 			uint correlationId;
 			long pos;
-			if (!SecureSpotAndUniqueCorrelationId(task, out pos, out correlationId))
+			var tcs = SecureSpotAndUniqueCorrelationId(out pos, out correlationId);
+			if (tcs == null)
 			{
 				_semaphoreSlim.Release();
 
 				// NOTE: If our use of semaphore is correct, this should never happen:
-				LogAdapter.LogError("RpcHelper", "Maxed calls: " + _maxConcurrentCalls);
-				task.TrySetException(new Exception("reached max calls"));
-				return task;
+				LogAdapter.LogError(LogSource, "Maxed calls: " + _maxConcurrentCalls);
+				throw new Exception("reached max calls");
 			}
-
-			task.Id = correlationId; // so we can confirm we have the right instance later
+			int cookie = tcs.Task.Id;
 
 			try
 			{
 				var prop = (properties == null || properties == BasicProperties.Empty) ? _channel.RentBasicProperties() : properties;
-				prop.CorrelationId = correlationId.ToString();
+
+				prop.CorrelationId = BuildFullCorrelation(cookie, correlationId);
 				prop.ReplyTo = _replyQueueName.Name;
+
 				// TODO: confirm this doesnt cause more overhead to rabbitmq
 				if (_timeoutInMs.HasValue)
 				{
@@ -102,16 +68,67 @@ namespace RabbitMqNext
 			catch (Exception ex)
 			{
 				// release spot
-				Interlocked.Exchange(ref _pendingCalls[pos], null);
+				// Interlocked.Exchange(ref _pendingCalls[pos], null);
+				ReleaseSpot(pos, cookie);
 
 				_semaphoreSlim.Release();
 
-				task.TrySetException(ex);
+				tcs.TrySetException(ex);
 			}
 
-			return task;
+			return tcs.Task;
 		}
-		
+
+		protected override Task OnReplyReceived(MessageDelivery delivery)
+		{
+			long pos = 0;
+			int cookie = 0;
+
+			try
+			{
+				uint correlationIdVal;
+
+				GetPosAndCookieFromCorrelationId(delivery.properties.CorrelationId,
+					out correlationIdVal, out pos, out cookie);
+
+				var item = _pendingCalls[pos];
+				TaskCompletionSource<MessageDelivery> tcs;
+
+				if (item.cookie != cookie 
+					|| (tcs = Interlocked.Exchange(ref item.tcs, null)) == null)
+				{
+					// the helper was disposed and the task list was drained.
+					// or the call timeout'ed previously
+					return Task.CompletedTask;
+				}
+
+				if (_mode == ConsumeMode.SingleThreaded)
+				{
+					delivery = delivery.SafeClone();
+				}
+				else
+				{
+					delivery.TakenOver = true;
+				}
+
+				if (tcs.TrySetResult(delivery)) // <- this races with DrainPendingCalls && Timeoutcheck. 
+				{
+					// But we want just one call to semaphore.Release
+					_semaphoreSlim.Release();
+				}
+			}
+			catch (Exception error)
+			{
+				LogAdapter.LogError(LogSource, "Error on OnReplyReceived", error);
+			}
+			finally
+			{
+				ReleaseSpot(pos, cookie);
+			}
+
+			return Task.CompletedTask;
+		}
+
 		/*
 		private TaskSlim<MessageDelivery> ReleaseSpot(string correlationId, out uint correlationIndex)
 		{

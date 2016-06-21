@@ -1,21 +1,31 @@
 namespace RabbitMqNext
 {
 	using System;
+	using System.Runtime.CompilerServices;
 	using System.Threading;
+	using System.Threading.Tasks;
 	using Internals;
 
 
 	public abstract class BaseRpcHelper<T> : BaseRpcHelper, IDisposable
 	{
+		protected static readonly char[] Separator = { '_' };
+		protected static readonly string SeparatorStr = Separator[0].ToString();
+
 		protected readonly Timer _timeoutTimer;
 		protected readonly int? _timeoutInMs;
 		protected readonly long? _timeoutInTicks;
-		protected readonly TaskSlim<T>[] _pendingCalls;
-		protected readonly ObjectPool<TaskSlim<T>> _taskResultPool;
+		protected readonly PendingCallState[] _pendingCalls;
 
 		protected volatile uint _correlationCounter;
 		protected volatile bool _disposed;
 
+		protected class PendingCallState
+		{
+			public int cookie;
+			public TaskCompletionSource<T> tcs;
+			public long started;
+		}
 
 		protected BaseRpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
 			: base(mode, channel, maxConcurrentCalls)
@@ -29,9 +39,11 @@ namespace RabbitMqNext
 				_timeoutTimer = new System.Threading.Timer(OnTimeoutCheck, null, timeoutInMs.Value, timeoutInMs.Value);
 			}
 
-			_pendingCalls = new TaskSlim<T>[maxConcurrentCalls];
-			_taskResultPool = new ObjectPool<TaskSlim<T>>(() =>
-				new TaskSlim<T>((inst) => _taskResultPool.PutObject(inst)), maxConcurrentCalls, preInitialize: true);
+			_pendingCalls = new PendingCallState[maxConcurrentCalls];
+			for (int i = 0; i < maxConcurrentCalls; i++)
+			{
+				_pendingCalls[i] = new PendingCallState();
+			}
 		}
 
 		public void Dispose()
@@ -60,8 +72,12 @@ namespace RabbitMqNext
 			DrainPendingCalls();
 		}
 
-		protected bool SecureSpotAndUniqueCorrelationId(TaskSlim<T> task, out long pos, out uint correlationId)
+		protected TaskCompletionSource<T> SecureSpotAndUniqueCorrelationId(out long pos, out uint correlationId)
 		{
+			var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+			if (tcs.Task.Id == 0) // wrap protection
+				tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+
 			correlationId = 0;
 			pos = 0L;
 
@@ -71,30 +87,87 @@ namespace RabbitMqNext
 				var correlationIndex = _correlationCounter++;
 				pos = correlationIndex % _maxConcurrentCalls;
 
-				if (Interlocked.CompareExchange(ref _pendingCalls[pos], task, null) == null)
+				if (Interlocked.CompareExchange(ref _pendingCalls[pos].cookie, tcs.Task.Id, 0) == 0)
 				{
-					correlationId = correlationIndex;
-					return true;
+					_pendingCalls[pos].started = DateTime.Now.Ticks;
+					_pendingCalls[pos].tcs = tcs;
+					return tcs;
+				}
+
+//				if (Interlocked.CompareExchange(ref _pendingCalls[pos], task, null) == null)
+//				{
+//					correlationId = correlationIndex;
+//					return true;
+//				}
+			}
+
+			return null;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected void GetPosAndCookieFromCorrelationId(string correlationId,
+			out uint correlationIdVal, out long pos, out int cookie)
+		{
+			// zero alloc conversion
+
+			var pastSeparator = false;
+			correlationIdVal = 0;
+			cookie = 0;
+			const char Zero = '0';
+
+			for (int i = 0; i < correlationId.Length; i++)
+			{
+				if (correlationId[i] == '_')
+				{
+					pastSeparator = true;
+					continue;
+				}
+				if (!pastSeparator)
+				{
+					if (correlationIdVal != 0) correlationIdVal *= 10;
+					correlationIdVal += (uint) (correlationId[i] - Zero);
+				}
+				else
+				{
+					if (cookie != 0) cookie *= 10;
+					cookie += correlationId[i] - Zero;
 				}
 			}
 
-			return false;
+			pos = correlationIdVal % _maxConcurrentCalls;
 		}
 
 		protected override void DrainPendingCalls()
 		{
+			var exception = new Exception("Cancelled due to shutdown");
+
 			for (int i = 0; i < _pendingCalls.Length; i++)
 			{
-				var pendingCall = Interlocked.Exchange(ref _pendingCalls[i], null);
-				if (pendingCall == null) continue;
+				var pendingCall = _pendingCalls[i];
 
-				// this races with OnReplyReceived. 
-				if (pendingCall.TrySetException(new Exception("Cancelled due to shutdown"), runContinuationAsync: true))
+				if (pendingCall.tcs == null) continue;
+
+				if (pendingCall.tcs.TrySetException(exception))
 				{
-					// and we want just one call to Release
+					Interlocked.Exchange(ref pendingCall.cookie, 0);
 					_semaphoreSlim.Release();
 				}
 			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected string BuildFullCorrelation(int cookie, uint correlationId)
+		{
+			return correlationId + SeparatorStr + cookie;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected void ReleaseSpot(long pos, int cookie)
+		{
+			if (cookie == 0) return; // no such thing as cookie = 0
+
+			// setting it back to 0 frees the spot
+			Interlocked.CompareExchange(ref _pendingCalls[pos].cookie, 0, cookie);
 		}
 
 		private void OnTimeoutCheck(object state)
@@ -103,10 +176,13 @@ namespace RabbitMqNext
 
 			foreach (var pendingCall in _pendingCalls)
 			{
-				if (pendingCall == null) continue;
-				if (now - pendingCall.Started > _timeoutInTicks)
+				if (pendingCall.cookie == 0) continue;
+
+				var tcs = pendingCall.tcs;
+
+				if (tcs != null && now - pendingCall.started > _timeoutInTicks)
 				{
-					pendingCall.TrySetException(new Exception("Rpc call timeout"), runContinuationAsync: true);
+					tcs.TrySetException(new Exception("Rpc call timeout"));
 				}
 			}
 		}

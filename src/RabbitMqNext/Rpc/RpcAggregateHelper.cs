@@ -10,17 +10,17 @@ namespace RabbitMqNext
 
 	public class RpcAggregateHelper : BaseRpcHelper<IEnumerable<MessageDelivery>>
 	{
-		private static readonly char[] Separator = { '_' };
+		const string LogSource = "RpcAggregateHelper";
 
 		internal class AggState
 		{
 			// padding to reduce false sharing problems - still needs perf review
-			public readonly PaddingForInt32 left;
+			// public readonly PaddingForInt32 left;
 			
 			// initialized to the min expected
 			public int waitingCount;
 
-			public readonly PaddingForInt32 right;
+			// public readonly PaddingForInt32 right;
 			
 			// random, assigned at the start of the call. immutable thereafter
 			public int cookie;
@@ -30,7 +30,6 @@ namespace RabbitMqNext
 
 		// protected by the SecureSpotAndUniqueCorrelationId() guard
 		private readonly AggState[] _pendingAggregationState;
-
 
 		private RpcAggregateHelper(Channel channel, int maxConcurrentCalls, 
 								   ConsumeMode mode, int? timeoutInMs)
@@ -51,102 +50,32 @@ namespace RabbitMqNext
 			return instance;
 		}
 	
-		protected override Task OnReplyReceived(MessageDelivery delivery)
-		{
-			long pos;
-			int cookie;
-			uint correlationIdVal;
-			GetPosAndCookieFromCorrelationId(delivery.properties.CorrelationId, 
-											 out correlationIdVal, out pos, out cookie);
-
-			var state = _pendingAggregationState[pos];
-			var completed = false;
-			IEnumerable<MessageDelivery> aggreDeliveries = null;
-			lock (state)
-			{
-				if (state.cookie != cookie)
-				{
-					// most likely this is a late reply for something that has already timeout
-					return Task.CompletedTask;
-				}
-
-				completed = Interlocked.Decrement(ref state.waitingCount) == 0;
-
-				if (completed)
-				{
-					// no need to clone last one
-					state.received.Add(delivery); 
-
-					aggreDeliveries = state.received.ToArray();
-
-					// reset cookie 
-					Interlocked.Exchange(ref state.cookie, 0);
-				}
-				else
-				{
-					state.received.Add(delivery.SafeClone());
-				}
-			}
-
-			if (!completed) // still waiting for more replies
-			{
-				return Task.CompletedTask;
-			}
-
-
-			var taskLight = Interlocked.Exchange(ref _pendingCalls[pos], null);
-
-			if (taskLight == null || taskLight.Id != correlationIdVal)
-			{
-				// the helper was disposed and the task list was drained.
-				// if (_disposed) return Task.CompletedTask;
-
-				// other situation, the call timeout'ed previously
-			}
-			else
-			{
-				try
-				{
-					taskLight.Id = 0;
-					taskLight.TrySetResult(aggreDeliveries);
-				}
-				finally
-				{
-					_semaphoreSlim.Release();
-				}
-			}
-
-			return Task.CompletedTask;
-		}
-
 		/// <summary>
 		/// The request message is expected to have multiple receivers, and multiple replies. 
 		/// The replies will be aggregated and returned, respecting up to a minimum set by minExpectedReplies, and 
 		/// if unsuccessful a timeout error will be thrown.
 		/// </summary>
-		public TaskSlim<IEnumerable<MessageDelivery>> CallAggregate(string exchange, string routing, BasicProperties properties,
+		public Task<IEnumerable<MessageDelivery>> CallAggregate(string exchange, string routing, 
+			BasicProperties properties,
 			ArraySegment<byte> buffer, int minExpectedReplies)
 		{
 			if (!_operational) throw new Exception("Can't make RPC call when connection in recovery");
 
 			_semaphoreSlim.Wait();
 
-			var task = _taskResultPool.GetObject();
-			task.Started = DateTime.Now.Ticks;
-
 			uint correlationId;
 			long pos;
-			if (!SecureSpotAndUniqueCorrelationId(task, out pos, out correlationId))
+			var tcs = SecureSpotAndUniqueCorrelationId(out pos, out correlationId);
+			if (tcs == null)
 			{
 				_semaphoreSlim.Release();
 
 				// NOTE: If our use of semaphore is correct, this should never happen:
-				LogAdapter.LogError("RpcAggregateHelper", "Maxed calls: " + _maxConcurrentCalls);
-				task.TrySetException(new Exception("reached max calls"));
-				return task;
+				LogAdapter.LogError(LogSource, "Maxed calls: " + _maxConcurrentCalls);
+				throw new Exception("reached max calls");
 			}
 
-			var cookie = Rnd.Next();
+			var cookie = tcs.Task.Id;
 			var state = _pendingAggregationState[pos];
 			lock (state) // bad, but chances of s*** happening are too high
 			{
@@ -155,12 +84,11 @@ namespace RabbitMqNext
 				state.received.Clear();
 			}
 
-			task.Id = correlationId; // so we can confirm we have the right instance later
-
 			try
 			{
 				var prop = (properties == null || properties == BasicProperties.Empty) ? _channel.RentBasicProperties() : properties;
-				prop.CorrelationId = correlationId + Separator[0].ToString() + cookie;
+				
+				prop.CorrelationId = BuildFullCorrelation(cookie, correlationId); // correlationId + SeparatorStr + cookie;
 				prop.ReplyTo = _replyQueueName.Name;
 
 				// TODO: confirm this doesnt cause more overhead to rabbitmq
@@ -174,27 +102,97 @@ namespace RabbitMqNext
 			catch (Exception ex)
 			{
 				// release spot
-				Interlocked.Exchange(ref _pendingCalls[pos], null);
+				// Interlocked.Exchange(ref _pendingCalls[pos], null);
+				ReleaseSpot(pos, cookie);
 
 				_semaphoreSlim.Release();
 
-				task.TrySetException(ex);
+				tcs.TrySetException(ex);
 			}
 
-			return task;
+			return tcs.Task;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void GetPosAndCookieFromCorrelationId(string correlationId, 
-			out uint correlationIdVal, out long pos, out int cookie)
+		protected override Task OnReplyReceived(MessageDelivery delivery)
 		{
-			var entries = correlationId.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
-			if (entries.Length != 2) 
-				throw new Exception("Expecting a correctionId to contain pos and cookie info, but found none. Received " + correlationId);
+			long pos = 0;
+			int cookie = 0;
 
-			correlationIdVal = UInt32.Parse(entries[0]);
-			cookie = Int32.Parse(entries[1]);
-			pos = correlationIdVal % _maxConcurrentCalls;
+			try
+			{
+				uint correlationIdVal;
+				GetPosAndCookieFromCorrelationId(delivery.properties.CorrelationId,
+												 out correlationIdVal, out pos, out cookie);
+
+				var state = _pendingAggregationState[pos];
+				var completed = false;
+				IEnumerable<MessageDelivery> aggreDeliveries = null;
+				lock (state)
+				{
+					if (state.cookie != cookie)
+					{
+						// most likely this is a late reply for something that has already timeout
+						return Task.CompletedTask;
+					}
+
+					completed = Interlocked.Decrement(ref state.waitingCount) == 0;
+
+					if (_mode == ConsumeMode.SingleThreaded)
+					{
+						state.received.Add(delivery.SafeClone());
+					}
+					else
+					{
+						delivery.TakenOver = true;
+						state.received.Add(delivery);
+					}
+
+					if (completed)
+					{
+						aggreDeliveries = state.received.ToArray(); // needs extra copy
+
+						// reset cookie 
+						Interlocked.Exchange(ref state.cookie, 0);
+					}
+				}
+
+				if (!completed) // still waiting for more replies
+				{
+					return Task.CompletedTask;
+				}
+
+				// Completed!
+
+				var item = _pendingCalls[pos];
+				TaskCompletionSource<IEnumerable<MessageDelivery>> tcs;
+
+				if (item.cookie != cookie
+					|| (tcs = Interlocked.Exchange(ref item.tcs, null)) == null)
+				{
+					// the helper was disposed and the task list was drained.
+					// or the call timeout'ed previously
+					return Task.CompletedTask;
+				}
+
+				try
+				{
+					if (tcs.TrySetResult(aggreDeliveries))
+					{
+						_semaphoreSlim.Release();
+					}
+				}
+				finally
+				{
+					ReleaseSpot(pos, cookie);
+				}
+			}
+			catch (Exception error)
+			{
+				LogAdapter.LogError(LogSource, "Error on OnReplyReceived", error);
+				ReleaseSpot(pos, cookie);
+			}
+
+			return Task.CompletedTask;
 		}
 	}
 }
