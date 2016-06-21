@@ -41,5 +41,10 @@ namespace RabbitMqNext.Internals
 		{
 			throw new NotSupportedException();
 		}
+
+		protected override void Dispose(bool disposing)
+		{
+			// no-op
+		}
 	}
 }
