@@ -1,22 +1,24 @@
 namespace RabbitMqNext
 {
 	using System;
-	using System.Diagnostics;
 	using System.IO;
 	using Internals;
 
 
-	public struct MessageDelivery
+	public class MessageDelivery : IDisposable
 	{
-		// public string consumerTag;
-		// public string exchange;
+		/// <summary>
+		/// Indicates the client code has taken ownership of this, and will dispose later
+		/// </summary>
+		public bool TakenOver;
 		public ulong deliveryTag;
 		public bool redelivered;
 		public string routingKey;
 		public int bodySize;
 		public BasicProperties properties;
 		public Stream stream;
-		// public Stopwatch started; // not initialized by us
+		// public string consumerTag;
+		// public string exchange;
 
 		/// <summary>
 		/// Very important:
@@ -37,8 +39,18 @@ namespace RabbitMqNext
 				bodySize = bodySize, 
 				properties = properties.Clone(),
 				stream = CloneStream(stream, bodySize),
-				// started = started
 			};
+		}
+
+		private bool _disposed;
+
+		public void Dispose()
+		{
+			if (_disposed) return;
+			_disposed = true;
+
+			if (properties != null) (properties as IDisposable).Dispose();
+			if (stream != null) stream.Dispose();
 		}
 
 		private static Stream CloneStream(Stream originalStream, int bodySize)
