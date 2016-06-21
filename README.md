@@ -4,10 +4,9 @@
 
 
 Experimenting with [TPL](https://msdn.microsoft.com/en-us/library/dd460717%28v=vs.110%29.aspx) 
-~~and sync (completion ports/overlapped io) socket reads~~ and buffer pools to see if a better 
-rabbitmq client comes out of it. 
+and buffer pools to see if a better rabbitmq client comes out of it. 
 
-The goal is to drastically reduce contention, mem allocation and therefore GC pauses. 
+The goal is to drastically reduce contention, memory allocation and therefore GC pauses. 
 
 The way this is accomplished is two fold:
 
@@ -113,7 +112,7 @@ Can be done using a delegate or a QueueConsumer subclass. There are two modes:
 
 ```C#
 
-Task<string> BasicConsume(ConsumeMode mode, QueueConsumer consumer,
+Task<string> BasicConsume(ConsumeMode mode, IQueueConsumer consumer,
 			string queue, string consumerTag, bool withoutAcks, bool exclusive,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 
@@ -121,6 +120,37 @@ Task<string> BasicConsume(ConsumeMode mode, Func<MessageDelivery, Task> consumer
 			string queue, string consumerTag, bool withoutAcks, bool exclusive,
 			IDictionary<string, object> arguments, bool waitConfirmation)
 ```
+
+Note: MessageDelivery implements IDisposable, and is disposed automatically. If you're saving it for later for any reason you need to 
+either call SafeClone or set TakenOver=true. If the mode = SingleThreaded, TakenOver is ignored and the stream pointer will move to 
+the next frame, so SafeClone is your friend.
+
+##### RPC
+
+Two helpers are offered:
+
+```C#
+
+Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500);
+Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500);
+
+```
+
+These helpers implement the boilerplate code of setting up a temporary queue, sending messages with correct CorrelationId and ReplyTo sets, 
+and processing replies, while also respecting timeouts. It also support recovery scenarios. 
+
+It does all that with the minimum amount of gen0 allocations and is (with a few exceptions) lock free.
+
+```C#
+
+var helper = await channel.CreateRpcHelper(ConsumeMode.SingleThread, timeoutInMs: 100);
+using(var reply = await helper.Call(exchangeName, routing, properties, body)) 
+{
+	...
+}
+
+```
+
 
 ##### Improvements / TODO
 
