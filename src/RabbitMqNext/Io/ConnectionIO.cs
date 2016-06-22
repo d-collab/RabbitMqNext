@@ -272,7 +272,10 @@ namespace RabbitMqNext.Io
 
 					while (_commandOutbox.TryDequeue(out cmdToSend))
 					{
-						_waitingServerReply.Wait(token); // Contention sadly required by the server/amqp
+						if (!cmdToSend.Immediately)
+						{
+							_waitingServerReply.Wait(token); // Contention sadly required by the server/amqp
+						}
 
 						// The command will signal that we can send more commands...
 						cmdToSend.Prepare(cmdToSend.ExpectsReply ? _waitingServerReply : null);
@@ -368,7 +371,8 @@ namespace RabbitMqNext.Io
 			Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
 			Func<ushort, int, AmqpError, Task> reply,
 			bool expectsReply, TaskCompletionSource<bool> tcs = null,
-			object optArg = null, /*TaskSlim tcsL = null,*/ Action prepare = null)
+			object optArg = null, /*TaskSlim tcsL = null,*/ Action prepare = null, 
+			bool immediately = false)
 		{
 			if (_lastError != null)
 			{
@@ -396,6 +400,7 @@ namespace RabbitMqNext.Io
 //			cmd.TcsSlim = tcsL;
 			cmd.OptionalArg = optArg;
 			cmd.PrepareAction = prepare;
+			cmd.Immediately = immediately;
 
 			_commandOutbox.Enqueue(cmd);
 			_commandOutboxEvent.Set();
@@ -462,7 +467,7 @@ namespace RabbitMqNext.Io
 					}
 					return Task.CompletedTask;
 
-				}, expectsReply: true);
+				}, expectsReply: true, immediately: true);
 
 			return tcs.Task;
 		}
@@ -473,7 +478,7 @@ namespace RabbitMqNext.Io
 
 			var writer = AmqpConnectionFrameWriter.ConnectionTuneOk(channelMax, frameMax, heartbeat);
 
-			SendCommand(0, 10, 31, writer, reply: null, expectsReply: false, tcs: tcs);
+			SendCommand(0, 10, 31, writer, reply: null, expectsReply: false, tcs: tcs, immediately: true);
 
 			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionTuneOk >");
@@ -507,7 +512,7 @@ namespace RabbitMqNext.Io
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
 					return Task.CompletedTask;
-				}, expectsReply: true);
+				}, expectsReply: true, immediately: true);
 
 			return tcs.Task;
 		}
@@ -556,7 +561,7 @@ namespace RabbitMqNext.Io
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
 					return Task.CompletedTask;
-				}, expectsReply: true);
+				}, expectsReply: true, immediately: true);
 
 			return tcs.Task;
 		}
@@ -589,7 +594,7 @@ namespace RabbitMqNext.Io
 				{
 					replyCode = replyCode,
 					replyText = message
-				});
+				}, immediately: true);
 
 			return tcs.Task;
 		}
@@ -603,7 +608,7 @@ namespace RabbitMqNext.Io
 
 			this.SendCommand(0, 10, 51,
 				AmqpConnectionFrameWriter.ConnectionCloseOk,
-				reply: null, expectsReply: false, tcs: tcs);
+				reply: null, expectsReply: false, tcs: tcs, immediately: true);
 
 			return tcs.Task;
 		}

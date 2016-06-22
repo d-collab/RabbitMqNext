@@ -146,7 +146,8 @@ namespace RabbitMqNext.Io
 				{
 					replyCode = replyCode,
 					replyText = message
-				});
+				}, 
+				immediately: true);
 
 			return tcs.Task;
 		}
@@ -157,7 +158,8 @@ namespace RabbitMqNext.Io
 
 			_connectionIo.SendCommand(_channelNum, 20, 41, 
 				AmqpChannelLevelFrameWriter.ChannelCloseOk, 
-				reply: null, expectsReply: false, tcs: tcs);
+				reply: null, expectsReply: false, tcs: tcs, 
+				immediately: true);
 
 			return tcs.Task;
 		}

@@ -29,6 +29,7 @@
 		public object OptionalArg;
 		public TaskCompletionSource<bool> Tcs;
 //		public TaskSlim TcsSlim;
+		public bool Immediately;
 
 		private ManualResetEventSlim _whenReplyReceived;
 		private int _inUse = 0;

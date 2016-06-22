@@ -115,6 +115,39 @@ namespace RabbitMqNext.IntegrationTests
 			await channel.QueueBind("queue_direct", "test_direct", "routing", null, waitConfirmation: true);
 		}
 
+		[Test]
+		public async Task More_than_single_consume_on_exclusive_queue_should_throw_nice_error()
+		{
+			Console.WriteLine("More_than_single_consume_on_exclusive_queue_should_throw_nice_error");
+
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
+			var channel1 = await conn.CreateChannel();
+			channel1.AddErrorCallback(error =>
+			{
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
+			var channel2 = await conn.CreateChannel();
+			channel2.AddErrorCallback(error =>
+			{
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
+
+			await channel1.QueueDeclare("queue_direct", false, true, false, false, null, waitConfirmation: true);
+
+			await channel1.BasicConsume(ConsumeMode.ParallelWithBufferCopy, (delivery) => { return Task.CompletedTask; },
+				"queue_direct", "", true, exclusive: true, arguments: null, waitConfirmation: true);
+
+			Assert.Throws<AggregateException>(() =>
+			{
+				var res = channel2.BasicConsume(ConsumeMode.ParallelWithBufferCopy, (delivery) => { return Task.CompletedTask; },
+					"queue_direct", "", true, exclusive: true, arguments: null, waitConfirmation: true).Result;
+			})
+			.InnerExceptions.Should()
+							.Contain(e => e.Message == "Error: Server returned error: ACCESS_REFUSED - queue 'queue_direct' in vhost 'clear_test' in exclusive use [code: 403 class: 60 method: 20]");
+		}
+
 //		[Explicit, Test,  ExpectedException(ExpectedMessage = "Error: Server returned error: COMMAND_INVALID - unknown exchange type 'SOMETHING' [code: 503 class: 40 method: 10]")]
 //		public async Task InvalidCommand_Should_SignalExceptionOnTask()
 //		{
