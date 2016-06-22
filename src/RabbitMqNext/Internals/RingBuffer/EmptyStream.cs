@@ -14,10 +14,15 @@
 		{
 			throw new NotImplementedException();
 		}
+		
+		public override bool CanRead
+		{
+			get { return true; }
+		}
 
 		public override int Read(byte[] buffer, int offset, int count)
 		{
-			throw new NotImplementedException();
+			return 0;
 		}
 
 		public override void Write(byte[] buffer, int offset, int count)
@@ -35,11 +40,6 @@
 		}
 
 		public override long Position { get; set; }
-
-		public override bool CanRead
-		{
-			get { return false; }
-		}
 
 		public override bool CanSeek
 		{
