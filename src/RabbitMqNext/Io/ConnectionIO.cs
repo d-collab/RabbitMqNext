@@ -146,6 +146,8 @@ namespace RabbitMqNext.Io
 
 			_socketHolder.Close();
 
+			OnSocketClosed();
+
 			return true;
 		}
 

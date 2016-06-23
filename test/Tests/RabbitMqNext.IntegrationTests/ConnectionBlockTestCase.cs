@@ -4,6 +4,7 @@ namespace RabbitMqNext.IntegrationTests
 	using System.Collections.Generic;
 	using System.Text;
 	using System.Threading.Tasks;
+	using FluentAssertions;
 	using NUnit.Framework;
 
 	[TestFixture]
@@ -23,7 +24,7 @@ namespace RabbitMqNext.IntegrationTests
 			base.EndTest();
 		}
 
-		[Test]
+		[Test, Explicit("takes forever (sends 6 mi messages) and highly dependent on the environment")]
 		public async Task Exausting_server_should_trigger_connection_block_or_channel_flow()
 		{
 			Console.WriteLine("Exausting_server_should_trigger_connection_block_or_channel_flow");
@@ -67,6 +68,8 @@ namespace RabbitMqNext.IntegrationTests
 			{
 				channel.QueuePurge(queueName, waitConfirmation: false).IntentionallyNotAwaited();
 			}
+
+			eventsReceived.Count.Should().NotBe(0);
 
 			foreach (var @event in eventsReceived)
 			{
