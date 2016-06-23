@@ -14,9 +14,6 @@
 
 		public bool Enabled { get; set; }
 		
-		/// <summary>
-		/// 
-		/// </summary>
 		public bool RecoverBindings { get; set; }
 	}
 
@@ -27,7 +24,8 @@
 		public static async Task<IConnection> Connect(IEnumerable<string> hostnames,
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672, 
-			AutoRecoverySettings recoverySettings = null, string connectionName = null)
+			AutoRecoverySettings recoverySettings = null, string connectionName = null, 
+			int maxChannels = 30)
 		{
 			recoverySettings = recoverySettings ?? AutoRecoverySettings.Off;
 			connectionName = connectionName ?? DefaultConnectionName;
@@ -45,6 +43,8 @@
 					if (successful)
 					{
 						LogAdapter.LogWarn("ConnectionFactory", "Selected " + hostname);
+
+						conn.SetMaxChannels(maxChannels);
 
 						return recoverySettings.Enabled ?
 							(IConnection) new RecoveryEnabledConnection(hostnames, conn, recoverySettings) : 
@@ -67,7 +67,8 @@
 		public static async Task<IConnection> Connect(string hostname, 
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672,
-			AutoRecoverySettings recoverySettings = null, string connectionName = null)
+			AutoRecoverySettings recoverySettings = null, string connectionName = null, 
+			int maxChannels = 30)
 		{
 			recoverySettings = recoverySettings ?? AutoRecoverySettings.Off;
 			connectionName = connectionName ?? DefaultConnectionName;
@@ -80,10 +81,12 @@
 					.Connect(hostname, vhost, username, password, port, connectionName, throwOnError: true)
 					.ConfigureAwait(false);
 
+				conn.SetMaxChannels(maxChannels);
+
 				if (LogAdapter.ExtendedLogEnabled)
 					LogAdapter.LogDebug("ConnectionFactory", "Connected to " + hostname + ":" + port);
 
-				return recoverySettings.Enabled ? (IConnection)new RecoveryEnabledConnection(hostname, conn, recoverySettings) : conn;
+				return recoverySettings.Enabled ? (IConnection) new RecoveryEnabledConnection(hostname, conn, recoverySettings) : conn;
 			}
 			catch (Exception e)
 			{
