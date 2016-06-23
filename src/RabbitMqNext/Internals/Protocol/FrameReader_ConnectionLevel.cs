@@ -64,5 +64,15 @@ namespace RabbitMqNext.Internals
 
 			continuation(reserved);
 		}
+
+		public void Read_ConnectionBlocked(Action<string> continuation)
+		{
+			string reason = _amqpReader.ReadShortStr();
+
+			if (LogAdapter.ProtocolLevelLogEnabled)
+				LogAdapter.LogDebug(LogSource, "< ConnectionBlocked " + reason);
+
+			continuation(reason);
+		}
 	}
 }
