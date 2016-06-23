@@ -164,6 +164,14 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
+		internal void __SendChannelFlowOk(bool isActive)
+		{
+			_connectionIo.SendCommand(_channelNum, 20, 21,
+				AmqpChannelLevelFrameWriter.ChannelFlowOk(isActive),
+				reply: null, expectsReply: false, tcs: null,
+				immediately: true);
+		}
+
 		internal Task __SendConfirmSelect(bool noWait)
 		{
 			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
