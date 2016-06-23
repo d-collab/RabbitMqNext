@@ -40,6 +40,18 @@
 
 		#region Implementation of IChannel
 
+		public event Action<string> ChannelBlocked
+		{
+			add { _channel.ChannelBlocked += value; }
+			remove { _channel.ChannelBlocked -= value; }
+		}
+
+		public event Action ChannelUnblocked
+		{
+			add { _channel.ChannelUnblocked += value; }
+			remove { _channel.ChannelUnblocked -= value; }
+		}
+
 		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
 			_channel.AddErrorCallback(errorCallback);

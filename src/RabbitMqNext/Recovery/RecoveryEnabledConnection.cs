@@ -14,7 +14,7 @@
 		WillReconnect
 	}
 
-	public class RecoveryEnabledConnection : IConnection
+	public class RecoveryEnabledConnection : IRecoveryEnabledConnection
 	{
 		const string LogSource = "RecoveryEnabledConnection";
 
@@ -32,7 +32,19 @@
 
 		public event Action WillRecover;
 		public event Action RecoveryCompleted;
-		public event Action RecoveryFailed;
+		public event Action<Exception> RecoveryFailed;
+
+		public event Action<string> ConnectionBlocked
+		{
+			add { _connection.ConnectionBlocked += value; }
+			remove { _connection.ConnectionBlocked -= value; }
+		}
+
+		public event Action ConnectionUnblocked
+		{
+			add { _connection.ConnectionUnblocked += value; }
+			remove { _connection.ConnectionUnblocked -= value; }
+		}
 
 		public RecoveryEnabledConnection(string hostname, Connection connection, AutoRecoverySettings recoverySettings)
 			: this(new[] { hostname }, connection, recoverySettings)
@@ -184,7 +196,7 @@
 						if (!didConnect)
 						{
 							// Cancelled
-							pthis.FireRecoveryFailed();
+							pthis.FireRecoveryFailed(new Exception("Could not connect to any host"));
 							return;
 						}
 
@@ -202,7 +214,7 @@
 						
 						pthis.HandleRecoveryFatalError(ex);
 						
-						pthis.FireRecoveryFailed();
+						pthis.FireRecoveryFailed(ex);
 					}
 					finally
 					{
@@ -307,10 +319,10 @@
 			if (ev != null) ev();
 		}
 
-		private void FireRecoveryFailed()
+		private void FireRecoveryFailed(Exception ex)
 		{
 			var ev = this.RecoveryFailed;
-			if (ev != null) ev();
+			if (ev != null) ev(ex);
 		}
 	}
 }
