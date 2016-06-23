@@ -14,10 +14,11 @@
 
 	public sealed class Connection : IConnection
 	{
+		private const string LogSource = "Connection";
+
 		internal readonly ConnectionIO _io;
 
-		internal const int MaxChannels = 10;
-		private readonly Channel[] _channels = new Channel[MaxChannels + 1]; // 1-based index
+		private Channel[] _channels; // 1-based index
 		
 		private int _channelNumbers;
 		private ConnectionInfo _connectionInfo;
@@ -31,6 +32,10 @@
 				ErrorCallbacks = _errorsCallbacks
 			};
 		}
+
+		public event Action<string> ConnectionBlocked;
+
+		public event Action ConnectionUnblocked;
 
 		public RecoveryEnabledConnection Recovery { get; internal set; }
 
@@ -66,10 +71,15 @@
 			return InternalConnect(hostname);
 		}
 
+		internal void SetMaxChannels(int maxChannels)
+		{
+			_channels = new Channel[maxChannels + 1];
+		}
+
 		internal async Task<bool> InternalConnect(string hostname, bool throwOnError = true)
 		{
 			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("Connection", "Trying to connect to " + hostname);
+				LogAdapter.LogDebug(LogSource, "Trying to connect to " + hostname);
 
 			var result = await _io.InternalDoConnectSocket(hostname, _connectionInfo.port, throwOnError).ConfigureAwait(false);
 
@@ -111,16 +121,16 @@
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal ChannelIO ResolveChannel(ushort channel)
 		{
-			if (channel > MaxChannels)
+			if (channel > _channels.Length)
 			{
-				LogAdapter.LogError("Connection", "ResolveChannel for invalid channel " + channel);
+				LogAdapter.LogError(LogSource, "ResolveChannel for invalid channel " + channel);
 				throw new Exception("Unexpected channel number " + channel);
 			}
 
 			var channelInst = _channels[channel];
 			if (channelInst == null)
 			{
-				LogAdapter.LogError("Connection", "ResolveChannel for non-initialized channel " + channel);
+				LogAdapter.LogError(LogSource, "ResolveChannel for non-initialized channel " + channel);
 				throw new Exception("Channel not initialized " + channel);
 			}
 
@@ -139,7 +149,7 @@
 
 		internal void CloseAllChannels(bool initiatedByServer, AmqpError error)
 		{
-			LogAdapter.LogDebug("Connection", "Closing all channels");
+			LogAdapter.LogDebug(LogSource, "Closing all channels");
 
 			foreach (var channel in _channels)
 			{
@@ -153,7 +163,9 @@
 
 		internal void Reset()
 		{
-			for (int i = 0; i < MaxChannels; i++)
+			// For now this only consists of reseting the channel array
+
+			for (int i = 0; i < _channels.Length; i++)
 			{
 				Interlocked.Exchange(ref _channels[i], null);
 			}
@@ -165,7 +177,7 @@
 				(ushort) desiredChannelNum.Value : 
 				(ushort) Interlocked.Increment(ref _channelNumbers);
 
-			if (channelNum > MaxChannels)
+			if (channelNum > _channels.Length - 1)
 				throw new Exception("Exceeded channel limits");
 
 			var channel = new Channel(options, channelNum, this._io, _channelCancellationTokenSource.Token);
@@ -218,6 +230,40 @@
 			internal string password;
 			internal string connectionName;
 			internal int port;
+		}
+
+		internal void BlockAllChannels(string reason)
+		{
+			LogAdapter.LogWarn(LogSource, "Blocking all channels: " + reason);
+
+			foreach (var channel in _channels)
+			{
+				if (channel == null) continue;
+				channel.BlockChannel(reason);
+			}
+
+			var ev = this.ConnectionBlocked;
+			if (ev != null)
+			{
+				ev(reason);
+			}
+		}
+
+		internal void UnblockAllChannels()
+		{
+			LogAdapter.LogWarn(LogSource, "Unblocking all channels");
+
+			foreach (var channel in _channels)
+			{
+				if (channel == null) continue;
+				channel.UnblockChannel();
+			}
+
+			var ev = this.ConnectionUnblocked;
+			if (ev != null)
+			{
+				ev();
+			}
 		}
 	}
 }
