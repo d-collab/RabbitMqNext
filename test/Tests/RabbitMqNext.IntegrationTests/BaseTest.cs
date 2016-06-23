@@ -78,7 +78,7 @@ namespace RabbitMqNext.IntegrationTests
 		}
 
 		[TearDown]
-		public void EndTest()
+		public virtual void EndTest()
 		{
 			if (_conn != null)
 			{

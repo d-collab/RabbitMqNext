@@ -16,9 +16,11 @@ namespace RabbitMqNext.IntegrationTests
 		}
 
 		[TearDown]
-		public void TearDown()
+		public override void EndTest()
 		{
 			LogAdapter.ProtocolLevelLogEnabled = false;
+
+			base.EndTest();
 		}
 
 		[Test]
@@ -55,7 +57,7 @@ namespace RabbitMqNext.IntegrationTests
 			{
 				await channel.QueueDeclare(queueName, false, false, false, true, null, waitConfirmation: true);
 
-				for (int i = 0; i < 3000000; i++)
+				for (int i = 0; i < 6000000; i++) 
 				{
 					channel.BasicPublishFast("", queueName, true, BasicProperties.Empty, 
 											 Encoding.UTF8.GetBytes("hello world message to exhaust the server"));
