@@ -8,9 +8,18 @@ namespace RabbitMqNext
 
 	public interface IChannel : IDisposable
 	{
-		// event Action<AmqpError> OnError;
 		void AddErrorCallback(Func<AmqpError, Task> errorCallback);
 		void RemoveErrorCallback(Func<AmqpError, Task> errorCallback);
+
+		/// <summary>
+		/// Happens when the server tells the client to stop publishing (channelflow or connectionblock)
+		/// </summary>
+		event Action<string> ChannelBlocked;
+
+		/// <summary>
+		/// Happens when the server allows the client to resume publishing (channelflow or connectionunblock)
+		/// </summary>
+		event Action ChannelUnblocked;
 
 		Func<UndeliveredMessage, Task> MessageUndeliveredHandler { get; set; }
 
@@ -31,21 +40,21 @@ namespace RabbitMqNext
 		void BasicNAck(ulong deliveryTag, bool multiple, bool requeue);
 
 		Task ExchangeDeclare(string exchange, string type, bool durable, bool autoDelete,
-			IDictionary<string, object> arguments, bool waitConfirmation);
+							 IDictionary<string, object> arguments, bool waitConfirmation);
 
 		Task ExchangeBind(string source, string destination, string routingKey, 
-			IDictionary<string, object> arguments, bool waitConfirmation);
+						  IDictionary<string, object> arguments, bool waitConfirmation);
 
 		Task ExchangeUnbind(string source, string destination, string routingKey,
-			IDictionary<string, object> arguments, bool waitConfirmation);
+							IDictionary<string, object> arguments, bool waitConfirmation);
 
 		Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation);
 
 		Task<AmqpQueueInfo> QueueDeclare(string queue, bool passive, bool durable, bool exclusive, bool autoDelete,
-			IDictionary<string, object> arguments, bool waitConfirmation);
+										 IDictionary<string, object> arguments, bool waitConfirmation);
 
 		Task QueueBind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments,
-			bool waitConfirmation);
+					   bool waitConfirmation);
 
 		Task QueueUnbind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments);
 		Task QueueDelete(string queue /*, bool ifUnused, bool ifEmpty*/, bool waitConfirmation);
@@ -73,7 +82,7 @@ namespace RabbitMqNext
 			IDictionary<string, object> arguments, bool waitConfirmation);
 
 		/// <summary>
-		/// This cancels a consumer.
+		/// Cancels a consumer.
 		/// </summary>
 		/// <param name="consumerTag"></param>
 		/// <param name="waitConfirmation"></param>
