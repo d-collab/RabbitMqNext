@@ -9,12 +9,16 @@
 	using System.Runtime.CompilerServices;
 	using System.Threading;
 	using System.Threading.Tasks;
+	using Internals.RingBuffer.Locks;
 	using RabbitMqNext.Internals;
 	using RabbitMqNext.Internals.RingBuffer;
 	using RabbitMqNext.Io;
+	using Utils;
 
 	public sealed class Channel : IChannel
 	{
+		private const string LogSource = "Channel";
+
 		private static readonly Stream EmptyStream = new EmptyStream();
 
 		private readonly CancellationToken _cancellationToken;
@@ -27,6 +31,11 @@
 		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
 		private readonly ObjectPool<BasicProperties> _propertiesPool;
 		private List<Func<AmqpError, Task>> _errorsCallbacks = new List<Func<AmqpError, Task>>();
+
+		// Support for channelflow + connectionblock
+		private int _publishingBlocked;
+		private readonly ManualResetEventSlim _publishingBlockedWaiter = new ManualResetEventSlim(false);
+
 
 		public Channel(ChannelOptions options, ushort channelNumber, ConnectionIO connectionIo, CancellationToken cancellationToken)
 		{
@@ -44,6 +53,10 @@
 
 			_propertiesPool = new ObjectPool<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
 		}
+
+		public event Action<string> ChannelBlocked;
+
+		public event Action ChannelUnblocked;
 
 		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
@@ -187,6 +200,8 @@
 
 			if (_confirmationKeeper == null) throw new Exception("This channel is not set up for confirmations");
 
+			WaitIfChannelBlock();
+
 			return _io.__BasicPublishConfirm(exchange, routingKey, mandatory, properties, buffer);
 		}
 
@@ -200,6 +215,8 @@
 
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
 
+			WaitIfChannelBlock();
+
 			return _io.__BasicPublishTask(exchange, routingKey, mandatory, properties, buffer);
 		}
 
@@ -212,6 +229,8 @@
 			EnsureOpen();
 
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
+
+			WaitIfChannelBlock();
 
 			_io.__BasicPublish(exchange, routingKey, mandatory, properties, buffer);
 		}
@@ -329,7 +348,7 @@
 			if (!_consumerSubscriptions.TryGetValue(consumerTag, out consumer))
 			{
 				// received msg but nobody was subscribed to get it (?)
-				LogAdapter.LogWarn("Channel", "Received message without a matching subscription. Discarding. " +
+				LogAdapter.LogWarn(LogSource, "Received message without a matching subscription. Discarding. " +
 								   "Exchange: " + exchange + " routing: " + routingKey + 
 								   " consumer tag: " + consumerTag + " and channel " + this.ChannelNumber);
 
@@ -428,7 +447,7 @@
 						}
 						catch (Exception e)
 						{
-							LogAdapter.LogError("Channel", "Error processing message (user code)", e);
+							LogAdapter.LogError(LogSource, "Error processing message (user code)", e);
 						}
 						finally
 						{
@@ -471,7 +490,7 @@
 					}
 					catch (Exception ex)
 					{
-						LogAdapter.LogError("Channel", "Consumer error. Tag " + consumer.ConsumerTag, ex);
+						LogAdapter.LogError(LogSource, "Consumer error. Tag " + consumer.ConsumerTag, ex);
 					}
 					finally
 					{
@@ -487,7 +506,7 @@
 			}
 
 			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("Channel", "Consumer exiting. Tag " + consumer.ConsumerTag);
+				LogAdapter.LogDebug(LogSource, "Consumer exiting. Tag " + consumer.ConsumerTag);
 		}
 
 		internal async Task DispatchBasicReturn(ushort replyCode, string replyText, 
@@ -540,13 +559,11 @@
 		internal void HandleChannelFlow(bool isActive)
 		{
 			if (isActive)
-			{
+				BlockChannel("ChannelFlow received");
+			else 
+				UnblockChannel();
 
-			}
-			else
-			{
-
-			}
+			_io.__SendChannelFlowOk(isActive);
 		}
 
 		internal Task HandleCancelConsumerByServer(string consumerTag, byte noWait)
@@ -656,6 +673,67 @@
 			replacementChannel.MessageUndeliveredHandler = this.MessageUndeliveredHandler;
 
 			replacementChannel._errorsCallbacks = _errorsCallbacks;
+
+			if (this.ChannelBlocked != null)
+			{
+				lock (this.ChannelBlocked)
+				foreach (Action<string> @delegate in this.ChannelBlocked.GetInvocationList())
+				{
+					replacementChannel.ChannelBlocked += @delegate;
+				}
+			}
+
+			if (this.ChannelUnblocked != null)
+			{
+				lock (this.ChannelUnblocked)
+				foreach (Action @delegate in this.ChannelUnblocked.GetInvocationList())
+				{
+					replacementChannel.ChannelUnblocked += @delegate;
+				}
+			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal void BlockChannel(string reason)
+		{
+			_publishingBlockedWaiter.Reset();
+			Interlocked.Exchange(ref _publishingBlocked, 1);
+
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogWarn(LogSource, "Channel " + this.ChannelNumber + " blocked");
+
+			var ev = this.ChannelBlocked;
+			if (ev != null)
+			{
+				ev(reason);
+			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal void UnblockChannel()
+		{
+			_publishingBlockedWaiter.Set();
+			Interlocked.Exchange(ref _publishingBlocked, 0);
+
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogWarn(LogSource, "Channel " + this.ChannelNumber + " unblocked");
+			
+			var ev = this.ChannelUnblocked;
+			if (ev != null)
+			{
+				ev();
+			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private void WaitIfChannelBlock()
+		{
+			Asserts.AssertNotReadFrameThread(); // otherwise we'll be up to a nice deadlock
+
+			if (_publishingBlocked == 1)
+			{
+				_publishingBlockedWaiter.Wait();
+			}
 		}
 	}
 }
