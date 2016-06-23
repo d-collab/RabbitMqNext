@@ -1,6 +1,8 @@
 namespace RabbitMqNext.IntegrationTests
 {
 	using System;
+	using System.Collections.Generic;
+	using System.Text;
 	using System.Threading;
 	using System.Threading.Tasks;
 	using FluentAssertions;
@@ -146,6 +148,49 @@ namespace RabbitMqNext.IntegrationTests
 			})
 			.InnerExceptions.Should()
 							.Contain(e => e.Message == "Error: Server returned error: ACCESS_REFUSED - queue 'queue_direct' in vhost 'clear_test' in exclusive use [code: 403 class: 60 method: 20]");
+		}
+
+		[Test]
+		public async Task Publish_confirmation_stress()
+		{
+			Console.WriteLine("Publish_confirmation_stress");
+
+			var numberMessages = 2000;
+			var chunkSize = 1000;
+			var chunks = numberMessages / chunkSize;
+
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
+			var channel = await conn.CreateChannelWithPublishConfirmation(maxunconfirmedMessages: 100);
+
+			try
+			{
+				await channel.ExchangeDeclare("pub_ex", "fanout", true, false, null, true);
+				await channel.QueueDeclare("queue_direct10", false, true, false, false, null, true);
+				await channel.QueueBind("queue_direct10", "pub_ex", "", null, true);
+
+				for (int i = 0; i < chunks; i++)
+				{
+					var tasks = new List<Task>(chunkSize);
+
+					for (int j = 0; j < chunkSize; j++)
+					{
+						var properties = channel.RentBasicProperties();
+
+						var bodyBytes = Encoding.UTF8.GetBytes("This is the message body text");
+						var body = new ArraySegment<byte>(bodyBytes);
+
+						var task = channel.BasicPublishWithConfirmation("pub_ex", "", true, properties, body);
+
+						tasks.Add(task);
+					}
+
+					await Task.WhenAll(tasks);
+				}
+			}
+			finally
+			{
+				channel.QueuePurge("queue_direct10", waitConfirmation: false).Wait();
+			}
 		}
 
 //		[Explicit, Test,  ExpectedException(ExpectedMessage = "Error: Server returned error: COMMAND_INVALID - unknown exchange type 'SOMETHING' [code: 503 class: 40 method: 10]")]

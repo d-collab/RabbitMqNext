@@ -12,6 +12,8 @@ namespace RabbitMqNext.Internals
 	/// </summary>
 	internal class MessagesPendingConfirmationKeeper
 	{
+		private const string LogSource = "MessagesPendingConfirmationKeeper";
+
 		private readonly ulong _max;
 		private readonly CancellationToken _token;
 		private readonly SemaphoreSlim _semaphoreSlim;
@@ -43,30 +45,15 @@ namespace RabbitMqNext.Internals
 
 		public void Add(TaskCompletionSource<bool> tcs)
 		{
-			// happens past semaphore, from the frame writing thread, thus "safe"
+			// happens past semaphore, from the frame writing thread, thus safe
+			
+			var id = ++_lastSeq;
+			var index = id % _max;
 
-			var success = false;
-
-			// for (int i = 0; i < _tasks.Length; i++)
+			if (Interlocked.CompareExchange(ref _tasks[index], tcs, null) != null)
 			{
-				var id = GetNext();
-				var index = id % _max;
-
-				if (Interlocked.CompareExchange(ref _tasks[index], tcs, null) == null)
-				{
-					success = true;
-//					break;
-				}
-				else
-				{
-					// Spot in use, so continue up to sizeOf(_tasks) attempts
-				}
-			}
-
-			if (!success) // probably will never happen due to the semaphore, but just in case. 
-			{
-				// fail fast, better than leaving the task hanging forever
-				tcs.TrySetException(new Exception("MessagesPendingConfirmationKeeper: Could not find free spot for the waiting task"));
+				// should never happen
+				tcs.TrySetException(new Exception("ConfirmationKeeper: Could not find free spot for the waiting task"));
 			}
 		}
 		
@@ -77,18 +64,23 @@ namespace RabbitMqNext.Internals
 
 			for (var i = startPos; i <= deliveryTag; i++)
 			{
-				var index = deliveryTag % _max;
-				// var tcs = _tasks[index];
+				var index = i % _max;
+
 				var tcs = Interlocked.Exchange(ref _tasks[index], null);
 
 				_semaphoreSlim.Release();
 
-				if (tcs == null) throw new Exception("_tasks is broken!");
-
-				if (isAck)
-					tcs.TrySetResult(true);
+				if (tcs == null)
+				{
+					LogAdapter.LogError(LogSource, "Unexpected tcs null at " + index);
+				}
 				else
-					tcs.TrySetException(new Exception("Server said it rejected this message. Sorry"));
+				{
+					if (isAck)
+						tcs.TrySetResult(true);
+					else
+						tcs.TrySetException(new Exception("Server said it rejected this message. Sorry"));
+				}
 			}
 
 			_lastConfirmed = deliveryTag;
@@ -119,14 +111,6 @@ namespace RabbitMqNext.Internals
 		public void Dispose()
 		{
 			_semaphoreSlim.Dispose();
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private ulong GetNext()
-		{
-			// max is 9,223,372,036,854,775,807 so we're "safe" in pragmatic terms
-			// return Interlocked.Increment(ref LastSeq);
-			return ++_lastSeq; // safe since invoked from a single thread
 		}
 	}
 }
