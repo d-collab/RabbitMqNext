@@ -19,8 +19,8 @@ namespace RabbitMqNext.Internals
 		private readonly SemaphoreSlim _semaphoreSlim;
 		private readonly TaskCompletionSource<bool>[] _tasks;
 		
-		private ulong _lastSeq = 0;
-		private ulong _lastConfirmed = 0;
+		private ulong _lastSeq = 0; // no need to be volatile
+		private ulong _lastConfirmed = 0; // ditto
 
 		public MessagesPendingConfirmationKeeper(int max, CancellationToken token)
 		{
