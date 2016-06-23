@@ -36,4 +36,13 @@
 		/// <returns></returns>
 		Task<IChannel> CreateChannelWithPublishConfirmation(ChannelOptions options = null, int maxunconfirmedMessages = 100);
 	}
+
+	public interface IRecoveryEnabledConnection : IConnection
+	{
+		event Action WillRecover;
+		
+		event Action RecoveryCompleted;
+		
+		event Action<Exception> RecoveryFailed;
+	}
 }
