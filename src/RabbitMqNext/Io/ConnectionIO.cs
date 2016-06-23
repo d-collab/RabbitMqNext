@@ -14,6 +14,9 @@ namespace RabbitMqNext.Io
 
 	public sealed class ConnectionIO : AmqpIOBase, IFrameProcessor
 	{
+		internal const string ReadFrameThreadNamePrefix = "ReadFramesLoop_";
+		internal const string WriteFrameThreadNamePrefix = "WriteFramesLoop_";
+
 		private static int _counter = 0;
 
 		private readonly Connection _conn;
@@ -87,9 +90,12 @@ namespace RabbitMqNext.Io
 					_frameReader.Read_ConnectionClose(base.HandleCloseMethodFromServer);
 					break;
 
-				// TODO: support block/unblock connection msgs
 				case AmqpClassMethodConnectionLevelConstants.ConnectionBlocked:
+					_frameReader.Read_ConnectionBlocked(HandleConnectionBlocked);
+					break;
+
 				case AmqpClassMethodConnectionLevelConstants.ConnectionUnblocked:
+					HandleConnectionUnblocked();
 					break;
 
 				default:
@@ -217,8 +223,8 @@ namespace RabbitMqNext.Io
 			_amqpReader.Initialize(_socketHolder.Reader);
 			_frameReader.Initialize(_socketHolder.Reader, _amqpReader, this);
 
-			ThreadFactory.BackgroundThread(WriteFramesLoop, "WriteFramesLoop_" + index);
-			ThreadFactory.BackgroundThread(ReadFramesLoop,  "ReadFramesLoop_"  + index);
+			ThreadFactory.BackgroundThread(WriteFramesLoop, WriteFrameThreadNamePrefix + index);
+			ThreadFactory.BackgroundThread(ReadFramesLoop, ReadFrameThreadNamePrefix + index);
 
 			return true;
 		}
@@ -536,7 +542,7 @@ namespace RabbitMqNext.Io
 			var auth = Encoding.UTF8.GetBytes("\0" + username + "\0" + password);
 			var writer = AmqpConnectionFrameWriter.ConnectionStartOk(clientProperties, "PLAIN", auth, "en_US");
 
-			SendCommand(0, 10, 30, 
+			SendCommand(0, Amqp.Connection.ClassId, 30, 
 				writer,
 				reply: (channel, classMethodId, error) =>
 				{
@@ -573,7 +579,7 @@ namespace RabbitMqNext.Io
 
 			var tcs = new TaskCompletionSource<bool>();
 
-			SendCommand(0, 10, 50, AmqpConnectionFrameWriter.ConnectionClose,
+			SendCommand(0, Amqp.Connection.ClassId, 50, AmqpConnectionFrameWriter.ConnectionClose,
 				reply: (channel, classMethodId, error) =>
 				{
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionCloseOk)
@@ -606,7 +612,7 @@ namespace RabbitMqNext.Io
 
 			var tcs = new TaskCompletionSource<bool>();
 
-			this.SendCommand(0, 10, 51,
+			this.SendCommand(0, Amqp.Connection.ClassId, 51,
 				AmqpConnectionFrameWriter.ConnectionCloseOk,
 				reply: null, expectsReply: false, tcs: tcs, immediately: true);
 
@@ -614,6 +620,16 @@ namespace RabbitMqNext.Io
 		}
 
 		#endregion
+
+		private void HandleConnectionBlocked(string reason)
+		{
+			_conn.BlockAllChannels(reason);
+		}
+
+		private void HandleConnectionUnblocked()
+		{
+			_conn.UnblockAllChannels();
+		}
 
 		public void TriggerOnceOnFreshState(Action action)
 		{
