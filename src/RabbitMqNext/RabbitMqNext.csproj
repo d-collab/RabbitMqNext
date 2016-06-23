@@ -20,7 +20,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;ASSERT</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
@@ -63,6 +63,7 @@
     <Compile Include="Buffers\ObjectPool.cs" />
     <Compile Include="Buffers\Utilities.cs" />
     <Compile Include="ChannelApiExtensions.cs" />
+    <Compile Include="ChannelOptions.cs" />
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="IChannel.cs" />
     <Compile Include="IConnection.cs" />
@@ -152,10 +153,9 @@
     <Compile Include="MessageDelivery.cs" />
     <Compile Include="Internals\MessagesPendingConfirmationKeeper.cs" />
     <Compile Include="Properties\AsmInfo.cs" />
+    <Compile Include="Utils\Asserts.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Utils\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>

@@ -32,6 +32,11 @@ namespace RabbitMqNext.Internals
 
 	public static class Amqp
 	{
+		public static class Connection
+		{
+			public const ushort ClassId = 10;
+		}
+
 		public static class Channel
 		{
 			public const ushort ClassId = 20;
