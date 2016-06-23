@@ -111,9 +111,9 @@ namespace RabbitMqNext
 					delivery.TakenOver = true;
 				}
 
-				if (tcs.TrySetResult(delivery)) // <- this races with DrainPendingCalls && Timeoutcheck. 
+				if (tcs.TrySetResult(delivery)) // <- this races with DrainPendingCalls && Timeoutcheck...
 				{
-					// But we want just one call to semaphore.Release
+					// ...but we want just one call to semaphore.Release
 					_semaphoreSlim.Release();
 				}
 			}
@@ -128,15 +128,5 @@ namespace RabbitMqNext
 
 			return Task.CompletedTask;
 		}
-
-		/*
-		private TaskSlim<MessageDelivery> ReleaseSpot(string correlationId, out uint correlationIndex)
-		{
-			correlationIndex = UInt32.Parse(correlationId);
-			var pos = correlationIndex % _maxConcurrentCalls;
-
-			return Interlocked.Exchange(ref _pendingCalls[pos], null);
-		}
-		*/
 	}
 }

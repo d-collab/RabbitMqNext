@@ -10,8 +10,9 @@ namespace RabbitMqNext
 	public abstract class BaseRpcHelper<T> : BaseRpcHelper, IDisposable
 	{
 		private const string LogSource = "BaseRpcHelper";
-		protected static readonly char[] Separator = { '_' };
-		protected static readonly string SeparatorStr = Separator[0].ToString();
+
+		protected const string SeparatorStr = "_";
+		private const char Zero = '0';
 
 		protected readonly Timer _timeoutTimer;
 		protected readonly int? _timeoutInMs;
@@ -76,6 +77,7 @@ namespace RabbitMqNext
 		protected TaskCompletionSource<T> SecureSpotAndUniqueCorrelationId(out long pos, out uint correlationId)
 		{
 			var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+
 			if (tcs.Task.Id == 0) // wrap protection
 				tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -99,12 +101,6 @@ namespace RabbitMqNext
 
 					return tcs;
 				}
-
-//				if (Interlocked.CompareExchange(ref _pendingCalls[pos], task, null) == null)
-//				{
-//					correlationId = correlationIndex;
-//					return true;
-//				}
 			}
 
 			return null;
@@ -119,8 +115,7 @@ namespace RabbitMqNext
 			var pastSeparator = false;
 			correlationIdVal = 0;
 			cookie = 0;
-			const char Zero = '0';
-
+			
 			for (int i = 0; i < correlationId.Length; i++)
 			{
 				if (correlationId[i] == '_')
@@ -166,16 +161,16 @@ namespace RabbitMqNext
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		protected string BuildFullCorrelation(int cookie, uint correlationId)
 		{
-			return correlationId + SeparatorStr + cookie;
+			return correlationId + SeparatorStr + cookie; // can't avoid this alloc
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		protected void ReleaseSpot(long pos, int cookie)
+		protected bool ReleaseSpot(long pos, int cookie)
 		{
-			if (cookie == 0) return; // no such thing as cookie = 0
+			if (cookie == 0) return false; // no such thing as cookie = 0
 
 			// setting it back to 0 frees the spot
-			Interlocked.CompareExchange(ref _pendingCalls[pos].cookie, 0, cookie);
+			return Interlocked.CompareExchange(ref _pendingCalls[pos].cookie, 0, cookie) == cookie;
 		}
 
 		private void OnTimeoutCheck(object state)
@@ -194,7 +189,8 @@ namespace RabbitMqNext
 
 					if (tcs.TrySetException(new Exception("Rpc call timeout")))
 					{
-						pendingCall.cookie = 0;
+						Interlocked.Exchange(ref pendingCall.cookie, 0);
+						_semaphoreSlim.Release();
 					}
 				}
 			}

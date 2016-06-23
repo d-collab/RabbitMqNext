@@ -101,11 +101,10 @@ namespace RabbitMqNext
 			}
 			catch (Exception ex)
 			{
-				// release spot
-				// Interlocked.Exchange(ref _pendingCalls[pos], null);
-				ReleaseSpot(pos, cookie);
-
-				_semaphoreSlim.Release();
+				if (ReleaseSpot(pos, cookie))
+				{
+					_semaphoreSlim.Release();
+				}
 
 				tcs.TrySetException(ex);
 			}
