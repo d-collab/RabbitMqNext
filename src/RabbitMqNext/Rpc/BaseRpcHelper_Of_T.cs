@@ -137,7 +137,8 @@ namespace RabbitMqNext
 
 			pos = correlationIdVal % _maxConcurrentCalls;
 
-			LogAdapter.LogDebug(LogSource, "Received cookie " + cookie + " correlationIndex " + correlationIdVal);
+//			if (LogAdapter.ExtendedLogEnabled)
+//				LogAdapter.LogDebug(LogSource, "Received cookie " + cookie + " correlationIndex " + correlationIdVal);
 		}
 
 		protected override void DrainPendingCalls()
@@ -185,7 +186,8 @@ namespace RabbitMqNext
 
 				if (tcs != null && now - pendingCall.started > _timeoutInTicks)
 				{
-					LogAdapter.LogDebug(LogSource, "Timeout'ing item " + pendingCall.cookie);
+//					if (LogAdapter.ExtendedLogEnabled)
+//						LogAdapter.LogDebug(LogSource, "Timeout'ing item " + pendingCall.cookie);
 
 					if (tcs.TrySetException(new Exception("Rpc call timeout")))
 					{
