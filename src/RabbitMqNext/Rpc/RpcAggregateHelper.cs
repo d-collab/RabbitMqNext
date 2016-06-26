@@ -57,7 +57,7 @@ namespace RabbitMqNext
 		/// </summary>
 		public Task<IEnumerable<MessageDelivery>> CallAggregate(string exchange, string routing, 
 			BasicProperties properties,
-			ArraySegment<byte> buffer, int minExpectedReplies)
+			ArraySegment<byte> buffer, int minExpectedReplies, bool runContinuationsAsynchronously = true)
 		{
 			if (!_operational) throw new Exception("Can't make RPC call when connection in recovery");
 
@@ -65,7 +65,7 @@ namespace RabbitMqNext
 
 			uint correlationId;
 			long pos;
-			var tcs = SecureSpotAndUniqueCorrelationId(out pos, out correlationId);
+			var tcs = SecureSpotAndUniqueCorrelationId(runContinuationsAsynchronously, out pos, out correlationId);
 			if (tcs == null)
 			{
 				_semaphoreSlim.Release();

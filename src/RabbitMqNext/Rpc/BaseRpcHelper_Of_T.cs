@@ -74,12 +74,16 @@ namespace RabbitMqNext
 			DrainPendingCalls();
 		}
 
-		protected TaskCompletionSource<T> SecureSpotAndUniqueCorrelationId(out long pos, out uint correlationId)
+		protected TaskCompletionSource<T> SecureSpotAndUniqueCorrelationId(bool runContinuationsAsynchronously, out long pos, out uint correlationId)
 		{
-			var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+			var taskCreationOpts = runContinuationsAsynchronously
+				? TaskCreationOptions.RunContinuationsAsynchronously
+				: TaskCreationOptions.None;
+
+			var tcs = new TaskCompletionSource<T>(taskCreationOpts);
 
 			if (tcs.Task.Id == 0) // wrap protection
-				tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+				tcs = new TaskCompletionSource<T>(taskCreationOpts);
 
 			correlationId = 0;
 			pos = 0L;

@@ -30,8 +30,10 @@ namespace RabbitMqNext
 		/// <param name="routing"></param>
 		/// <param name="properties"></param>
 		/// <param name="buffer"></param>
+		/// <param name="runContinuationsAsynchronously"></param>
 		/// <returns></returns>
-		public Task<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, ArraySegment<byte> buffer)
+		public Task<MessageDelivery> Call(string exchange, string routing, BasicProperties properties, 
+										  ArraySegment<byte> buffer, bool runContinuationsAsynchronously = true)
 		{
 			if (!_operational) throw new Exception("Can't make RPC call when connection in recovery");
 
@@ -39,7 +41,7 @@ namespace RabbitMqNext
 
 			uint correlationId;
 			long pos;
-			var tcs = SecureSpotAndUniqueCorrelationId(out pos, out correlationId);
+			var tcs = SecureSpotAndUniqueCorrelationId(runContinuationsAsynchronously, out pos, out correlationId);
 			if (tcs == null)
 			{
 				_semaphoreSlim.Release();
