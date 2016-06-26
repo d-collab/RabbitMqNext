@@ -107,6 +107,7 @@
     <Compile Include="Rpc\RpcAggregateHelper.cs" />
     <Compile Include="Rpc\RpcHelper.cs" />
     <Compile Include="TplExtensions\BaseTaskSlim.cs" />
+    <Compile Include="TplExtensions\SuppressFlow.cs" />
     <Compile Include="TplExtensions\TaskExtensions.cs" />
     <Compile Include="TplExtensions\TaskSlim.cs" />
     <Compile Include="TplExtensions\TaskSlim_Of_T.cs" />
