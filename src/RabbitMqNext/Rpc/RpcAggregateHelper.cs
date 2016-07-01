@@ -43,10 +43,14 @@ namespace RabbitMqNext
 			}
 		}
 
-		public static async Task<RpcAggregateHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
+		public static async Task<RpcAggregateHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode, 
+															bool captureContext = false, int? timeoutInMs = null)
 		{
-			var instance = new RpcAggregateHelper(channel, maxConcurrentCalls, mode, timeoutInMs);
-			await instance.Setup().ConfigureAwait(false);
+			var instance = new RpcAggregateHelper(channel, maxConcurrentCalls, mode, timeoutInMs)
+			{
+				CaptureContext = captureContext
+			};
+			await instance.Setup().ConfigureAwait(captureContext);
 			return instance;
 		}
 	

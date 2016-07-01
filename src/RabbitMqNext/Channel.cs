@@ -299,22 +299,22 @@
 			return _io.__BasicRecover(requeue);
 		}
 
-		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
+		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls, bool captureContext)
 		{
 			EnsureOpen();
 
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
-			return RpcHelper.Create(this, maxConcurrentCalls, mode, timeoutInMs);
+			return RpcHelper.Create(this, maxConcurrentCalls, mode, captureContext, timeoutInMs);
 		}
 
-		public Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
+		public Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls, bool captureContext)
 		{
 			EnsureOpen();
 
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
 
-			return RpcAggregateHelper.Create(this, maxConcurrentCalls, mode, timeoutInMs);
+			return RpcAggregateHelper.Create(this, maxConcurrentCalls, mode, captureContext, timeoutInMs);
 		}
 
 		public async Task Close()

@@ -282,24 +282,24 @@
 			return _channel.BasicRecover(requeue);
 		}
 
-		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
+		public async Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls, bool captureContext)
 		{
 			ThrowIfRecoveryInProcess();
 
 			if (this.IsConfirmationEnabled) throw new Exception("This channel is set up for confirmations");
 
-			var helper = await _channel.CreateRpcHelper(mode, timeoutInMs, maxConcurrentCalls).ConfigureAwait(false);
+			var helper = await _channel.CreateRpcHelper(mode, timeoutInMs, maxConcurrentCalls, captureContext).ConfigureAwait(false);
 
 			lock (_rpcHelpers) _rpcHelpers.Add(helper);
 
 			return helper;
 		}
 
-		public async Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls)
+		public async Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls, bool captureContext)
 		{
 			ThrowIfRecoveryInProcess();
 
-			var helper = await _channel.CreateRpcAggregateHelper(mode, timeoutInMs, maxConcurrentCalls).ConfigureAwait(false);
+			var helper = await _channel.CreateRpcAggregateHelper(mode, timeoutInMs, maxConcurrentCalls, captureContext).ConfigureAwait(false);
 
 			lock (_rpcHelpers) _rpcHelpers.Add(helper);
 

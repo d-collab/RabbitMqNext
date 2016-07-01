@@ -99,8 +99,10 @@ namespace RabbitMqNext
 		/// <returns></returns>
 		Task BasicRecover(bool requeue);
 
-		Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500);
-		Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500);
+		Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500, bool captureContext = false);
+
+		Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls = 500, bool captureContext = false);
+		
 		Task Close();
 	}
 }
