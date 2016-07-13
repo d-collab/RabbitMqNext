@@ -71,12 +71,15 @@
 					await channel.QueueDeclare(q, passive: false, durable: true, exclusive: false, autoDelete: false, arguments: null,
 						waitConfirmation: false);
 
-					await channel.BasicConsume(ConsumeMode.ParallelWithBufferCopy, BuildConsumerFn(channel), q, "consumer_" + q, 
+					// TODO: test with parallel buffer copy + serialized too
+					await channel.BasicConsume(ConsumeMode.SingleThreaded, BuildConsumerFn(channel), q, "consumer_" + q, 
 											   false, true, arguments: null, waitConfirmation: false);
 				}
 			}
 
 			Console.WriteLine("Ready");
+
+			await Task.Delay(1);
 
 			Thread.CurrentThread.Join();
 		}
