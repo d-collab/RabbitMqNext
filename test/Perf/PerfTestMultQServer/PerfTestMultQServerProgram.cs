@@ -28,7 +28,7 @@
 			LogAdapter.ProtocolLevelLogEnabled = false;
 
 
-			int howManyQueues = 2;
+			int howManyQueues = 3;
 			bool exclusiveConnections = ConfigurationManager.AppSettings["exclusiveConnections"] == "true";
 			bool useOfficialClient = ConfigurationManager.AppSettings["useOfficialClient"] == "true";
 
@@ -75,7 +75,6 @@
 											   false, true, arguments: null, waitConfirmation: false);
 				}
 			}
-
 
 			Console.WriteLine("Ready");
 

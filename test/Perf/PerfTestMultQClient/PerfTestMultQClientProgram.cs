@@ -16,6 +16,7 @@
 	{
 		private ManualResetEventSlim _startSync;
 		private LongHistogram _hdrHistogram;
+		private SemaphoreSlim _completionSemaphore;
 
 		static void Main(string[] args)
 		{
@@ -33,7 +34,7 @@
 			LogAdapter.ProtocolLevelLogEnabled = false;
 			LogAdapter.LogDebugFn = (s, s1, arg3) => { };
 
-			_hdrHistogram = new LongHistogram(10, 100000, 5);
+			_hdrHistogram = new LongHistogram(1, 1000 * 10, 5);
 
 			var host = ConfigurationManager.AppSettings["rabbit.host"];
 			var user = ConfigurationManager.AppSettings["rabbit.admuser"];
@@ -41,12 +42,12 @@
 			var vhost = ConfigurationManager.AppSettings["rabbit.vhost"];
 
 
-			int howManyQueues = 2;
+			int howManyQueues = 3;
 			bool exclusiveConnections = ConfigurationManager.AppSettings["exclusiveConnections"] == "true";
 			bool useOfficialClient = ConfigurationManager.AppSettings["useOfficialClient"] == "true";
 
-			var howManyCalls = 100;
-			var tasks = new List<Task>();
+			var howManyCalls = 30000;
+			_completionSemaphore = new SemaphoreSlim(0, howManyQueues);
 			_startSync = new ManualResetEventSlim(false);
 
 			if (useOfficialClient)
@@ -66,7 +67,12 @@
 
 					var q = "q." + i;
 
-					tasks.Add(Task.Run(() => SendLegacyCalls(q, channel, howManyCalls)));
+					new Thread(() =>
+					{
+						SendLegacyCalls(q, channel, howManyCalls);
+
+					}) { IsBackground = true }.Start();
+
 				}
 			}
 			else
@@ -84,18 +90,27 @@
 
 					var q = "q." + i;
 
-					tasks.Add(Task.Run(() => SendModernCalls(q, channel, howManyCalls)));
+					new Thread(() =>
+					{
+						SendModernCalls(q, channel, howManyCalls);
+
+					}) {IsBackground = true}.Start();
 				}
 			}
 
+			_startSync.Set();
+
 			Console.WriteLine("Waiting completion");
 
-			Task.WaitAll(tasks.ToArray());
+			for (int i = 0; i < howManyQueues; i++)
+				_completionSemaphore.Wait();
+
 
 			Console.WriteLine("Done\r\n");
-			Console.WriteLine("howManyQueues {0} exclusive Connections: {1} official client: {2}", howManyQueues, exclusiveConnections, useOfficialClient);
+			Console.WriteLine("howManyQueues {0} exclusive Connections: {1} official client: {2} count {3}", howManyQueues, exclusiveConnections, useOfficialClient, _hdrHistogram.TotalCount);
 			Console.WriteLine("\r\n");
 
+			
 			_hdrHistogram.OutputPercentileDistribution(Console.Out);
 
 			Console.ReadKey();
@@ -117,6 +132,8 @@
 
 				RecordValue(watch);
 			}
+
+			_completionSemaphore.Release();
 		}
 
 		private void SendLegacyCalls(string queue, IModel channel, int howManyCalls)
@@ -138,16 +155,23 @@
 			{
 				watch.Restart();
 				var prop = channel.CreateBasicProperties();
+				prop.ReplyTo = tempQueue.QueueName;
+				prop.CorrelationId = queue;
+
 				channel.BasicPublish("", queue, prop, buffer);
 				waitForReply.WaitOne();
 				watch.Stop();
 
 				RecordValue(watch);
 			}
+
+			_completionSemaphore.Release();
 		}
 
 		private void RecordValue(Stopwatch watch)
 		{
+			lock (_hdrHistogram)
+			_hdrHistogram.RecordValue(watch.ElapsedMilliseconds);
 		}
 	}
 
