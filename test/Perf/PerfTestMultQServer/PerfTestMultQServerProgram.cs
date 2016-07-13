@@ -36,19 +36,11 @@
 				for (int i = 0; i < howManyQueues; i++)
 				{
 					var connFac = new RabbitMQ.Client.ConnectionFactory() { HostName = host, UserName = user, Password = pwd, VirtualHost = vhost, AutomaticRecoveryEnabled = false };
-
-					if (exclusiveConnections)
+					
+					if (exclusiveConnections || conn == null)
 					{
 						conn = connFac.CreateConnection();
 						channel = conn.CreateModel();
-					}
-					else
-					{
-						if (conn == null)
-						{
-							conn = connFac.CreateConnection();
-							channel = conn.CreateModel();
-						}
 					}
 
 					var q = "q." + i;
@@ -64,18 +56,10 @@
 
 				for (int i = 0; i < howManyQueues; i++)
 				{
-					if (exclusiveConnections)
+					if (exclusiveConnections || conn == null)
 					{
-						conn = await RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null);
+						conn = await RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null, connectionName: "mod_perf_server");
 						channel = await conn.CreateChannel();
-					}
-					else
-					{
-						if (conn == null)
-						{
-							conn = await RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null);
-							channel = await conn.CreateChannel();
-						}
 					}
 
 					var q = "q." + i;
