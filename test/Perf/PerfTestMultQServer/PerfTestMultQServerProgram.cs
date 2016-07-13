@@ -23,6 +23,10 @@
 			var pwd = ConfigurationManager.AppSettings["rabbit.admpwd"];
 			var vhost = ConfigurationManager.AppSettings["rabbit.vhost"];
 
+			LogAdapter.LogDebugFn = (s, s1, arg3) => { };
+			LogAdapter.ExtendedLogEnabled = false;
+			LogAdapter.ProtocolLevelLogEnabled = false;
+
 
 			int howManyQueues = 2;
 			bool exclusiveConnections = ConfigurationManager.AppSettings["exclusiveConnections"] == "true";
@@ -44,7 +48,7 @@
 					}
 
 					var q = "q." + i;
-					channel.QueueDeclareNoWait(q, durable: true, exclusive: true, autoDelete: false, arguments: null);
+					channel.QueueDeclareNoWait(q, durable: true, exclusive: false, autoDelete: false, arguments: null);
 
 					channel.BasicConsume(q, false, "con_" + q, arguments: null, consumer: new Consumer(channel));
 				}
@@ -64,7 +68,7 @@
 
 					var q = "q." + i;
 					
-					await channel.QueueDeclare(q, passive: false, durable: true, exclusive: true, autoDelete: false, arguments: null,
+					await channel.QueueDeclare(q, passive: false, durable: true, exclusive: false, autoDelete: false, arguments: null,
 						waitConfirmation: false);
 
 					await channel.BasicConsume(ConsumeMode.ParallelWithBufferCopy, BuildConsumerFn(channel), q, "consumer_" + q, 

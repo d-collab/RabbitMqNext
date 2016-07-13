@@ -31,6 +31,7 @@
 
 			LogAdapter.ExtendedLogEnabled = false;
 			LogAdapter.ProtocolLevelLogEnabled = false;
+			LogAdapter.LogDebugFn = (s, s1, arg3) => { };
 
 			_hdrHistogram = new LongHistogram(10, 100000, 5);
 
