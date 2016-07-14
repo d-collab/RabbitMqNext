@@ -3,6 +3,7 @@ namespace RabbitMqNext.Io
 	using System;
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
+	using System.Runtime.CompilerServices;
 	using System.Text;
 	using System.Threading;
 	using System.Threading.Tasks;
@@ -225,7 +226,7 @@ namespace RabbitMqNext.Io
 			_amqpReader.Initialize(_socketHolder.Reader);
 			_frameReader.Initialize(_socketHolder.Reader, _amqpReader, this);
 
-//			ThreadFactory.BackgroundThread(WriteFramesLoop, WriteFrameThreadNamePrefix + index);
+			ThreadFactory.BackgroundThread(WriteFramesLoop, WriteFrameThreadNamePrefix + index);
 			ThreadFactory.BackgroundThread(ReadFramesLoop, ReadFrameThreadNamePrefix + index);
 
 			return true;
@@ -259,7 +260,7 @@ namespace RabbitMqNext.Io
 			return true;
 		}
 
-
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void FlushCommand(CommandToSend cmdToSend)
 		{
 			if (_threadCancelToken.IsCancellationRequested)
@@ -424,10 +425,10 @@ namespace RabbitMqNext.Io
 			cmd.PrepareAction = prepare;
 			cmd.Immediately = immediately;
 
-//			_commandOutbox.Enqueue(cmd);
-//			_commandOutboxEvent.Set();
-			lock(this) // bad
-				FlushCommand(cmd);
+			_commandOutbox.Enqueue(cmd);
+			_commandOutboxEvent.Set();
+//			lock(this) // bad
+//				FlushCommand(cmd);
 		}
 
 		private void SetErrorResultIfErrorPending(bool expectsReply, Func<ushort, int, AmqpError, Task> replyFn, 
