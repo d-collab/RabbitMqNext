@@ -20,7 +20,7 @@ namespace RabbitMqNext.Internals
 		private Socket _socket;
 
 		private SocketStreamWriterAdapter _socketConsumer;
-		private SocketProducer _socketProducer;
+//		private SocketProducer _socketProducer;
 		private Action _notifyWhenClosed;
 
 		public InternalBigEndianWriter Writer;
@@ -56,6 +56,8 @@ namespace RabbitMqNext.Internals
 		{
 			_index = index;
 			var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+			socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
+
 			var addresses = Dns.GetHostAddresses(hostname);
 			var started = false;
 
@@ -109,21 +111,24 @@ namespace RabbitMqNext.Internals
 
 		internal void WireStreams(CancellationToken cancellationToken, Action notifyWhenClosed)
 		{
+			_inputBuffer.SetSocket(_socket, OnSocketClosed);
+
 			_inputBuffer.ReenableBuffers();
 
-			// _socket = newSocket;
 			_notifyWhenClosed = notifyWhenClosed;
 
 			// WriteLoop
-			_socketConsumer = new SocketStreamWriterAdapter(_socket);
-			_socketConsumer.OnNotifyClosed += OnSocketClosed;
+			_socketConsumer = new SocketStreamWriterAdapter(_socket)
+			{
+				OnNotifyClosed = OnSocketClosed
+			};
 
 			// ReadLoop
-			_socketProducer = new SocketProducer(_socket, _inputBuffer, cancellationToken, _index);
-			_socketProducer.OnNotifyClosed += OnSocketClosed;
-
-			Writer = new InternalBigEndianWriter(_socketConsumer);
+			// _socketProducer = new SocketProducer(_socket, _inputBuffer, cancellationToken, _index);
+			// _socketProducer.OnNotifyClosed += OnSocketClosed;
+			Writer = new InternalBigEndianWriter(_socketConsumer.Write);
 			Reader = new InternalBigEndianReader(_inputRingBufferStream);
+			// Reader = new InternalBigEndianReader(new SocketStreamReaderAdapter(_socket));
 		}
 
 		private void OnSocketClosed(Socket sender, Exception ex)

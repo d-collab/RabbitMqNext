@@ -32,6 +32,7 @@
 
 		protected readonly AutoResetSuperSlimLock _readLock = new AutoResetSuperSlimLock();
 		protected readonly AutoResetSuperSlimLock _writeLock = new AutoResetSuperSlimLock();
+		// protected readonly AutoResetEvent _writeLock = new AutoResetEvent(false);
 		
 //		const int MaxGates = 64; 
 //		private readonly ReadingGate[] _gates = new ReadingGate[MaxGates];

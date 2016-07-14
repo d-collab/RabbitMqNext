@@ -4,6 +4,7 @@
 	using System.Diagnostics;
 	using System.IO;
 	using System.Net.Sockets;
+	using System.Runtime.CompilerServices;
 	using System.Runtime.InteropServices;
 	using System.Text;
 	using System.Threading;
@@ -203,7 +204,8 @@
 				{
 					if (fillBuffer)
 					{
-						_writeLock.Wait();
+						FillUpBufferFromSocket();
+						// _writeLock.WaitOne();
 						continue;
 					} 
 					break;
@@ -211,7 +213,8 @@
 
 				int dstOffset = offset + totalRead;
 
-				Buffer.BlockCopy(_buffer, readPos + _bufferPadding, buffer, dstOffset, available);
+				BufferUtil.FastCopy(buffer, dstOffset, _buffer, readPos + _bufferPadding, available);
+
 
 				totalRead += available;
 
@@ -237,45 +240,45 @@
 			return totalRead;
 		}
 
-		public void ReadBufferIntoSocketSend(Socket socket/*, bool asyncSend*/)
-		{
-			while(true)
-			{
-				int totalRead;
-				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out totalRead/*, null*/);
-
-				if (_state._resetApplied)
-				{
-					throw new Exception("Can't be read since the buffer is in Reset state");
-					// break;
-				}
-
-				// buffer is empty.. return and expect to be called again when something gets written
-				if (totalRead == 0) 
-				{
-					_writeLock.Wait();
-					continue;
-				}
-
-				var totalSent = 0;
-				while (totalSent < totalRead)
-				{
-					var sent = socket.Send(_buffer, _bufferPadding + readPos + totalSent, totalRead - totalSent, SocketFlags.None);
-
-					totalSent += sent;
-
-					// maybe better throughput if this goes inside the inner loop
-					var newReadPos = _state._readPosition + (uint)sent;
-					_state._readPosition = newReadPos; // volative write
-					_state._readPositionCopy = newReadPos;
-
-					_readLock.Set(); // signal - if someone is waiting
-				}
-
-				break;
-//				totalRead += available;
-			}
-		}
+//		public void ReadBufferIntoSocketSend(Socket socket/*, bool asyncSend*/)
+//		{
+//			while(true)
+//			{
+//				int totalRead;
+//				int readPos = this.InternalGetReadyToReadEntries(BufferSize, out totalRead/*, null*/);
+//
+//				if (_state._resetApplied)
+//				{
+//					throw new Exception("Can't be read since the buffer is in Reset state");
+//					// break;
+//				}
+//
+//				// buffer is empty.. return and expect to be called again when something gets written
+//				if (totalRead == 0) 
+//				{
+//					_writeLock.Wait();
+//					continue;
+//				}
+//
+//				var totalSent = 0;
+//				while (totalSent < totalRead)
+//				{
+//					var sent = socket.Send(_buffer, _bufferPadding + readPos + totalSent, totalRead - totalSent, SocketFlags.None);
+//
+//					totalSent += sent;
+//
+//					// maybe better throughput if this goes inside the inner loop
+//					var newReadPos = _state._readPosition + (uint)sent;
+//					_state._readPosition = newReadPos; // volative write
+//					_state._readPositionCopy = newReadPos;
+//
+//					_readLock.Set(); // signal - if someone is waiting
+//				}
+//
+//				break;
+////				totalRead += available;
+//			}
+//		}
 
 		public Task<int> Skip(int offset)
 		{
@@ -295,7 +298,8 @@
 				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
 				if (available == 0)
 				{
-					_writeLock.Wait();
+					// _writeLock.Wait();
+					FillUpBufferFromSocket();
 					continue;
 				}
 
@@ -318,6 +322,48 @@
 			// _waitingStrategy.Dispose();
 			_readLock.Dispose();
 			_writeLock.Dispose();
+		}
+
+		private Socket _socket;
+
+		public Action<Socket, Exception> OnNotifyClosed;
+
+		public void SetSocket(Socket socket, Action<Socket, Exception> onSocketClosed)
+		{
+			_socket = socket;
+			_writeLock.Set();
+
+			this.OnNotifyClosed = onSocketClosed;
+		}
+
+		private void FillUpBufferFromSocket()
+		{
+			if (_socket != null)
+			{
+				try
+				{
+					WriteBufferFromSocketRecv(_socket);
+				}
+				catch (Exception ex)
+				{
+					FireClosed(ex);
+
+					throw;
+				}
+			}
+			else
+			{
+				_writeLock.Wait();
+			}
+		}
+
+		private void FireClosed(Exception exception)
+		{
+			var ev = this.OnNotifyClosed;
+			if (ev != null)
+			{
+				ev(_socket, exception);
+			}
 		}
 	}
 }
