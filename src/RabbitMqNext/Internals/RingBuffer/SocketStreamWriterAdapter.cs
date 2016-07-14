@@ -3,9 +3,9 @@ namespace RabbitMqNext.Internals.RingBuffer
 	using System;
 	using System.IO;
 	using System.Net.Sockets;
-	using System.Threading;
 
-	internal class SocketStreamWriterAdapter : Stream
+
+	internal class SocketStreamWriterAdapter //: Stream
 	{
 		private readonly Socket _socket;
 
@@ -14,9 +14,9 @@ namespace RabbitMqNext.Internals.RingBuffer
 			_socket = socket;
 		}
 
-		public event Action<Socket, Exception> OnNotifyClosed;
+		public Action<Socket, Exception> OnNotifyClosed;
 
-		public override void Write(byte[] buffer, int offset, int count)
+		public void Write(byte[] buffer, int offset, int count)
 		{
 			try
 			{
@@ -41,47 +41,6 @@ namespace RabbitMqNext.Internals.RingBuffer
 
 				FireClosed(ex);
 			}
-		}
-
-		public override bool CanRead
-		{
-			get { return false; }
-		}
-
-		public override bool CanSeek
-		{
-			get { return false; }
-		}
-
-		public override bool CanWrite
-		{
-			get { return true; }
-		}
-
-		public override long Length
-		{
-			get { return 0; }
-		}
-
-		public override long Position { get; set; }
-
-		public override void Flush()
-		{
-		}
-
-		public override long Seek(long offset, SeekOrigin origin)
-		{
-			throw new NotImplementedException();
-		}
-
-		public override void SetLength(long value)
-		{
-			throw new NotImplementedException();
-		}
-
-		public override int Read(byte[] buffer, int offset, int count)
-		{
-			throw new NotImplementedException();
 		}
 
 		private void FireClosed(Exception exception)
