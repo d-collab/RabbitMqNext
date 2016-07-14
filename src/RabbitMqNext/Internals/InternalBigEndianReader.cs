@@ -1,8 +1,6 @@
 namespace RabbitMqNext.Internals
 {
 	using System;
-	using System.Diagnostics;
-	using System.IO;
 	using System.Threading.Tasks;
 	using RingBuffer;
 
@@ -16,19 +14,70 @@ namespace RabbitMqNext.Internals
 		private readonly byte[] _fourByteArray = new byte[4];
 		private readonly byte[] _eightByteArray = new byte[8];
 
+		private readonly byte[] _localBuffer = new byte[1024];
+		private int _localBufferPos = 0;
+		private int _localBufferAvailable = 0;
 
 		internal InternalBigEndianReader(RingBufferStreamAdapter ringBufferStream)
 		{
 			_ringBufferStream = ringBufferStream;
 		}
 
+		
 		public void FillBufferWithLock(byte[] buffer, int count, bool reverse = true)
 		{
-			int totalRead = 0;
-			while (totalRead < count)
+			if (count > _localBuffer.Length)
 			{
-				totalRead += _ringBufferStream.Read(buffer, totalRead, count - totalRead, fillBuffer: true);
+				// we dont want overflows, so this is a special case to handle:
+
+				int totalRead = 0;
+
+				if (_localBufferAvailable != 0)
+				{
+					BufferUtil.FastCopy(buffer, 0, _localBuffer, _localBufferPos, _localBufferAvailable);
+					totalRead = _localBufferAvailable;
+					_localBufferPos = _localBufferAvailable = 0; // Consumed it all
+				}
+				
+				while (totalRead < count)
+				{
+					totalRead += _ringBufferStream.Read(buffer, totalRead, count - totalRead, fillBuffer: true);
+				}
 			}
+			else 
+			{
+				if (_localBufferAvailable < count)
+				{ 
+					// Read More From RB or Socket
+
+					if (_localBufferAvailable != 0)
+					{
+						// Move unread to beginning
+						BufferUtil.FastCopy(_localBuffer, 0, _localBuffer, _localBufferPos, _localBufferAvailable);
+						_localBufferPos = 0;
+					}
+					else
+					{
+						_localBufferPos = 0;
+					}
+
+					int totalRead = 0;
+					while (totalRead < count)
+					{
+						totalRead += _ringBufferStream.Read(_localBuffer, _localBufferPos + totalRead, _localBuffer.Length - totalRead, fillBuffer: false);
+
+						if (totalRead < count)
+						{
+							totalRead += _ringBufferStream.Read(_localBuffer, _localBufferPos + totalRead, count - totalRead, fillBuffer: true);
+						}
+					}
+				}
+
+				BufferUtil.FastCopy(buffer, 0, _localBuffer, _localBufferPos, count);
+				_localBufferPos += count;
+				_localBufferAvailable -= count;
+			}
+			
 			if (reverse && BitConverter.IsLittleEndian && count > 1)
 			{
 				Array.Reverse(buffer);

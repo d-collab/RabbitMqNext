@@ -14,7 +14,7 @@ namespace RabbitMqNext.Internals
 		private readonly byte[] _smallBuffer = new byte[300];
 		private InternalBigEndianReader _reader;
 
-		private const bool InternStrings = true;
+		private const bool InternStrings = false;
 
 		public uint? FrameMaxSize { get; set; }
 
