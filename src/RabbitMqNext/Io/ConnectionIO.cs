@@ -225,7 +225,7 @@ namespace RabbitMqNext.Io
 			_amqpReader.Initialize(_socketHolder.Reader);
 			_frameReader.Initialize(_socketHolder.Reader, _amqpReader, this);
 
-			ThreadFactory.BackgroundThread(WriteFramesLoop, WriteFrameThreadNamePrefix + index);
+//			ThreadFactory.BackgroundThread(WriteFramesLoop, WriteFrameThreadNamePrefix + index);
 			ThreadFactory.BackgroundThread(ReadFramesLoop, ReadFrameThreadNamePrefix + index);
 
 			return true;
@@ -259,6 +259,55 @@ namespace RabbitMqNext.Io
 			return true;
 		}
 
+
+		private void FlushCommand(CommandToSend cmdToSend)
+		{
+			if (_threadCancelToken.IsCancellationRequested)
+			{
+				if (cmdToSend.Tcs != null) cmdToSend.Tcs.TrySetCanceled();
+				return;
+			}
+
+			var token = _threadCancelToken;
+
+			if (!cmdToSend.Immediately)
+			{
+				_waitingServerReply.Wait(token); // Contention sadly required by the server/amqp
+			}
+
+			// The command will signal that we can send more commands...
+			cmdToSend.Prepare(cmdToSend.ExpectsReply ? _waitingServerReply : null);
+
+			if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
+			{
+				_waitingServerReply.Reset(); // cannot send anything else
+
+				var queue = cmdToSend.Channel == 0
+					? _awaitingReplyQueue
+					: _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
+
+				queue.Enqueue(cmdToSend);
+			}
+
+			// writes to socket
+			var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
+			if (frameWriter != null)
+			{
+				frameWriter.Write(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
+			}
+			else
+			{
+				cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId,
+					cmdToSend.OptionalArg);
+			}
+
+			// if writing to socket is enough, set as complete
+			if (!cmdToSend.ExpectsReply)
+			{
+				cmdToSend.RunReplyAction(0, 0, null).IntentionallyNotAwaited();
+			}
+		}
+
 		// Run on its own thread, and invokes user code from it (task continuations)
 		private void WriteFramesLoop()
 		{
@@ -280,42 +329,7 @@ namespace RabbitMqNext.Io
 
 					while (_commandOutbox.TryDequeue(out cmdToSend))
 					{
-						if (!cmdToSend.Immediately)
-						{
-							_waitingServerReply.Wait(token); // Contention sadly required by the server/amqp
-						}
-
-						// The command will signal that we can send more commands...
-						cmdToSend.Prepare(cmdToSend.ExpectsReply ? _waitingServerReply : null);
-
-						if (cmdToSend.ExpectsReply) // enqueues as awaiting a reply from the server
-						{
-							_waitingServerReply.Reset(); // cannot send anything else
-
-							var queue = cmdToSend.Channel == 0
-								? _awaitingReplyQueue
-								: _conn.ResolveChannel(cmdToSend.Channel)._awaitingReplyQueue;
-
-							queue.Enqueue(cmdToSend);
-						}
-
-						// writes to socket
-						var frameWriter = cmdToSend.OptionalArg as IFrameContentWriter;
-						if (frameWriter != null)
-						{
-							frameWriter.Write(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
-						}
-						else
-						{
-							cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId,
-								cmdToSend.OptionalArg);
-						}
-
-						// if writing to socket is enough, set as complete
-						if (!cmdToSend.ExpectsReply)
-						{
-							cmdToSend.RunReplyAction(0, 0, null).IntentionallyNotAwaited();
-						}
+						FlushCommand(cmdToSend);
 					}
 				}
 
@@ -410,8 +424,10 @@ namespace RabbitMqNext.Io
 			cmd.PrepareAction = prepare;
 			cmd.Immediately = immediately;
 
-			_commandOutbox.Enqueue(cmd);
-			_commandOutboxEvent.Set();
+//			_commandOutbox.Enqueue(cmd);
+//			_commandOutboxEvent.Set();
+			lock(this) // bad
+				FlushCommand(cmd);
 		}
 
 		private void SetErrorResultIfErrorPending(bool expectsReply, Func<ushort, int, AmqpError, Task> replyFn, 
