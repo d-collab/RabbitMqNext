@@ -1,7 +1,6 @@
 ﻿namespace PerfTestMultQClient
 {
 	using System;
-	using System.Collections.Generic;
 	using System.Configuration;
 	using System.Diagnostics;
 	using System.Text;
@@ -11,6 +10,7 @@
 	using RabbitMqNext;
 	using RabbitMQ.Client;
 	using RabbitMQ.Client.Events;
+
 
 	class PerfTestMultQClientProgram
 	{
@@ -59,7 +59,7 @@
 					var conn2 = connFac.CreateConnection();
 					var channel2 = conn2.CreateModel();
 					var q = "q." + 0;
-					SendLegacyCalls(q, channel2, howManyCalls, isWarmUp: true);
+					SendLegacyCalls(q, channel2, howManyCalls / 4, isWarmUp: true);
 					channel2.Dispose();
 					conn2.Dispose();
 				}
@@ -96,7 +96,7 @@
 					var channel2 = await conn2.CreateChannel();
 					var q = "q." + 0;
 					await Task.Delay(1); // Thread switch
-					SendModernCalls(q, channel2, howManyCalls, isWarmUp: true);
+					SendModernCalls(q, channel2, howManyCalls / 4, isWarmUp: true);
 					await Task.Delay(1); // Thread switch
 					channel2.Dispose();
 					conn2.Dispose();
