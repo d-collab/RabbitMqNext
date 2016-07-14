@@ -80,7 +80,7 @@
 						waitConfirmation: false);
 
 					// TODO: test with parallel buffer copy + serialized too
-					await channel.BasicConsume(ConsumeMode.SingleThreaded, BuildConsumerFn(channel), q, "consumer_" + q, 
+					await channel.BasicConsume(ConsumeMode.SerializedWithBufferCopy, BuildConsumerFn(channel), q, "consumer_" + q, 
 											   false, true, arguments: null, waitConfirmation: false);
 				}
 			}
@@ -117,8 +117,8 @@
 
 				var diff = Stopwatch.GetTimestamp() - message.SentAtInTicks;
 
-				lock (_hdrHistogram)
-					_hdrHistogram.RecordValue(diff * TickFreq);
+//				lock (_hdrHistogram)
+//					_hdrHistogram.RecordValue(diff * TickFreq);
 			};
 		}
 
@@ -142,8 +142,8 @@
 
 				var diff = Stopwatch.GetTimestamp() - message.SentAtInTicks;
 
-				lock (_hdrHistogram)
-					_hdrHistogram.RecordValue(diff * TickFreq);
+//				lock (_hdrHistogram)
+//					_hdrHistogram.RecordValue(diff * TickFreq);
 			}
 
 			public void HandleBasicCancel(string consumerTag)
@@ -166,6 +166,4 @@
 			public event EventHandler<ConsumerEventArgs> ConsumerCancelled;
 		}
 	}
-
-	
 }

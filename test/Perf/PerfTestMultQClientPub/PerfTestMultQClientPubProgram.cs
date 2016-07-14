@@ -46,7 +46,7 @@
 			bool exclusiveConnections = ConfigurationManager.AppSettings["exclusiveConnections"] == "true";
 			bool useOfficialClient = ConfigurationManager.AppSettings["useOfficialClient"] == "true";
 
-			var howManyCalls = 50000;
+			var howManyCalls = 100000;
 			_completionSemaphore = new SemaphoreSlim(0, howManyQueues);
 			_startSync = new ManualResetEventSlim(false);
 
