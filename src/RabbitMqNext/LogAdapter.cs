@@ -13,6 +13,10 @@
 		public static bool ExtendedLogEnabled;
 		public static bool ProtocolLevelLogEnabled;
 
+		public static bool IsDebugEnabled;
+		public static bool IsWarningEnabled;
+		public static bool IsErrorEnabled;
+
 		// signature: class, message, [exception]
 		public static Action<string, string, Exception> LogDebugFn { get; set; }
 		public static Action<string, string, Exception> LogErrorFn { get; set; }
@@ -20,6 +24,9 @@
 
 		static LogAdapter()
 		{
+			IsDebugEnabled = IsWarningEnabled = IsErrorEnabled = true;
+
+
 			LogDebugFn = (c, m, ex) =>
 			{
 				var msg = string.Format("Debug [{0}]: {1} {2}", c, m, ex);

@@ -382,7 +382,7 @@
 			}
 			catch (Exception ex)
 			{
-				LogAdapter.LogError(LogSource, "Recovery error", ex);
+				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Recovery error", ex);
 
 				throw;
 			}

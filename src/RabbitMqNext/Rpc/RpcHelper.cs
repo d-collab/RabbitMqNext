@@ -125,7 +125,7 @@ namespace RabbitMqNext
 			}
 			catch (Exception error)
 			{
-				LogAdapter.LogError(LogSource, "Error on OnReplyReceived", error);
+				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Error on OnReplyReceived", error);
 			}
 			finally
 			{

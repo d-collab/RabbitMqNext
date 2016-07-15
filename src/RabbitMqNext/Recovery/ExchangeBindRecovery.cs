@@ -6,6 +6,8 @@
 
 	internal class ExchangeBindRecovery
 	{
+		private const string LogSource = "Recovery";
+
 		private readonly string _source;
 		private readonly string _destination;
 		private readonly string _routingKey;
@@ -22,7 +24,7 @@
 		public Task Apply(Channel channel)
 		{
 			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("Recovery", "Recovering binding source: " + _source + " dest: " + _destination + " routing: " + _routingKey);
+				LogAdapter.LogDebug(LogSource, "Recovering binding source: " + _source + " dest: " + _destination + " routing: " + _routingKey);
 
 			return channel.ExchangeBind(_source, _destination, _routingKey, _arguments, waitConfirmation: true);
 		}

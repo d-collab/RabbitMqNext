@@ -149,7 +149,7 @@
 
 		internal void CloseAllChannels(bool initiatedByServer, AmqpError error)
 		{
-			LogAdapter.LogDebug(LogSource, "Closing all channels");
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Closing all channels");
 
 			foreach (var channel in _channels)
 			{

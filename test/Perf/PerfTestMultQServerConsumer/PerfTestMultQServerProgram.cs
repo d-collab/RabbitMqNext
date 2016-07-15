@@ -50,7 +50,7 @@
 					{
 						conn = connFac.CreateConnection();
 						channel = conn.CreateModel();
-						channel.BasicQos(0, 100, false);
+						channel.BasicQos(0, 300, false);
 					}
 
 					var q = "q." + i;
@@ -70,7 +70,7 @@
 					{
 						conn = await RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null, connectionName: "mod_perf_server");
 						channel = await conn.CreateChannel();
-						await channel.BasicQos(0, 100, false);
+						await channel.BasicQos(0, 300, false);
 					}
 
 					var q = "q." + i;

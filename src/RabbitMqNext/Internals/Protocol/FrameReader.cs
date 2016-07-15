@@ -10,6 +10,7 @@ namespace RabbitMqNext.Internals
 		private AmqpPrimitivesReader _amqpReader;
 		private IFrameProcessor _frameProcessor;
 
+
 		public void Initialize(InternalBigEndianReader reader, 
 							   AmqpPrimitivesReader amqpReader, IFrameProcessor frameProcessor)
 		{
@@ -28,7 +29,7 @@ namespace RabbitMqNext.Internals
 				{
 					var msg = "Invalid frame received " + frameType;
 
-					LogAdapter.LogError("FrameReader", msg);
+					LogAdapter.LogError(LogSource, msg);
 					throw new Exception(msg);
 				}
 
@@ -48,17 +49,14 @@ namespace RabbitMqNext.Internals
 					var classMethodId = classId << 16 | methodId;
 
 					if (LogAdapter.ProtocolLevelLogEnabled)
-					{
-						LogAdapter.LogDebug("FrameReader", "> Incoming Frame (" + frameType + ") for channel [" + channel + 
-							"] class (" + classId + ") method  (" + methodId + ") payload size: " + payloadLength);
-					}
+						LogAdapter.LogDebug(LogSource, "> Incoming Frame (" + frameType + ") for channel [" + channel + "] class (" + classId + ") method  (" + methodId + ") payload size: " + payloadLength);
 
 					_frameProcessor.DispatchMethod(channel, classMethodId);
 				}
 				else if (frameType == AmqpConstants.FrameHeartbeat)
 				{
 					if (LogAdapter.ProtocolLevelLogEnabled)
-						LogAdapter.LogDebug("FrameReader", "Received FrameHeartbeat");
+						LogAdapter.LogDebug(LogSource, "Received FrameHeartbeat");
 				}
 
 				byte frameEndMarker = _reader.ReadByte();
@@ -66,7 +64,7 @@ namespace RabbitMqNext.Internals
 				{
 					var msg = "Expecting frame end, but found " + frameEndMarker + ". The original class and method: " + classId + " " + methodId;
 
-					LogAdapter.LogError("FrameReader", msg);
+					LogAdapter.LogError(LogSource, msg);
 					throw new Exception(msg);
 				}
 			}
@@ -76,8 +74,7 @@ namespace RabbitMqNext.Internals
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("Frame Reader error: " + ex);
-				LogAdapter.LogError(LogSource, "Frame Reader error", ex);
+				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Frame Reader error", ex);
 				throw;
 			}
 		}

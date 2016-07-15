@@ -15,6 +15,8 @@
 	/// </summary>
 	public abstract class AmqpIOBase : IDisposable
 	{
+		private const string LogSource = "AmqpqIOBase";
+
 		internal readonly ConcurrentQueue<CommandToSend> _awaitingReplyQueue;
 		internal bool _isClosed, _isDisposed;
 		internal readonly ushort _channelNum;
@@ -73,7 +75,8 @@
 			Thread.MemoryBarrier();
 			_isClosed = true;
 
-			LogAdapter.LogDebug("Amqpq", "Clean close initiated. By server? " + initiatedByServer);
+			if (LogAdapter.IsDebugEnabled)
+				LogAdapter.LogDebug(LogSource, "Clean close initiated. By server? " + initiatedByServer);
 
 			if (initiatedByServer)
 				await SendCloseConfirmation().ConfigureAwait(false);
@@ -178,7 +181,7 @@
 				var classId = classMethodId >> 16;
 				var methodId = classMethodId & 0x0000FFFF;
 
-				LogAdapter.LogError("AmqpIOBase", "Unexpected situation: classId " + classId + " method " + methodId + " and error = null");
+				LogAdapter.LogError(LogSource, "Unexpected situation: classId " + classId + " method " + methodId + " and error = null");
 
 				tcs.TrySetException(new Exception("Unexpected reply from the server: classId = " + classId + " method " + methodId));
 			}

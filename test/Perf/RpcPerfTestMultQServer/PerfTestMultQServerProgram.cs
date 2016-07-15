@@ -72,7 +72,7 @@
 						waitConfirmation: false);
 
 					// TODO: test with parallel buffer copy + serialized too
-					await channel.BasicConsume(ConsumeMode.SerializedWithBufferCopy, BuildConsumerFn(channel), q, "consumer_" + q, 
+					await channel.BasicConsume(ConsumeMode.ParallelWithBufferCopy, BuildConsumerFn(channel), q, "consumer_" + q, 
 											   false, true, arguments: null, waitConfirmation: false);
 				}
 			}

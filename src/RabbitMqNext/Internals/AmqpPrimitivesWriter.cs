@@ -8,6 +8,8 @@ namespace RabbitMqNext.Internals
 
 	internal class AmqpPrimitivesWriter
 	{
+		private const string LogSource = "AmqpPrimitivesWriter";
+
 		internal const int BufferSize = 1024 * 128;
 
 		internal InternalBigEndianWriter _writer;
@@ -32,7 +34,7 @@ namespace RabbitMqNext.Internals
 				memStreamPool = new ObjectPool<ReusableTempWriter>(() => 
 				{
 					if (LogAdapter.ExtendedLogEnabled)
-						LogAdapter.LogDebug("AmqpPrimitivesWriter", "Creating new writer");
+						LogAdapter.LogDebug(LogSource, "Creating new writer");
 
 					return new ReusableTempWriter(new DefaultArrayPool<byte>(BufferSize, 5), _memStreamPool);
 				}, 6, preInitialize: false);

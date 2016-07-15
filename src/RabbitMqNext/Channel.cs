@@ -447,7 +447,7 @@
 						}
 						catch (Exception e)
 						{
-							LogAdapter.LogError(LogSource, "Error processing message (user code)", e);
+							if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Error processing message (user code)", e);
 						}
 						finally
 						{
@@ -490,7 +490,7 @@
 					}
 					catch (Exception ex)
 					{
-						LogAdapter.LogError(LogSource, "Consumer error. Tag " + consumer.ConsumerTag, ex);
+						if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Consumer error. Tag " + consumer.ConsumerTag, ex);
 					}
 					finally
 					{

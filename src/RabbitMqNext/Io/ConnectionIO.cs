@@ -15,6 +15,8 @@ namespace RabbitMqNext.Io
 
 	public sealed class ConnectionIO : AmqpIOBase, IFrameProcessor
 	{
+		private const string LogSource = "ConnectionIO";
+
 		internal const string ReadFrameThreadNamePrefix = "ReadFramesLoop_";
 		internal const string WriteFrameThreadNamePrefix = "WriteFramesLoop_";
 
@@ -180,7 +182,7 @@ namespace RabbitMqNext.Io
 		{
 			if (_threadCancelSource != null)
 			{
-				LogAdapter.LogDebug("ConnectionIO", "Socket closed. Stopping loops");
+				LogAdapter.LogDebug(LogSource, "Socket closed. Stopping loops");
 
 				_threadCancelSource.Cancel();
 				_socketHolder.StopAndBlockBuffers();
@@ -206,13 +208,15 @@ namespace RabbitMqNext.Io
 				return false;
 			}
 
-			LogAdapter.LogDebug("ConnectionIO", "Connected socket to " + hostname + " port " + port);
+			if (LogAdapter.IsDebugEnabled)
+				LogAdapter.LogDebug(LogSource, "Connected socket to " + hostname + " port " + port);
 
 			DrainCommandsAndResetErrorState();
 
 			if (_threadCancelSource != null)
 			{
-				LogAdapter.LogDebug("ConnectionIO", "Disposing existing cancellation token source");
+				if (LogAdapter.IsDebugEnabled)
+					LogAdapter.LogDebug(LogSource, "Disposing existing cancellation token source");
 
 				_threadCancelSource.Dispose();
 			}
@@ -255,7 +259,7 @@ namespace RabbitMqNext.Io
 			KnownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
 
 			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "Known Hosts: " + KnownHosts);
+				LogAdapter.LogDebug(LogSource, "Known Hosts: " + KnownHosts);
 
 			return true;
 		}
@@ -312,7 +316,7 @@ namespace RabbitMqNext.Io
 		// Run on its own thread, and invokes user code from it (task continuations)
 		private void WriteFramesLoop()
 		{
-			LogAdapter.LogDebug("ConnectionIO", "WriteFramesLoop starting");
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "WriteFramesLoop starting");
 
 			CommandToSend cmdToSend = null;
 
@@ -334,7 +338,7 @@ namespace RabbitMqNext.Io
 					}
 				}
 
-				LogAdapter.LogError("ConnectionIO", "WriteFramesLoop exiting");
+				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "WriteFramesLoop exiting");
 			}
 			catch (ThreadAbortException)
 			{
@@ -342,7 +346,7 @@ namespace RabbitMqNext.Io
 			}
 			catch (Exception ex)
 			{
-				LogAdapter.LogError("ConnectionIO", "WriteFramesLoop error. Last command " + cmdToSend.ToDebugInfo(), ex);
+				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "WriteFramesLoop error. Last command " + cmdToSend.ToDebugInfo(), ex);
 
 				this.InitiateAbruptClose(ex).IntentionallyNotAwaited();
 			}
@@ -357,7 +361,7 @@ namespace RabbitMqNext.Io
 		// Run on its own thread, and invokes user code from it
 		private void ReadFramesLoop()
 		{
-			LogAdapter.LogDebug("ConnectionIO", "ReadFramesLoop starting");
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "ReadFramesLoop starting");
 
 			_readThreadRunning = true;
 
@@ -370,7 +374,7 @@ namespace RabbitMqNext.Io
 					_frameReader.ReadAndDispatch();
 				}
 
-				LogAdapter.LogError("ConnectionIO", "ReadFramesLoop exiting");
+				LogAdapter.LogError(LogSource, "ReadFramesLoop exiting");
 			}
 			catch (ThreadAbortException)
 			{
@@ -378,7 +382,7 @@ namespace RabbitMqNext.Io
 			}
 			catch (Exception ex)
 			{
-				LogAdapter.LogError("ConnectionIO", "ReadFramesLoop error", ex);
+				LogAdapter.LogError(LogSource, "ReadFramesLoop error", ex);
 
 				this.InitiateAbruptClose(ex).IntentionallyNotAwaited();
 			}
@@ -464,7 +468,7 @@ namespace RabbitMqNext.Io
 		private Task __SendGreeting()
 		{
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "__SendGreeting >");
+				LogAdapter.LogDebug(LogSource, "__SendGreeting >");
 
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -480,7 +484,7 @@ namespace RabbitMqNext.Io
 							this.AuthMechanisms = mechanisms;
 
 							if (LogAdapter.ProtocolLevelLogEnabled)
-								LogAdapter.LogDebug("ConnectionIO", "__SendGreeting completed");
+								LogAdapter.LogDebug(LogSource, "__SendGreeting completed");
 
 							tcs.SetResult(true);
 						});
@@ -506,7 +510,7 @@ namespace RabbitMqNext.Io
 			SendCommand(0, 10, 31, writer, reply: null, expectsReply: false, tcs: tcs, immediately: true);
 
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionTuneOk >");
+				LogAdapter.LogDebug(LogSource, "__SendConnectionTuneOk >");
 
 			return tcs.Task;
 		}
@@ -514,7 +518,7 @@ namespace RabbitMqNext.Io
 		private Task<string> __SendConnectionOpen(string vhost)
 		{
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionOpen > vhost " + vhost);
+				LogAdapter.LogDebug(LogSource, "__SendConnectionOpen > vhost " + vhost);
 
 			var tcs = new TaskCompletionSource<string>();
 			var writer = AmqpConnectionFrameWriter.ConnectionOpen(vhost, string.Empty, false);
@@ -527,7 +531,7 @@ namespace RabbitMqNext.Io
 						_frameReader.Read_ConnectionOpenOk((knowHosts) =>
 						{
 							if (LogAdapter.ProtocolLevelLogEnabled)
-								LogAdapter.LogDebug("ConnectionIO", "__SendConnectionOpen completed for vhost " + vhost);
+								LogAdapter.LogDebug(LogSource, "__SendConnectionOpen completed for vhost " + vhost);
 
 							tcs.SetResult(knowHosts);
 						});
@@ -545,7 +549,7 @@ namespace RabbitMqNext.Io
 		private Task __SendConnectionStartOk(string username, string password, string connectionName)
 		{
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionStartOk >");
+				LogAdapter.LogDebug(LogSource, "__SendConnectionStartOk >");
 
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -574,9 +578,10 @@ namespace RabbitMqNext.Io
 							this.Heartbeat = heartbeat;
 
 							if (LogAdapter.ProtocolLevelLogEnabled)
-								LogAdapter.LogDebug("ConnectionIO", "__SendConnectionStartOk completed.");
+								LogAdapter.LogDebug(LogSource, "__SendConnectionStartOk completed.");
 
-							LogAdapter.LogDebug("ConnectionIO", "Tune results: Channel max: " + channel + " Frame max size: " + frameMax + " heartbeat: " + heartbeat);
+							if (LogAdapter.IsDebugEnabled)
+								LogAdapter.LogDebug(LogSource, "Tune results: Channel max: " + channel + " Frame max size: " + frameMax + " heartbeat: " + heartbeat);
 
 							tcs.SetResult(true);
 						});
@@ -594,7 +599,7 @@ namespace RabbitMqNext.Io
 		private Task __SendConnectionClose(ushort replyCode, string message)
 		{
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionClose >");
+				LogAdapter.LogDebug(LogSource, "__SendConnectionClose >");
 
 			var tcs = new TaskCompletionSource<bool>();
 
@@ -604,7 +609,7 @@ namespace RabbitMqNext.Io
 					if (classMethodId == AmqpClassMethodConnectionLevelConstants.ConnectionCloseOk)
 					{
 						if (LogAdapter.ProtocolLevelLogEnabled)
-							LogAdapter.LogDebug("ConnectionIO", "__SendConnectionClose enabled");
+							LogAdapter.LogDebug(LogSource, "__SendConnectionClose enabled");
 						
 						tcs.SetResult(true);
 					}
@@ -627,7 +632,7 @@ namespace RabbitMqNext.Io
 		private Task __SendConnectionCloseOk()
 		{
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogDebug("ConnectionIO", "__SendConnectionCloseOk >");
+				LogAdapter.LogDebug(LogSource, "__SendConnectionCloseOk >");
 
 			var tcs = new TaskCompletionSource<bool>();
 

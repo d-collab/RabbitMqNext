@@ -20,6 +20,7 @@
 	public static class ConnectionFactory
 	{
 		private const string DefaultConnectionName = "unnamed_connection";
+		private const string LogSource = "ConnectionFactory";
 
 		public static async Task<IConnection> Connect(IEnumerable<string> hostnames,
 			string vhost = "/", string username = "guest",
@@ -42,7 +43,7 @@
 										   throwOnError: false).ConfigureAwait(false);
 					if (successful)
 					{
-						LogAdapter.LogWarn("ConnectionFactory", "Selected " + hostname);
+						LogAdapter.LogWarn(LogSource, "Selected " + hostname);
 
 						conn.SetMaxChannels(maxChannels);
 
@@ -57,7 +58,7 @@
 			}
 			catch (Exception e)
 			{
-				LogAdapter.LogError("ConnectionFactory", "Connection error", e);
+				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Connection error", e);
 
 				conn.Dispose();
 				throw;
@@ -84,13 +85,13 @@
 				conn.SetMaxChannels(maxChannels);
 
 				if (LogAdapter.ExtendedLogEnabled)
-					LogAdapter.LogDebug("ConnectionFactory", "Connected to " + hostname + ":" + port);
+					LogAdapter.LogDebug(LogSource, "Connected to " + hostname + ":" + port);
 
 				return recoverySettings.Enabled ? (IConnection) new RecoveryEnabledConnection(hostname, conn, recoverySettings) : conn;
 			}
 			catch (Exception e)
 			{
-				LogAdapter.LogError("ConnectionFactory", "Connection error: " + hostname + ":" + port, e);
+				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Connection error: " + hostname + ":" + port, e);
 
 				conn.Dispose();
 				throw;

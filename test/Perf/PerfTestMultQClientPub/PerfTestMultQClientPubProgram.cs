@@ -53,17 +53,17 @@
 			if (useOfficialClient)
 			{
 				// Warm up
-				{
-					var connFac = new RabbitMQ.Client.ConnectionFactory() { HostName = host, UserName = user, Password = pwd, VirtualHost = vhost, AutomaticRecoveryEnabled = false };
-					var conn2 = connFac.CreateConnection();
-					var channel2 = conn2.CreateModel();
-					var q = "q." + 0;
-					PublishLegacy(q, channel2, howManyCalls / 4, isWarmUp: true);
-					channel2.Dispose();
-					conn2.Dispose();
-				}
-
-				await WarmupComplete(postWarmupDelay);
+//				{
+//					var connFac = new RabbitMQ.Client.ConnectionFactory() { HostName = host, UserName = user, Password = pwd, VirtualHost = vhost, AutomaticRecoveryEnabled = false };
+//					var conn2 = connFac.CreateConnection();
+//					var channel2 = conn2.CreateModel();
+//					var q = "q." + 0;
+//					PublishLegacy(q, channel2, howManyCalls / 4, isWarmUp: true);
+//					channel2.Dispose();
+//					conn2.Dispose();
+//				}
+//
+//				await WarmupComplete(postWarmupDelay);
 
 				RabbitMQ.Client.IConnection conn = null;
 				RabbitMQ.Client.IModel channel = null;
@@ -89,18 +89,18 @@
 			else
 			{
 				// Warm up
-				{
-					var conn2 = await RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null, connectionName: "perf_client");
-					var channel2 = await conn2.CreateChannel();
-					var q = "q." + 0;
-					await Task.Delay(1); // Thread switch
-					PublishModern(q, channel2, howManyCalls / 4, isWarmUp: true);
-					await Task.Delay(1); // Thread switch
-					channel2.Dispose();
-					conn2.Dispose();
-				}
-
-				await WarmupComplete(postWarmupDelay);
+//				{
+//					var conn2 = await RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null, connectionName: "perf_client");
+//					var channel2 = await conn2.CreateChannel();
+//					var q = "q." + 0;
+//					await Task.Delay(1); // Thread switch
+//					PublishModern(q, channel2, howManyCalls / 4, isWarmUp: true);
+//					await Task.Delay(1); // Thread switch
+//					channel2.Dispose();
+//					conn2.Dispose();
+//				}
+//
+//				await WarmupComplete(postWarmupDelay);
 
 				RabbitMqNext.IConnection conn = null;
 				RabbitMqNext.IChannel channel = null;

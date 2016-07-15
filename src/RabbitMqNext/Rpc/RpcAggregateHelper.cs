@@ -191,8 +191,8 @@ namespace RabbitMqNext
 			}
 			catch (Exception error)
 			{
-				LogAdapter.LogError(LogSource, "Error on OnReplyReceived", error);
 				ReleaseSpot(pos, cookie);
+				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Error on OnReplyReceived", error);
 			}
 
 			return Task.CompletedTask;

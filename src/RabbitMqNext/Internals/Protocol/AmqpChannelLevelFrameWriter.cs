@@ -18,7 +18,7 @@ namespace RabbitMqNext.Internals
 			return (writer, channel, classId, methodId, args) =>
 			{
 				if (LogAdapter.ProtocolLevelLogEnabled)
-					LogAdapter.LogDebug("AmqpChannelLevelFrameWriter", "> ChannelOpen");
+					LogAdapter.LogDebug(LogSource, "> ChannelOpen");
 
 				writer.WriteFrameStart(AmqpConstants.FrameMethod, channel, payloadSize, classId, methodId);
 

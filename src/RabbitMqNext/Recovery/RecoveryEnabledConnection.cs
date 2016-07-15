@@ -76,20 +76,20 @@
 		{
 			_selectedHostname = hostname;
 
-			LogAdapter.LogDebug(LogSource, "Connected to " + hostname);
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Connected to " + hostname);
 		}
 
 		internal RecoveryAction NotifyAbruptClose(Exception reason)
 		{
 			if (_disableRecovery)
 			{
-				LogAdapter.LogDebug(LogSource, "NotifyAbrupt skipping action since disconect was initiated by the user", reason);
+				if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "NotifyAbrupt skipping action since disconect was initiated by the user", reason);
 				return RecoveryAction.NoAction;
 			}
 
 			// TODO: Block RecoveryChannels? So new operations are blocked. also should fire notifications to indicate recovery in progress
 
-			LogAdapter.LogDebug(LogSource, "NotifyAbrupt", reason);
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "NotifyAbrupt", reason);
 
 			TryInitiateRecovery();
 
@@ -98,7 +98,7 @@
 
 		internal RecoveryAction NotifyCloseByServer()
 		{
-			LogAdapter.LogDebug(LogSource, "NotifyClosedByServer ");
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "NotifyClosedByServer ");
 
 			// TODO: Block RecoveryChannels? So new operations are blocked. also should fire notifications to indicate recovery in progress
 
@@ -111,7 +111,7 @@
 		{
 			_disableRecovery = true;
 
-			LogAdapter.LogDebug(LogSource, "NotifyClosedByUser ");
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "NotifyClosedByUser ");
 		}
 
 		#region Implementation of IConnection
@@ -166,7 +166,7 @@
 		{
 			if (Interlocked.CompareExchange(ref _inRecovery, 1, 0) == 0)
 			{
-				LogAdapter.LogDebug(LogSource, "TryInitiateRecovery starting recovery process");
+				if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "TryInitiateRecovery starting recovery process");
 
 				// block all channels
 
@@ -182,11 +182,11 @@
 				{
 					try
 					{
-						LogAdapter.LogDebug(LogSource, "Starting Recovery. Waiting for connection clean up");
+						if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Starting Recovery. Waiting for connection clean up");
 
 						await pthis.AwaitConnectionReset();
 
-						LogAdapter.LogDebug(LogSource, "Connection is ready");
+						if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Connection is ready");
 
 						pthis.FireWillRecover();
 
@@ -200,17 +200,17 @@
 							return;
 						}
 
-						LogAdapter.LogDebug(LogSource, "Reconnected");
+						if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Reconnected");
 
 						await pthis.Recover().ConfigureAwait(false);
 
 						pthis.FireRecoveryCompleted();
 
-						LogAdapter.LogDebug(LogSource, "Completed");
+						if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Completed");
 					}
 					catch (Exception ex)
 					{
-						LogAdapter.LogError(LogSource, "TryInitiateRecovery error", ex);
+						if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "TryInitiateRecovery error", ex);
 						
 						pthis.HandleRecoveryFatalError(ex);
 						
@@ -225,7 +225,7 @@
 			}
 			else
 			{
-				LogAdapter.LogDebug(LogSource, "TryInitiateRecovery: recovery in progress. skipping");
+				if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "TryInitiateRecovery: recovery in progress. skipping");
 			}
 		}
 
@@ -280,7 +280,7 @@
 				}
 				catch (Exception ex)
 				{
-					LogAdapter.LogError(LogSource, "Recover: error recovering channel " + recoveryEnabledChannel.ChannelNumber, ex);
+					if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Recover: error recovering channel " + recoveryEnabledChannel.ChannelNumber, ex);
 					throw;
 				}
 			}
