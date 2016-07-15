@@ -41,18 +41,20 @@
 			if (toCopy > count) toCopy = count;
 			if (toCopy <= 0) return 0;
 
-			if (toCopy <= 0)
-			{
-				int bCount = toCopy;
-				while (--bCount >= 0)
-				{
-					buffer[offset + bCount] = _buffer[_position + bCount];
-				}
-			}
-			else
-			{
-				Buffer.BlockCopy(_buffer, _position, buffer, offset, toCopy);
-			}
+			BufferUtil.FastCopy(buffer, offset, _buffer, _position, toCopy);
+
+//			if (toCopy <= 8)
+//			{
+//				int bCount = toCopy;
+//				while (--bCount >= 0)
+//				{
+//					buffer[offset + bCount] = _buffer[_position + bCount];
+//				}
+//			}
+//			else
+//			{
+//				Buffer.BlockCopy(_buffer, _position, buffer, offset, toCopy);
+//			}
 			_position += toCopy;
 
 			return toCopy;

@@ -15,7 +15,8 @@
 		{
 			var v = Encoding.ASCII.GetBytes("AMQP");
 			GreetingPayload = new byte[8];
-			Buffer.BlockCopy(v, 0, GreetingPayload, 0, v.Length);
+			// Buffer.BlockCopy(v, 0, GreetingPayload, 0, v.Length);
+			BufferUtil.FastCopy(GreetingPayload, 0, v, 0, v.Length);
 			GreetingPayload[4] = 0;
 			GreetingPayload[5] = 0; // major
 			GreetingPayload[6] = 9; // minor 

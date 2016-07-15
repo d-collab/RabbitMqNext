@@ -58,17 +58,18 @@ namespace RabbitMqNext.Internals
 			{
 				_buffer = _pool.Rent(_arraySize);
 			}
-			if (count <= 8)
-			{
-				int byteCount = count;
-				while (--byteCount >= 0)
-					_buffer[_position + byteCount] = buffer[offset + byteCount];
-			}
-			else
-			{
-				// TODO: better/faster option?
-				Buffer.BlockCopy(buffer, offset, _buffer, _position, count);	
-			}
+			BufferUtil.FastCopy(_buffer, _position, buffer, offset, count);
+//			if (count <= 8)
+//			{
+//				int byteCount = count;
+//				while (--byteCount >= 0)
+//					_buffer[_position + byteCount] = buffer[offset + byteCount];
+//			}
+//			else
+//			{
+//				// TODO: better/faster option?
+//				Buffer.BlockCopy(buffer, offset, _buffer, _position, count);	
+//			}
 			_position += count;
 		}
 
