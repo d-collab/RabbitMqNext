@@ -52,6 +52,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfTestMultQClientPub", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfTestMultQServerConsumer", "test\Perf\PerfTestMultQServerConsumer\PerfTestMultQServerConsumer.csproj", "{77BD26B8-8B4B-4895-8A60-935ED6FCCB3C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfBuffers", "test\Perf\PerfBuffers\PerfBuffers.csproj", "{D2DCF4DC-9B61-4518-9FAE-F2D30B6301EA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -122,6 +124,10 @@ Global
 		{77BD26B8-8B4B-4895-8A60-935ED6FCCB3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77BD26B8-8B4B-4895-8A60-935ED6FCCB3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{77BD26B8-8B4B-4895-8A60-935ED6FCCB3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D2DCF4DC-9B61-4518-9FAE-F2D30B6301EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D2DCF4DC-9B61-4518-9FAE-F2D30B6301EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D2DCF4DC-9B61-4518-9FAE-F2D30B6301EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2DCF4DC-9B61-4518-9FAE-F2D30B6301EA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -145,5 +151,6 @@ Global
 		{5B4A451D-AA80-4DC1-965C-E2CC963696A5} = {BEF1F0AC-A2D7-4874-A2A8-588A8F991A97}
 		{19FE5B62-6135-4823-8391-C6E95392D732} = {BEF1F0AC-A2D7-4874-A2A8-588A8F991A97}
 		{77BD26B8-8B4B-4895-8A60-935ED6FCCB3C} = {BEF1F0AC-A2D7-4874-A2A8-588A8F991A97}
+		{D2DCF4DC-9B61-4518-9FAE-F2D30B6301EA} = {BEF1F0AC-A2D7-4874-A2A8-588A8F991A97}
 	EndGlobalSection
 EndGlobal
