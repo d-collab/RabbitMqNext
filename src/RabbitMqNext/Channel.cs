@@ -190,8 +190,8 @@
 			return _io.__QueuePurge(queue, waitConfirmation);
 		}
 
-		public Task BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory,
-			BasicProperties properties, ArraySegment<byte> buffer)
+		public async Task BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory,
+														BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (exchange == null) throw new ArgumentNullException("exchange");
 			if (routingKey == null) throw new ArgumentNullException("routingKey");
@@ -200,13 +200,13 @@
 
 			if (_confirmationKeeper == null) throw new Exception("This channel is not set up for confirmations");
 
-			WaitIfChannelBlock();
+			await WaitIfChannelBlockAndSwitchThreadIfNeeded();
 
-			return _io.__BasicPublishConfirm(exchange, routingKey, mandatory, properties, buffer);
+			await _io.__BasicPublishConfirm(exchange, routingKey, mandatory, properties, buffer);
 		}
 
-		public Task BasicPublish(string exchange, string routingKey, bool mandatory, 
-			BasicProperties properties, ArraySegment<byte> buffer)
+		public async Task BasicPublish(string exchange, string routingKey, bool mandatory, 
+										BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (exchange == null) throw new ArgumentNullException("exchange");
 			if (routingKey == null) throw new ArgumentNullException("routingKey");
@@ -215,9 +215,9 @@
 
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
 
-			WaitIfChannelBlock();
+			await WaitIfChannelBlockAndSwitchThreadIfNeeded();
 
-			return _io.__BasicPublishTask(exchange, routingKey, mandatory, properties, buffer);
+			await _io.__BasicPublishTask(exchange, routingKey, mandatory, properties, buffer);
 		}
 
 		public void BasicPublishFast(string exchange, string routingKey, bool mandatory, 
@@ -728,11 +728,30 @@
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void WaitIfChannelBlock()
 		{
+			// if the the BasicPublish is in response of a consumed 
+			// message, and the ConsumerMode is SingleThreaded, this will inevitably be true!
+
 			Asserts.AssertNotReadFrameThread(); // otherwise we'll be up to a nice deadlock
 
 			if (_publishingBlocked == 1)
 			{
-				_publishingBlockedWaiter.Wait();
+				_publishingBlockedWaiter.Wait(_cancellationToken);
+			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private async Task WaitIfChannelBlockAndSwitchThreadIfNeeded()
+		{
+			if (_publishingBlocked == 1)
+			{
+				if (ThreadUtils.IsReadFrameThread()) // to avoid a dead, we will switch threads
+				{
+					await Task.Delay(1, _cancellationToken);
+				}
+
+				// "safe" to block this other thread (sort of) as if 
+				// it's a threadpool thread, we shouldnt take long
+				_publishingBlockedWaiter.Wait(_cancellationToken);
 			}
 		}
 	}
