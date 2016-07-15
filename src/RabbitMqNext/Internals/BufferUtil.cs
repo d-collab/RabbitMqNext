@@ -4,7 +4,7 @@ namespace RabbitMqNext.Internals
 	using System.Runtime.CompilerServices;
 	using RingBuffer;
 
-	internal static class BufferUtil
+	public static class BufferUtil
 	{
 		private static readonly byte[] Empty = new byte[0];
 
@@ -62,7 +62,7 @@ namespace RabbitMqNext.Internals
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void FastCopy(byte[] dstBuffer, int dstOffset, byte[] srcBuffer, int srcOffset, int count)
 		{
-			if (count < 512)
+			if (count < 128)
 			{
 				unsafe
 				{
