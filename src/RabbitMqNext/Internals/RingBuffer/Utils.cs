@@ -1,5 +1,9 @@
 namespace RabbitMqNext.Internals.RingBuffer
 {
+	using System;
+	using System.Runtime.CompilerServices;
+	using Io;
+
 	public static class Utils
 	{
 		public static bool IsPowerOfTwo(int n)
@@ -25,5 +29,22 @@ namespace RabbitMqNext.Internals.RingBuffer
 			}
 			return bitcount == 1;
 		}
+	}
+
+	internal class ThreadUtils
+	{
+		[MethodImpl]
+		public static bool IsReadFrameThread()
+		{
+			var name = System.Threading.Thread.CurrentThread.Name;
+			return name != null && name.StartsWith(ConnectionIO.ReadFrameThreadNamePrefix, StringComparison.Ordinal);
+		}
+
+//		[MethodImpl]
+//		public static bool IsWritingFrameThread()
+//		{
+//			var name = System.Threading.Thread.CurrentThread.Name;
+//			return name != null && name.StartsWith(ConnectionIO.WriteFrameThreadNamePrefix, StringComparison.Ordinal);
+//		}
 	}
 }
