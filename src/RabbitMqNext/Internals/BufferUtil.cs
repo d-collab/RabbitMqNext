@@ -62,7 +62,7 @@ namespace RabbitMqNext.Internals
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void FastCopy(byte[] dstBuffer, int dstOffset, byte[] srcBuffer, int srcOffset, int count)
 		{
-			if (count < 128)
+			if (count <= 128)
 			{
 				unsafe
 				{
