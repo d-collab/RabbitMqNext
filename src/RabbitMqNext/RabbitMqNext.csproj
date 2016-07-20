@@ -61,6 +61,7 @@
     <Compile Include="Buffers\ArrayPoolBucket.cs" />
     <Compile Include="Buffers\DefaultArrayPool.cs" />
     <Compile Include="Buffers\ObjectPool.cs" />
+    <Compile Include="Buffers\ObjectPoolArray.cs" />
     <Compile Include="Buffers\Utilities.cs" />
     <Compile Include="ChannelApiExtensions.cs" />
     <Compile Include="ChannelOptions.cs" />

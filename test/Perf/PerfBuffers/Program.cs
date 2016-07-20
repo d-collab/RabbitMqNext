@@ -11,7 +11,7 @@
 		private static byte[] _dest = new byte[2048];
 		private static byte[] _src = new byte[2048];
 
-		private const int BufferSizeToCopy = 128;
+		private const int BufferSizeToCopy = 68;
 
 		public Program()
 		{
