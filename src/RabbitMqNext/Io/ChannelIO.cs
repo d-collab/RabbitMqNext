@@ -341,9 +341,7 @@ namespace RabbitMqNext.Io
 		internal Task<string> __BasicConsume(ConsumeMode mode, string queue, string consumerTag, bool withoutAcks, 
 			bool exclusive, IDictionary<string, object> arguments, bool waitConfirmation, Action<string> confirmConsumerTag)
 		{
-			var tcs = new TaskCompletionSource<string>( // TaskCreationOptions.AttachedToParent | 
-				mode == ConsumeMode.ParallelWithBufferCopy || mode == ConsumeMode.SerializedWithBufferCopy 
-				? TaskCreationOptions.RunContinuationsAsynchronously : TaskCreationOptions.None);
+			var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
 			var writer = AmqpChannelLevelFrameWriter.BasicConsume(
 				queue, consumerTag, withoutAcks, exclusive, arguments, waitConfirmation);
