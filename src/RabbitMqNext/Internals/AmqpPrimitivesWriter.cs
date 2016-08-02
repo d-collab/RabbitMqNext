@@ -15,7 +15,7 @@ namespace RabbitMqNext.Internals
 		internal InternalBigEndianWriter _writer;
 		
 		private readonly ArrayPool<byte> _bufferPool;
-		internal readonly ObjectPool<ReusableTempWriter> _memStreamPool;
+		internal readonly ObjectPoolArray<ReusableTempWriter> _memStreamPool;
 
 		private readonly byte[] _smallBuffer = new byte[300];
 
@@ -26,12 +26,13 @@ namespace RabbitMqNext.Internals
 		}
 
 		public AmqpPrimitivesWriter(ArrayPool<byte> bufferPool,
-									ObjectPool<ReusableTempWriter> memStreamPool)
+									ObjectPoolArray<ReusableTempWriter> memStreamPool)
 		{
 			_bufferPool = bufferPool ?? new DefaultArrayPool<byte>(BufferSize, 5);
+
 			if (memStreamPool == null)
 			{
-				memStreamPool = new ObjectPool<ReusableTempWriter>(() => 
+				memStreamPool = new ObjectPoolArray<ReusableTempWriter>(() => 
 				{
 					if (LogAdapter.ExtendedLogEnabled)
 						LogAdapter.LogDebug(LogSource, "Creating new writer");

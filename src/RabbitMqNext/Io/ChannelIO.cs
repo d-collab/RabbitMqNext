@@ -15,7 +15,7 @@ namespace RabbitMqNext.Io
 		internal readonly ConnectionIO _connectionIo;
 
 //		private readonly ObjectPool<TaskSlim> _taskLightPool;
-		private readonly ObjectPool<FrameParameters.BasicPublishArgs> _basicPubArgsPool;
+		private readonly ObjectPoolArray<FrameParameters.BasicPublishArgs> _basicPubArgsPool;
 
 		public ChannelIO(Channel channel, ushort channelNumber, ConnectionIO connectionIo)
 			: base(channelNumber)
@@ -26,7 +26,7 @@ namespace RabbitMqNext.Io
 //			_taskLightPool = new ObjectPool<TaskSlim>(
 //				() => new TaskSlim(i => _channel.GenericRecycler(i, _taskLightPool)), 10, preInitialize: true);
 
-			_basicPubArgsPool = new ObjectPool<FrameParameters.BasicPublishArgs>(
+			_basicPubArgsPool = new ObjectPoolArray<FrameParameters.BasicPublishArgs>(
 				() => new FrameParameters.BasicPublishArgs(i => _channel.GenericRecycler(i, _basicPubArgsPool)), 1000, preInitialize: true); 
 		}
 
@@ -420,7 +420,7 @@ namespace RabbitMqNext.Io
 		}
 
 		internal Task __BasicPublishConfirm(string exchange, string routingKey, bool mandatory, 
-												BasicProperties properties, ArraySegment<byte> buffer)
+											BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (properties == null)
 			{
@@ -459,12 +459,9 @@ namespace RabbitMqNext.Io
 		}
 
 		internal void __BasicPublish(string exchange, string routingKey, bool mandatory, 
-									BasicProperties properties, ArraySegment<byte> buffer)
+									 BasicProperties properties, ArraySegment<byte> buffer)
 		{
-			if (properties == null)
-			{
-				properties = BasicProperties.Empty;
-			}
+			if (properties == null) properties = BasicProperties.Empty;
 
 			var args = _basicPubArgsPool.GetObject();
 			args.exchange = exchange;

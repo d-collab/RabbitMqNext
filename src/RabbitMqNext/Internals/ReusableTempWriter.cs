@@ -9,7 +9,7 @@ namespace RabbitMqNext.Internals
 		internal InternalBigEndianWriter _innerWriter;
 		internal AmqpPrimitivesWriter _writer2;
 
-		public ReusableTempWriter(ArrayPool<byte> bufferPool, ObjectPool<ReusableTempWriter> memStreamPool)
+		public ReusableTempWriter(ArrayPool<byte> bufferPool, ObjectPoolArray<ReusableTempWriter> memStreamPool)
 		{
 			_memoryStream = new MemoryStreamSlim(bufferPool, AmqpPrimitivesWriter.BufferSize);
 

@@ -294,7 +294,7 @@ namespace RabbitMqNext.Internals
 
 				// Frame body
 
-				int maxSubFrameSize = (int)writer.FrameMaxSize.Value - EmptyFrameSize; // writer.FrameMaxSize == 0 ? buffer.Count : (int)writer.FrameMaxSize.Value - EmptyFrameSize;
+				int maxSubFrameSize = (int) writer.FrameMaxSize.Value - EmptyFrameSize; // writer.FrameMaxSize == 0 ? buffer.Count : (int)writer.FrameMaxSize.Value - EmptyFrameSize;
 
 				// write frames limited by the max size
 				int written = 0;

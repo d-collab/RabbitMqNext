@@ -29,7 +29,7 @@
 		internal readonly TaskScheduler _schedulerToDeliverMessages;
 
 		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
-		private readonly ObjectPool<BasicProperties> _propertiesPool;
+		private readonly ObjectPoolArray<BasicProperties> _propertiesPool;
 		private List<Func<AmqpError, Task>> _errorsCallbacks = new List<Func<AmqpError, Task>>();
 
 		// Support for channelflow + connectionblock
@@ -51,7 +51,7 @@
 
 			_consumerSubscriptions = new ConcurrentDictionary<string, BasicConsumerSubscriptionInfo>(StringComparer.Ordinal);
 
-			_propertiesPool = new ObjectPool<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
+			_propertiesPool = new ObjectPoolArray<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
 		}
 
 		public event Action<string> ChannelBlocked;
@@ -596,7 +596,7 @@
 			return _io.Open();
 		}
 
-		internal void GenericRecycler<T>(T item, ObjectPool<T> pool) where T : class
+		internal void GenericRecycler<T>(T item, ObjectPoolArray<T> pool) where T : class
 		{
 			pool.PutObject(item);
 		}

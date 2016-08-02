@@ -27,7 +27,7 @@ namespace RabbitMqNext.Io
 		private readonly AutoResetEvent _commandOutboxEvent;
 		private readonly ManualResetEventSlim _waitingServerReply;
 		private readonly ConcurrentQueue<CommandToSend> _commandOutbox;
-		private readonly ObjectPool<CommandToSend> _cmdToSendObjPool;
+		private readonly ObjectPoolArray<CommandToSend> _cmdToSendObjPool;
 		
 		internal readonly SocketHolder _socketHolder;
 
@@ -62,7 +62,7 @@ namespace RabbitMqNext.Io
 			// _commandOutboxEvent = new AutoResetSuperSlimLock(false);
 			_commandOutbox = new ConcurrentQueue<CommandToSend>();
 
-			_cmdToSendObjPool = new ObjectPool<CommandToSend>(() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 200, true);
+			_cmdToSendObjPool = new ObjectPoolArray<CommandToSend>(() => new CommandToSend(i => _cmdToSendObjPool.PutObject(i)), 200, true);
 
 			_amqpWriter = new AmqpPrimitivesWriter();
 			_amqpReader = new AmqpPrimitivesReader();
