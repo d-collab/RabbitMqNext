@@ -55,11 +55,17 @@ namespace RabbitMqNext.Internals
 				// should never happen
 				tcs.TrySetException(new Exception("ConfirmationKeeper: Could not find free spot for the waiting task"));
 			}
+
+			if (LogAdapter.IsWarningEnabled)
+				LogAdapter.LogWarn(LogSource, string.Format("Confirm: took " + index));
 		}
 		
 		// invoked from the read frame thread only. continuations need to be executed async
 		public void Confirm(ulong deliveryTag, bool multiple, bool requeue, bool isAck)
 		{
+			if (LogAdapter.IsWarningEnabled)
+				LogAdapter.LogWarn(LogSource, string.Format("Confirming delivery {0} lastConfirmed {4}  M: {1} Reque: {2} isAck: {3}", deliveryTag, multiple, requeue, isAck, _lastConfirmed));
+
 			var startPos = multiple ? _lastConfirmed + 1 : deliveryTag;
 
 			for (var i = startPos; i <= deliveryTag; i++)
