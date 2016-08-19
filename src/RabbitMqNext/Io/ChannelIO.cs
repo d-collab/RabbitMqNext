@@ -14,7 +14,6 @@ namespace RabbitMqNext.Io
 		private readonly Channel _channel;
 		internal readonly ConnectionIO _connectionIo;
 
-//		private readonly ObjectPool<TaskSlim> _taskLightPool;
 		private readonly ObjectPoolArray<FrameParameters.BasicPublishArgs> _basicPubArgsPool;
 
 		public ChannelIO(Channel channel, ushort channelNumber, ConnectionIO connectionIo)

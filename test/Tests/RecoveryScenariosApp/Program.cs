@@ -142,7 +142,7 @@
 
 			await channel.QueueDeclare("qrpc1", false, true, false, false, null, waitConfirmation: true);
 
-			await channel.BasicConsume(ConsumeMode.SingleThreaded, (delivery) =>
+			await channel.BasicConsume(ConsumeMode.ParallelWithBufferCopy, (delivery) =>
 			{
 				var prop = channel.RentBasicProperties();
 

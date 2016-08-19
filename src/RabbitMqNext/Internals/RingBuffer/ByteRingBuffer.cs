@@ -331,7 +331,7 @@
 		public void SetSocket(Socket socket, Action<Socket, Exception> onSocketClosed)
 		{
 			_socket = socket;
-			_writeLock.Set();
+//			_writeLock.Set();
 
 			this.OnNotifyClosed = onSocketClosed;
 		}
