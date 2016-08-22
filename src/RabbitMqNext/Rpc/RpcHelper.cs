@@ -75,9 +75,10 @@ namespace RabbitMqNext
 			{
 				// release spot
 				// Interlocked.Exchange(ref _pendingCalls[pos], null);
-				ReleaseSpot(pos, cookie);
-
-				_semaphoreSlim.Release();
+				if (ReleaseSpot(pos, cookie))
+				{
+					_semaphoreSlim.Release();
+				}
 
 				tcs.TrySetException(ex);
 			}
@@ -100,8 +101,7 @@ namespace RabbitMqNext
 				var item = _pendingCalls[pos];
 				TaskCompletionSource<MessageDelivery> tcs;
 
-				if (item.cookie != cookie 
-					|| (tcs = Interlocked.Exchange(ref item.tcs, null)) == null)
+				if (item.cookie != cookie || (tcs = Interlocked.Exchange(ref item.tcs, null)) == null)
 				{
 					// the helper was disposed and the task list was drained.
 					// or the call timeout'ed previously
@@ -117,11 +117,7 @@ namespace RabbitMqNext
 					delivery.TakenOver = true;
 				}
 
-				if (tcs.TrySetResult(delivery)) // <- this races with DrainPendingCalls && Timeoutcheck...
-				{
-					// ...but we want just one call to semaphore.Release
-					_semaphoreSlim.Release();
-				}
+				tcs.TrySetResult(delivery); // <- this races with DrainPendingCalls && Timeoutcheck...
 			}
 			catch (Exception error)
 			{
@@ -129,7 +125,8 @@ namespace RabbitMqNext
 			}
 			finally
 			{
-				ReleaseSpot(pos, cookie);
+				if (ReleaseSpot(pos, cookie))
+					_semaphoreSlim.Release();
 			}
 
 			return Task.CompletedTask;

@@ -164,34 +164,33 @@ namespace RabbitMqNext
 					return Task.CompletedTask;
 				}
 
+
 				// Completed!
 
 				var item = _pendingCalls[pos];
 				TaskCompletionSource<IEnumerable<MessageDelivery>> tcs;
 
-				if (item.cookie != cookie
-					|| (tcs = Interlocked.Exchange(ref item.tcs, null)) == null)
+				if (item.cookie != cookie || (tcs = Interlocked.Exchange(ref item.tcs, null)) == null)
 				{
 					// the helper was disposed and the task list was drained.
 					// or the call timeout'ed previously
 					return Task.CompletedTask;
 				}
 
-				try
+				if (ReleaseSpot(pos, cookie))
 				{
-					if (tcs.TrySetResult(aggreDeliveries))
-					{
-						_semaphoreSlim.Release();
-					}
+					_semaphoreSlim.Release();
+					tcs.TrySetResult(aggreDeliveries);
 				}
-				finally
-				{
-					ReleaseSpot(pos, cookie);
-				}
+				
 			}
 			catch (Exception error)
 			{
-				ReleaseSpot(pos, cookie);
+				if (ReleaseSpot(pos, cookie))
+				{
+					_semaphoreSlim.Release();
+				}
+
 				if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "Error on OnReplyReceived", error);
 			}
 

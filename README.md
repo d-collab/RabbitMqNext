@@ -16,8 +16,9 @@ The way this is accomplished is two fold:
 * writes and reads related to the socket are consumer/producer of ringbuffers thus one upfront 
   big allocation and that's it. The read/write loop happen in two dedicated threads.
 
-**Not ready for production use.**
-* master branch is stable, but still being tested/stressed heavily
+~~**Not ready for production use.**~~
+~~* master branch is stable, but still being tested/stressed heavily~~
+It's in production for a while now. 
 
 
 ### Current stage: 
@@ -153,9 +154,9 @@ using(var reply = await helper.Call(exchangeName, routing, properties, body))
 Mostly focused on decreasing allocs. 
 
 * Support a Publish overload that takes a delegate for writing to the stream. This would save the upfront buffer allocation. The issue here is that
-  the side of the frame body is written before the body content. We would have to call the user code, let it write to the stream, seek backwards 
-  and write the size. Even harder if the content is larger than the max frame size. OTOH way less GC allocs. 
+  the size of the frame body is written before the body content. We would have to call the user code, let it write to the stream, move backwards 
+  and write the size. Even harder if the content is larger than the max frame size. OTOH way less GC allocs (fixed delegate vs unbounded buffer) 
 
-* Support a Publish overload with buffer pools. User rents a buffer, Publish releases the buffer once the frame is written to the ring buffer. 
-  Harder thing for the user is to anticipate the overall size of the buffer needed. 
+
+
 

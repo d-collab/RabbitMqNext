@@ -9,7 +9,7 @@ namespace RabbitMqNext
 
 	public abstract class BaseRpcHelper<T> : BaseRpcHelper, IDisposable
 	{
-		private const string LogSource = "BaseRpcHelper";
+//		private const string LogSource = "BaseRpcHelper";
 
 		protected const string SeparatorStr = "_";
 		private const char Zero = '0';
@@ -152,13 +152,15 @@ namespace RabbitMqNext
 			for (int i = 0; i < _pendingCalls.Length; i++)
 			{
 				var pendingCall = _pendingCalls[i];
+				var cookie = pendingCall.cookie;
+				var tcs = pendingCall.tcs;
 
-				if (pendingCall.tcs == null) continue;
+				if (cookie == 0) continue;
 
-				if (pendingCall.tcs.TrySetException(exception))
+				if (tcs != null && ReleaseSpot(i, cookie))
 				{
-					Interlocked.Exchange(ref pendingCall.cookie, 0);
 					_semaphoreSlim.Release();
+					tcs.TrySetException(exception);
 				}
 			}
 		}
@@ -182,21 +184,27 @@ namespace RabbitMqNext
 		{
 			var now = DateTime.Now.Ticks;
 
-			foreach (var pendingCall in _pendingCalls)
-			{
-				if (pendingCall.cookie == 0) continue;
+			// TODO: needs review. the spot may change during the exec
 
+			for (int i = 0; i < _pendingCalls.Length; i++)
+			{
+				var pendingCall = _pendingCalls[i];
+				var cookie = pendingCall.cookie;
+
+				if (cookie == 0) continue;
+
+				var started = pendingCall.started;
 				var tcs = pendingCall.tcs;
 
-				if (tcs != null && now - pendingCall.started > _timeoutInTicks)
+				if (tcs != null && now - started > _timeoutInTicks)
 				{
 //					if (LogAdapter.ExtendedLogEnabled)
 //						LogAdapter.LogDebug(LogSource, "Timeout'ing item " + pendingCall.cookie);
 
-					if (tcs.TrySetException(new Exception("Rpc call timeout")))
+					if (ReleaseSpot(i, cookie))
 					{
-						Interlocked.Exchange(ref pendingCall.cookie, 0);
 						_semaphoreSlim.Release();
+						tcs.TrySetException(new Exception("Rpc call timeout"));
 					}
 				}
 			}
