@@ -712,8 +712,8 @@
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal void UnblockChannel()
 		{
-			_publishingBlockedWaiter.Set();
 			Interlocked.Exchange(ref _publishingBlocked, 0);
+			_publishingBlockedWaiter.Set(); 
 
 			if (LogAdapter.ExtendedLogEnabled)
 				LogAdapter.LogWarn(LogSource, "Channel " + this.ChannelNumber + " unblocked");
@@ -731,7 +731,8 @@
 			// if the the BasicPublish is in response of a consumed 
 			// message, and the ConsumerMode is SingleThreaded, this will inevitably be true!
 
-			Asserts.AssertNotReadFrameThread(); // otherwise we'll be up to a nice deadlock
+			Asserts.AssertNotReadFrameThread("Do not call BasicPublishFast from the Read frame thread. " + 
+											 "See https://github.com/clearctvm/RabbitMqNext/wiki/AssertNotReadFrameThread "); // otherwise we'll be up to a nice deadlock
 
 			if (_publishingBlocked == 1)
 			{
@@ -744,7 +745,7 @@
 		{
 			if (_publishingBlocked == 1)
 			{
-				if (ThreadUtils.IsReadFrameThread()) // to avoid a dead, we will switch threads
+				if (ThreadUtils.IsReadFrameThread()) // to avoid a deadlock, we will switch threads
 				{
 					await Task.Delay(1, _cancellationToken);
 				}

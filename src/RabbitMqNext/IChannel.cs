@@ -60,10 +60,10 @@ namespace RabbitMqNext
 		Task QueueDelete(string queue /*, bool ifUnused, bool ifEmpty*/, bool waitConfirmation);
 		Task QueuePurge(string queue, bool waitConfirmation);
 
-		Task/*TaskSlim*/ BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory,
+		Task BasicPublishWithConfirmation(string exchange, string routingKey, bool mandatory,
 			BasicProperties properties, ArraySegment<byte> buffer);
 
-		Task/*TaskSlim*/ BasicPublish(string exchange, string routingKey, bool mandatory, 
+		Task BasicPublish(string exchange, string routingKey, bool mandatory, 
 			BasicProperties properties, ArraySegment<byte> buffer);
 
 		// This would be a better approach: allocation of a delegate vs allocation of a buffer

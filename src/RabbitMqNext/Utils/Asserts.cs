@@ -8,12 +8,12 @@
 	{
 		[DebuggerStepThrough]
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void AssertNotReadFrameThread()
+		public static void AssertNotReadFrameThread(string msg)
 		{
 #if ASSERT
 			if (ThreadUtils.IsReadFrameThread())
 			{
-				LogAdapter.LogError("Asserts", "Assert failed: AssertNotReadFrameThread at " + new StackTrace());
+				LogAdapter.LogError("Asserts", msg + " - Details: Assert failed: AssertNotReadFrameThread at " + new StackTrace());
 			}
 #endif
 		}
