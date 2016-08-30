@@ -139,6 +139,8 @@
 
 		internal void CloseAllChannels(Exception reason)
 		{
+			if (_channels == null) return;
+			
 			foreach (var channel in _channels)
 			{
 				if (channel == null) continue;
@@ -150,6 +152,8 @@
 		internal void CloseAllChannels(bool initiatedByServer, AmqpError error)
 		{
 			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Closing all channels");
+
+			if (_channels == null) return;
 
 			foreach (var channel in _channels)
 			{
