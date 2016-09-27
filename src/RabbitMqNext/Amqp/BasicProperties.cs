@@ -301,6 +301,7 @@ namespace RabbitMqNext
 		{
 			get
 			{
+				ThrowIfFrozen();
 				return _headers;
 			}
 //			private set
