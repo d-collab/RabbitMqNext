@@ -2,11 +2,13 @@ namespace RabbitMqNext
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Collections.ObjectModel;
 	using System.Runtime.CompilerServices;
 	
 
 	public class BasicProperties : IDisposable, ICloneable
 	{
+		private static readonly Dictionary<string, object> EmptyDict = new Dictionary<string, object>();
 		public static readonly BasicProperties Empty = new BasicProperties(isFrozen: true, reusable: false);
 
 		private const byte FrozenMask = 0x01;
@@ -56,7 +58,12 @@ namespace RabbitMqNext
 		{
 			_options = (byte) ((isFrozen ? FrozenMask : 0) | (reusable ? ReusableMask : 0));
 
-			_headers = headers ?? new Dictionary<string, object>(StringComparer.Ordinal);
+			// _headers = headers ?? new Dictionary<string, object>(StringComparer.Ordinal);
+
+			if (isFrozen)
+				_headers = new ReadOnlyDictionary<string, object>(EmptyDict);
+			else
+				_headers = new Dictionary<string, object>(StringComparer.Ordinal);
 		}
 
 		public bool IsContentTypePresent
@@ -294,7 +301,6 @@ namespace RabbitMqNext
 		{
 			get
 			{
-				ThrowIfFrozen();
 				return _headers;
 			}
 //			private set
