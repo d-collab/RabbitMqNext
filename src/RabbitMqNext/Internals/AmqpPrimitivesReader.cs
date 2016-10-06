@@ -10,7 +10,7 @@ namespace RabbitMqNext.Internals
 
 	internal class AmqpPrimitivesReader
 	{
-		private readonly ArrayPool<byte> _bufferPool = new DefaultArrayPool<byte>(1024 * 15, 20);
+		private readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Create(131072, 20); // typical max frame = 131072 
 		private readonly byte[] _smallBuffer = new byte[300];
 		private InternalBigEndianReader _reader;
 

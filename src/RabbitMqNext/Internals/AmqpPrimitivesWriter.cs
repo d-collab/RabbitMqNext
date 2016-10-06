@@ -28,7 +28,7 @@ namespace RabbitMqNext.Internals
 		public AmqpPrimitivesWriter(ArrayPool<byte> bufferPool,
 									ObjectPoolArray<ReusableTempWriter> memStreamPool)
 		{
-			_bufferPool = bufferPool ?? new DefaultArrayPool<byte>(BufferSize, 5);
+			_bufferPool = bufferPool ?? ArrayPool<byte>.Create(BufferSize, 5);
 
 			if (memStreamPool == null)
 			{
@@ -37,7 +37,7 @@ namespace RabbitMqNext.Internals
 					if (LogAdapter.ExtendedLogEnabled)
 						LogAdapter.LogDebug(LogSource, "Creating new writer");
 
-					return new ReusableTempWriter(new DefaultArrayPool<byte>(BufferSize, 5), _memStreamPool);
+					return new ReusableTempWriter(ArrayPool<byte>.Create(BufferSize, 5), _memStreamPool);
 				}, 6, preInitialize: false);
 			}
 			_memStreamPool = memStreamPool;

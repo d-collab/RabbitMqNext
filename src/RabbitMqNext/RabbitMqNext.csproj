@@ -44,6 +44,10 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\System.Buffers.4.0.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Net.Http.WebRequest" />
@@ -57,12 +61,8 @@
     <Compile Include="Amqp\AmqpConstants.cs" />
     <Compile Include="Amqp\Types\AmqpTimestamp.cs" />
     <Compile Include="Amqp\BasicProperties.cs" />
-    <Compile Include="Buffers\ArrayPool.cs" />
-    <Compile Include="Buffers\ArrayPoolBucket.cs" />
-    <Compile Include="Buffers\DefaultArrayPool.cs" />
     <Compile Include="Buffers\ObjectPool.cs" />
     <Compile Include="Buffers\ObjectPoolArray.cs" />
-    <Compile Include="Buffers\Utilities.cs" />
     <Compile Include="ChannelApiExtensions.cs" />
     <Compile Include="ChannelOptions.cs" />
     <Compile Include="ConnectionFactory.cs" />
