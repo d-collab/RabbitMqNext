@@ -35,7 +35,7 @@ namespace RabbitMqNext
 
 		internal ushort _presenceSWord = 0;
 
-		private IDictionary<string, object> _headers;
+		private ReadOnlyDictionary<string, object> _headers;
 		private AmqpTimestamp? _timestamp;
 		private byte _deliveryMode;
 		private byte _priority;
@@ -50,20 +50,19 @@ namespace RabbitMqNext
 		private string _appId;
 		private string _clusterId;
 
-		public BasicProperties() : this(isFrozen: false, reusable: false)
+		public BasicProperties(IDictionary<String, Object> headers = null) : this(isFrozen: false, reusable: false)
 		{
+            _headers = new ReadOnlyDictionary<string, object>(headers ?? EmptyDict);
 		}
 
 		internal BasicProperties(bool isFrozen, bool reusable, IDictionary<string, object> headers = null) 
 		{
 			_options = (byte) ((isFrozen ? FrozenMask : 0) | (reusable ? ReusableMask : 0));
 
-			// _headers = headers ?? new Dictionary<string, object>(StringComparer.Ordinal);
+            _headers = new ReadOnlyDictionary<string, object>(headers ?? EmptyDict);
 
-			if (isFrozen)
+            if (isFrozen)
 				_headers = new ReadOnlyDictionary<string, object>(EmptyDict);
-			else
-				_headers = new Dictionary<string, object>(StringComparer.Ordinal);
 		}
 
 		public bool IsContentTypePresent
@@ -304,13 +303,13 @@ namespace RabbitMqNext
 				ThrowIfFrozen();
 				return _headers;
 			}
-//			private set
-//			{
-//				ThrowIfFrozen();
-//				IsHeadersPresent = value != null;
-//				_headers = value;
-//			}
-		}
+            set
+            {
+                ThrowIfFrozen();
+                IsHeadersPresent = value != null;
+                _headers = new ReadOnlyDictionary<string, object>(value ?? EmptyDict);
+            }
+        }
 
 		#region Implementation of ICloneable
 
@@ -385,10 +384,7 @@ namespace RabbitMqNext
 		void IDisposable.Dispose()
 		{
 			_presenceSWord = 0; // effectilvely reset it
-			if (this.Headers != null)
-			{
-				this.Headers.Clear();
-			}
+            Headers = null;
 			_deliveryMode = _priority = 0;
 			_contentType = _contentEncoding = _correlationId = null;
 			_replyTo = _expiration = _messageId = _type = null;
