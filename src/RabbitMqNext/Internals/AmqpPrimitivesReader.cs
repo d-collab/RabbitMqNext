@@ -1,14 +1,14 @@
 namespace RabbitMqNext.Internals
 {
-    using System;
-    using System.Buffers;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Text;
-    using RingBuffer;
-    using System.Linq;
+	using System;
+	using System.Buffers;
+	using System.Collections;
+	using System.Collections.Generic;
+	using System.Text;
+	using RingBuffer;
 
-    internal class AmqpPrimitivesReader
+
+	internal class AmqpPrimitivesReader
 	{
 		private readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Create(131072, 20); // typical max frame = 131072 
 		private readonly byte[] _smallBuffer = new byte[300];
@@ -35,23 +35,26 @@ namespace RabbitMqNext.Internals
 
 		public IDictionary<string, object> ReadTable()
 		{
-            return ReadKeyValues().ToDictionary(kv => kv.Key, kv => kv.Value);
-        }
+			// unbounded allocation! bad
+			var table = new Dictionary<string, object>(capacity: 11);
 
-		public IEnumerable<KeyValuePair<String, object>> ReadKeyValues()
+			ReadTable(table);
+
+			return table;
+		}
+
+		public void ReadTable(IDictionary<string, object> table)
 		{
 			uint tableLength = _reader.ReadUInt32();
-			if (tableLength == 0) return new KeyValuePair<String, object>[] { };
+			if (tableLength == 0) return;
 
-            var kvs = new List<KeyValuePair<String, object>>();
 			var marker = new RingBufferPositionMarker(_reader._ringBufferStream);
 			while (marker.LengthRead < tableLength)
 			{
 				string key = ReadShortStr();
 				object value = ReadFieldValue();
-                kvs.Add(new KeyValuePair<string, object>(key, value));
+				table[key] = value;
 			}
-            return kvs;
 		}
 
 		public string ReadShortStr()
