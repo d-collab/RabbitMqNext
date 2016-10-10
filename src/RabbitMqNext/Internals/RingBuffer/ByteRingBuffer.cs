@@ -110,8 +110,8 @@
 
 				if (_state._resetApplied)
 				{
-					throw new Exception("Can't be Written since the buffer is in Reset state"); 
-					// break;
+					//throw new Exception("Can't be Written since the buffer is in Reset state"); 
+					break;
 				}
 
 				if (available == 0)
@@ -157,7 +157,7 @@
 				if (_state._resetApplied)
 				{
 					throw new Exception("Can't be read since the buffer is in Reset state");
-					// break;
+					//break;
 				}
 
 				if (available == 0)
@@ -196,8 +196,8 @@
 
 				if (_state._resetApplied)
 				{
-					throw new Exception("Can't be read since the buffer is in Reset state");
-					// break;
+					//throw new Exception("Can't be read since the buffer is in Reset state");
+				    break;
 				}
 
 				if (available == 0)
@@ -291,8 +291,8 @@
 
 				if (_state._resetApplied)
 				{
-					throw new Exception("Can't be Skipped since the buffer is in Reset state"); 
-					// break;
+					//throw new Exception("Can't be Skipped since the buffer is in Reset state"); 
+					break;
 				}
 
 				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
@@ -348,7 +348,7 @@
 				{
 					FireClosed(ex);
 
-					throw;
+					//throw;
 				}
 			}
 			else

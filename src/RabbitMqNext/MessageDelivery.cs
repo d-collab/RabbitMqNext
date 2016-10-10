@@ -55,15 +55,13 @@ namespace RabbitMqNext
 
 		private static Stream CloneStream(Stream originalStream, int bodySize)
 		{
-			if (originalStream == null) return null; 
-			
-			var original = originalStream as MemoryStream; // Empty Stream then
-			if (original != null)
-			{
-				return original;
-			}
+			if (originalStream == null) return null;
 
-			var original2 = originalStream as MemoryStream2; // Empty Stream then
+            // Empty Stream then
+            if (originalStream is EmptyStream || originalStream is MemoryStream)
+                return originalStream;
+
+			var original2 = originalStream as MemoryStream2; 
 			if (original2 != null)
 			{
 				return new MemoryStream2(original2.InnerBuffer);
