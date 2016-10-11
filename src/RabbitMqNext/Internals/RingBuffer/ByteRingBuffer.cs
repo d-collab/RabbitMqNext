@@ -111,7 +111,7 @@
 				if (_state._resetApplied)
 				{
 					throw new Exception("Can't be Written since the buffer is in Reset state"); 
-					// break;
+					//break;
 				}
 
 				if (available == 0)
@@ -157,7 +157,7 @@
 				if (_state._resetApplied)
 				{
 					throw new Exception("Can't be read since the buffer is in Reset state");
-					// break;
+					//break;
 				}
 
 				if (available == 0)
@@ -197,14 +197,14 @@
 				if (_state._resetApplied)
 				{
 					throw new Exception("Can't be read since the buffer is in Reset state");
-					// break;
+				    //break;
 				}
 
 				if (available == 0)
 				{
 					if (fillBuffer)
 					{
-						FillUpBufferFromSocket();
+					    FillUpBufferFromSocket();
 						// _writeLock.WaitOne();
 						continue;
 					} 
@@ -292,14 +292,14 @@
 				if (_state._resetApplied)
 				{
 					throw new Exception("Can't be Skipped since the buffer is in Reset state"); 
-					// break;
+					//break;
 				}
 
 				// var available = (int)this.InternalGetReadyToReadEntries(offset - totalSkipped);
 				if (available == 0)
 				{
 					// _writeLock.Wait();
-					FillUpBufferFromSocket();
+				    FillUpBufferFromSocket();
 					continue;
 				}
 
@@ -347,8 +347,7 @@
 				catch (Exception ex)
 				{
 					FireClosed(ex);
-
-					throw;
+				    throw;
 				}
 			}
 			else

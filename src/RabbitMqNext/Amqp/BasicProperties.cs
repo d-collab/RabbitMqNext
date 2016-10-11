@@ -61,9 +61,9 @@ namespace RabbitMqNext
 			// _headers = headers ?? new Dictionary<string, object>(StringComparer.Ordinal);
 
 			if (isFrozen)
-				_headers = new ReadOnlyDictionary<string, object>(EmptyDict);
+				_headers = new ReadOnlyDictionary<string, object>(headers ?? EmptyDict);
 			else
-				_headers = new Dictionary<string, object>(StringComparer.Ordinal);
+				_headers = new Dictionary<string, object>(headers ?? EmptyDict, StringComparer.Ordinal);
 		}
 
 		public bool IsContentTypePresent
@@ -301,7 +301,6 @@ namespace RabbitMqNext
 		{
 			get
 			{
-				ThrowIfFrozen();
 				return _headers;
 			}
 //			private set
@@ -335,7 +334,7 @@ namespace RabbitMqNext
 				_type = this._type,
 				_userId = this._userId,
 				_appId = this._appId,
-				_clusterId = this._clusterId,
+				_clusterId = this._clusterId
 			};
 			
 			return cloned;
