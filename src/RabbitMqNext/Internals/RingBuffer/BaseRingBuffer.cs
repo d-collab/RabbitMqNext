@@ -14,11 +14,11 @@
 		{
 			internal PaddingForInt32 _pad0;
 			internal volatile uint _readPosition;
-			internal uint _readPositionCopy;
+			internal uint _readPositionCopy; // cache to avoid a volatile read
 
 			internal PaddingForInt32 _pad1;
 			internal volatile uint _writePosition;
-			internal uint _writePositionCopy;
+			internal uint _writePositionCopy;  // cache to avoid a volatile read
 
 			internal PaddingForInt32 _pad2;
 			internal uint _bufferSize;

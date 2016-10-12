@@ -1,11 +1,9 @@
 namespace RabbitMqNext.Internals.RingBuffer.Locks
 {
 	using System;
-	using System.Collections.Concurrent;
 	using System.Runtime.CompilerServices;
 	using System.Runtime.InteropServices;
 	using System.Threading;
-	using System.Threading.Tasks;
 
 
 	/// <summary>
@@ -17,10 +15,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		[StructLayout(LayoutKind.Sequential)]
 		private struct LockState
 		{
-			internal PaddingForInt32 _pad0;
+			private PaddingForInt32 _pad0;
 			internal volatile int _state;
-			internal PaddingForInt32 _pad1;
-			// internal volatile bool _operational;
+			private PaddingForInt32 _pad1;
 		}
 
 		private LockState _lockState;
@@ -33,15 +30,9 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		internal const int NumWaitersStatePos = 0;
 		internal const int WaiterMax = 255; // 0xFF
 
-//		private readonly ConcurrentQueue<TaskCompletionSource<bool>> _waiters = new ConcurrentQueue<TaskCompletionSource<bool>>();
-
 		private readonly object _lock = new object();
 		
 //		private static readonly int ProcCounter = Environment.ProcessorCount;
-//
-//		private const int HowManySpinBeforeYield = 10;
-//		private const int HowManyYieldEverySleep0 = 5;
-//		private const int HowManyYieldEverySleep1 = 20;
 		private const int SpinCount = 10;
 
 		public AutoResetSuperSlimLock(bool initialState = false)
@@ -72,20 +63,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 				Operational = false; // disallow waiters
 
 				Monitor.PulseAll(_lock);
-
-				// var waiters = Waiters;
-//				while (Waiters > 0)
-//				{
-//					// _lockState._state = 1 << SignalledStatePos; // Ugly Shortcut, but we're reseting, all bets are off.
-//					// AtomicChange(1, SignalledStatePos, SignalledStateMask);
-//					Monitor.PulseAll(_lock); // release one waiting thread
-//					// Thread.Sleep(0);
-//					// Console.WriteLine("Ran " + Waiters);
-//				}
 			}
-
-			// reset state
-			// _lockState._state = 0;
 		}
 
 		public bool Wait()
@@ -156,8 +134,6 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 
 			AtomicChange(1, SignalledStatePos, SignalledStateMask);
 
-//			TaskCompletionSource<bool> tcs = null;
-
 			lock (_lock)
 			{
 				if (Waiters > 0)
@@ -165,21 +141,7 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 					// The awakened thread will still check if it can Xor the state before continuing
 					Monitor.Pulse(_lock);
 				}
-//				else
-//				{
-//					if (_waiters.TryDequeue(out tcs))
-//					{
-//						AtomicChange(0, SignalledStatePos, SignalledStateMask);
-//					}
-//				}
 			}
-			// schedules the continuation to run
-			// since it was created with TaskCreationOptions.RunContinuationsAsynchronously
-			// it's guaranteed to run outside this _lock, but just in case...
-//			if (tcs != null)
-//			{
-//				tcs.SetResult(true);
-//			}
 		}
 
 		public bool IsSet
@@ -191,10 +153,6 @@ namespace RabbitMqNext.Internals.RingBuffer.Locks
 		public void Dispose()
 		{
 			Reset();
-
-//			TaskCompletionSource<bool> tcs;
-//			if (_waiters.TryDequeue(out tcs))
-//				tcs.SetCanceled();
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

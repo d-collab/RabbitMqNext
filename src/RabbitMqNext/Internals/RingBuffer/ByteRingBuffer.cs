@@ -53,7 +53,7 @@
 	/// ^ when restricted by wrap
 	/// ]]>
 	/// </remarks>
-	internal class ByteRingBuffer : BaseRingBuffer, IDisposable // Stream2
+	internal class ByteRingBuffer : BaseRingBuffer, IDisposable
 	{
 		public const int MinBufferSize = 32;
 		// public const int DefaultBufferSize = 0x100000;  //  1.048.576 1mb
