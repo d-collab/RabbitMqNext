@@ -237,7 +237,7 @@ namespace RabbitMqNext.Internals
 			bool multiple = _amqpReader.ReadBits() != 0;
 
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogError(LogSource, "< BasicAck : " + deliveryTags + " multiple " + multiple);
+				LogAdapter.LogDebug(LogSource, "< BasicAck : " + deliveryTags + " multiple " + multiple);
 
 			channel.ProcessAcks(deliveryTags, multiple);
 		}
@@ -250,7 +250,7 @@ namespace RabbitMqNext.Internals
 			bool requeue = (bits & 2) != 0;
 
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogError(LogSource, "< BasicNAck from server for  " + deliveryTags + " multiple:  " + multiple + " requeue " + requeue);
+				LogAdapter.LogDebug(LogSource, "< BasicNAck from server for  " + deliveryTags + " multiple:  " + multiple + " requeue " + requeue);
 
 			channel.ProcessNAcks(deliveryTags, multiple, requeue);
 		}
@@ -279,7 +279,7 @@ namespace RabbitMqNext.Internals
 			uint messageCount = _amqpReader.ReadLong();
 
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogError(LogSource, "< GenericMessageCount : " + messageCount);
+				LogAdapter.LogDebug(LogSource, "< GenericMessageCount : " + messageCount);
 
 			return continuation(messageCount);
 		}
@@ -290,7 +290,7 @@ namespace RabbitMqNext.Internals
 			var noWait = _amqpReader.ReadBits();
 
 			if (LogAdapter.ProtocolLevelLogEnabled)
-				LogAdapter.LogError(LogSource, "< BasicCancel : " + consumerTag + " bits " + noWait);
+				LogAdapter.LogDebug(LogSource, "< BasicCancel : " + consumerTag + " bits " + noWait);
 
 			return continuation(consumerTag, noWait);
 		}

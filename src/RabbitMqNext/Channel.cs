@@ -51,7 +51,7 @@
 
 			_consumerSubscriptions = new ConcurrentDictionary<string, BasicConsumerSubscriptionInfo>(StringComparer.Ordinal);
 
-			_propertiesPool = new ObjectPoolArray<BasicProperties>(() => new BasicProperties(false, reusable: true), 100, preInitialize: false);
+			_propertiesPool = new ObjectPoolArray<BasicProperties>(() => new BasicProperties(isFrozen: false, reusable: true), 100, preInitialize: false);
 		}
 
 		public event Action<string> ChannelBlocked;
