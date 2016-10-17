@@ -15,7 +15,7 @@ namespace RabbitMqNext.Internals
 	public class SocketHolder
 	{
 		private readonly ByteRingBuffer _inputBuffer;
-		private readonly RingBufferStreamAdapter _inputRingBufferStream; 
+		private readonly RingBufferStreamAdapter _inputRingBufferStream;
 
 		private Socket _socket;
 
@@ -58,7 +58,18 @@ namespace RabbitMqNext.Internals
 			var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
 			socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
 
-			var addresses = Dns.GetHostAddresses(hostname);
+
+			IPAddress[] addresses;
+			try
+			{
+				addresses = Dns.GetHostAddresses(hostname);
+			}
+			catch (Exception)
+			{
+				if (throwOnError) throw;
+				return false;
+			}
+
 			var started = false;
 
 			foreach (var ipAddress in addresses)
