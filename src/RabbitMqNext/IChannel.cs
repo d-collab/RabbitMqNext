@@ -48,7 +48,7 @@ namespace RabbitMqNext
 		Task ExchangeUnbind(string source, string destination, string routingKey,
 							IDictionary<string, object> arguments, bool waitConfirmation);
 
-		Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation);
+		Task ExchangeDelete(string exchange, bool waitConfirmation);
 
 		Task<AmqpQueueInfo> QueueDeclare(string queue, bool passive, bool durable, bool exclusive, bool autoDelete,
 										 IDictionary<string, object> arguments, bool waitConfirmation);

@@ -146,11 +146,11 @@
 			return _io.__ExchangeUnbind(source, destination, routingKey, arguments, waitConfirmation);
 		}
 
-		public Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
+		public Task ExchangeDelete(string exchange, bool waitConfirmation)
 		{
 			EnsureOpen();
 
-			return _io.__ExchangeDelete(exchange, arguments, waitConfirmation);
+			return _io.__ExchangeDelete(exchange, waitConfirmation);
 		}
 
 		public Task<AmqpQueueInfo> QueueDeclare(string queue, bool passive, bool durable, bool exclusive, bool autoDelete,

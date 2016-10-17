@@ -597,11 +597,11 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
-		internal Task __ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
+		internal Task __ExchangeDelete(string exchange, bool waitConfirmation)
 		{
 			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-			var writer = AmqpChannelLevelFrameWriter.ExchangeDelete(exchange, arguments, waitConfirmation);
+			var writer = AmqpChannelLevelFrameWriter.ExchangeDelete(exchange, waitConfirmation);
 
 			_connectionIo.SendCommand(_channelNum, Amqp.Channel.Exchange.ClassId, Amqp.Channel.Exchange.Methods.ExchangeDelete,
 				writer,

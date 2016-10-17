@@ -149,15 +149,15 @@
 			lock (_boundExchanges) _boundExchanges.Remove(recovery);
 		}
 
-		public async Task ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
+		public async Task ExchangeDelete(string exchange, bool waitConfirmation)
 		{
 			ThrowIfRecoveryInProcess();
 
-			var recovery = new ExchangeDeclaredRecovery(exchange, arguments);
+			var recovery = new ExchangeDeclaredRecovery(exchange, null);
 
 			lock(_declaredExchanges) _declaredExchanges.Remove(recovery);
 
-			await _channel.ExchangeDelete(exchange, arguments, waitConfirmation).ConfigureAwait(false);
+			await _channel.ExchangeDelete(exchange, waitConfirmation).ConfigureAwait(false);
 		}
 
 		public async Task<AmqpQueueInfo> QueueDeclare(string queue, bool passive, bool durable, bool exclusive, bool autoDelete, IDictionary<string, object> arguments,

@@ -99,6 +99,23 @@ namespace RabbitMqNext.IntegrationTests
 		}
 
 		[Test]
+		public async Task ExchangeDelete_with_wait_Should_waitconfirmation()
+		{
+			Console.WriteLine("ExchangeDelete_with_wait_Should_waitconfirmation");
+
+			var conn = await base.StartConnection(AutoRecoverySettings.Off);
+			var channel = await conn.CreateChannel();
+			channel.AddErrorCallback(error =>
+			{
+				Console.Error.WriteLine("error " + error.ReplyText);
+				return Task.CompletedTask;
+			});
+
+			await channel.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);
+			await channel.ExchangeDelete("test_direct", waitConfirmation: true);
+		}
+
+		[Test]
 		public async Task QueueBind_should_await_confirmation()
 		{
 			Console.WriteLine("QueueBind_should_await_confirmation");

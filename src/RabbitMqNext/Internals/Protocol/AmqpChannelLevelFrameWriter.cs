@@ -51,7 +51,7 @@ namespace RabbitMqNext.Internals
 			};
 		}
 
-		public static WriterDelegate ExchangeDelete(string exchange, IDictionary<string, object> arguments, bool waitConfirmation)
+		public static WriterDelegate ExchangeDelete(string exchange, bool waitConfirmation)
 		{
 			return (writer, channel, classId, methodId, args) =>
 			{
@@ -66,7 +66,6 @@ namespace RabbitMqNext.Internals
 					w.WriteUShort(0); // reserved
 					w.WriteShortstr(exchange);
 					w.WriteBits(false, !waitConfirmation);
-					w.WriteTable(arguments);
 				});
 			};
 		}
