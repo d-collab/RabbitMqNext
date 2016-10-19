@@ -58,12 +58,10 @@ namespace RabbitMqNext
 		{
 			_options = (byte) ((isFrozen ? FrozenMask : 0) | (reusable ? ReusableMask : 0));
 
-			// _headers = headers ?? new Dictionary<string, object>(StringComparer.Ordinal);
-
 			if (isFrozen)
-				_headers = new ReadOnlyDictionary<string, object>(EmptyDict);
+				_headers = new ReadOnlyDictionary<string, object>(headers ?? EmptyDict);
 			else
-				_headers = new Dictionary<string, object>(StringComparer.Ordinal);
+				_headers = headers ?? new Dictionary<string, object>(StringComparer.Ordinal);
 		}
 
 		public bool IsContentTypePresent
