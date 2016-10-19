@@ -51,13 +51,13 @@ namespace RabbitMqNext.Internals
 			var marker = new RingBufferPositionMarker(_reader._ringBufferStream);
 			while (marker.LengthRead < tableLength)
 			{
-				string key = ReadShortStr();
+				string key = ReadShortStr(internIt: false);
 				object value = ReadFieldValue();
 				table[key] = value;
 			}
 		}
 
-		public string ReadShortStr()
+		public string ReadShortStr(bool internIt = false)
 		{
 			int byteCount = _reader.ReadByte();
 			if (byteCount == 0) return string.Empty;
@@ -65,13 +65,15 @@ namespace RabbitMqNext.Internals
 			_reader.FillBufferWithLock(_smallBuffer, byteCount, reverse: false);
 			var str = Encoding.UTF8.GetString(_smallBuffer, 0, byteCount);
 
-#pragma warning disable 162
-			if (InternStrings)
+//#pragma warning disable 162
+//			if (InternStrings)
+			if (internIt)
 			{
 				return String.Intern(str);
 			}
 			return str;
-#pragma warning restore 162
+//			return str;
+//#pragma warning restore 162
 		}
 
 		public string ReadLongstr()

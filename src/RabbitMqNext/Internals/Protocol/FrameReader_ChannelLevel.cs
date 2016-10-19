@@ -42,8 +42,8 @@ namespace RabbitMqNext.Internals
 			string consumerTag = _amqpReader.ReadShortStr();
 			ulong deliveryTag = _amqpReader.ReadULong();
 			bool redelivered = _amqpReader.ReadBits() != 0;
-			string exchange =  _amqpReader.ReadShortStr();
-			string routingKey =  _amqpReader.ReadShortStr();
+			string exchange = _amqpReader.ReadShortStr(internIt: true);
+			string routingKey = _amqpReader.ReadShortStr(internIt: true);
 
 			byte frameEndMarker = _amqpReader.ReadOctet();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
@@ -118,20 +118,20 @@ namespace RabbitMqNext.Internals
 			if (presence != 0) // no header content
 			{
 				properties._presenceSWord = presence;
-				if (properties.IsContentTypePresent) { properties.ContentType =  _amqpReader.ReadShortStr(); }
-				if (properties.IsContentEncodingPresent) { properties.ContentEncoding =  _amqpReader.ReadShortStr(); }
+				if (properties.IsContentTypePresent) { properties.ContentType = _amqpReader.ReadShortStr(internIt: true); }
+				if (properties.IsContentEncodingPresent) { properties.ContentEncoding = _amqpReader.ReadShortStr(internIt: true); }
 				if (properties.IsHeadersPresent) { _amqpReader.ReadTable(properties.Headers); }
 				if (properties.IsDeliveryModePresent) { properties.DeliveryMode = _amqpReader.ReadOctet(); }
 				if (properties.IsPriorityPresent) { properties.Priority = _amqpReader.ReadOctet(); }
 				if (properties.IsCorrelationIdPresent) { properties.CorrelationId =  _amqpReader.ReadShortStr(); }
-				if (properties.IsReplyToPresent) { properties.ReplyTo =  _amqpReader.ReadShortStr(); }
+				if (properties.IsReplyToPresent) { properties.ReplyTo = _amqpReader.ReadShortStr(internIt: true); }
 				if (properties.IsExpirationPresent) { properties.Expiration =  _amqpReader.ReadShortStr(); }
 				if (properties.IsMessageIdPresent) { properties.MessageId =  _amqpReader.ReadShortStr(); }
 				if (properties.IsTimestampPresent) { properties.Timestamp =  _amqpReader.ReadTimestamp(); }
-				if (properties.IsTypePresent) { properties.Type =  _amqpReader.ReadShortStr(); }
-				if (properties.IsUserIdPresent) { properties.UserId =  _amqpReader.ReadShortStr(); }
-				if (properties.IsAppIdPresent) { properties.AppId =  _amqpReader.ReadShortStr(); }
-				if (properties.IsClusterIdPresent) { properties.ClusterId = _amqpReader.ReadShortStr(); }
+				if (properties.IsTypePresent) { properties.Type = _amqpReader.ReadShortStr(internIt: true); }
+				if (properties.IsUserIdPresent) { properties.UserId = _amqpReader.ReadShortStr(internIt: true); }
+				if (properties.IsAppIdPresent) { properties.AppId = _amqpReader.ReadShortStr(internIt: true); }
+				if (properties.IsClusterIdPresent) { properties.ClusterId = _amqpReader.ReadShortStr(internIt: true); }
 			}
 
 			if (!skipFrameEnd)
@@ -161,8 +161,8 @@ namespace RabbitMqNext.Internals
 		{
 			ushort replyCode = _amqpReader.ReadShort();
 			string replyText = _amqpReader.ReadShortStr();
-			string exchange = _amqpReader.ReadShortStr();
-			string routingKey = _amqpReader.ReadShortStr();
+			string exchange = _amqpReader.ReadShortStr(internIt: true);
+			string routingKey = _amqpReader.ReadShortStr(internIt: true);
 
 			byte frameEndMarker = _amqpReader.ReadOctet();
 			if (frameEndMarker != AmqpConstants.FrameEnd)
