@@ -230,7 +230,7 @@
 
 			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations, call BasicPublishWithConfirmation instead");
 
-			WaitIfChannelBlock();
+			// WaitIfChannelBlock();
 
 			_io.__BasicPublish(exchange, routingKey, mandatory, properties, buffer);
 		}
