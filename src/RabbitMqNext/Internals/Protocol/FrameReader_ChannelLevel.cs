@@ -92,9 +92,6 @@ namespace RabbitMqNext.Internals
 
 					await channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange,
 						routingKey, (int)length, properties, _reader._ringBufferStream).ConfigureAwait(false);
-
-//					await continuation(consumerTag, deliveryTag, redelivered, exchange,
-//					    routingKey, (int) length, properties, _reader._ringBufferStream).ConfigureAwait(false);
 				}
 				else
 				{

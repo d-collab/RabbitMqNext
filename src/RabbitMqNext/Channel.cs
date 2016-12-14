@@ -432,7 +432,6 @@
 						var delivery1 = tuple.Item1;
 						var cb1 = tuple.Item2;
 						var conInstance = tuple.Item3;
-//						var pThis = tuple.Item4;
 
 						try
 						{
@@ -455,9 +454,6 @@
 							{
 								delivery1.Dispose();
 							}
-//							pThis.Return(delivery1.properties);
-//							if (delivery1.bodySize != 0)
-//								delivery1.stream.Dispose();
 						}
 
 					}, Tuple.Create(delivery, cb, consumerInstance, this)) // tuple avoids the closure capture
@@ -498,9 +494,6 @@
 						{
 							delivery.Dispose();
 						}
-//						this.Return(delivery.properties);
-//						if (delivery.bodySize != 0)
-//							delivery.stream.Dispose();
 					}
 				}
 			}
