@@ -73,12 +73,19 @@ namespace RabbitMqNext.Io
 
 		Task IFrameProcessor.DispatchMethod(ushort channel, int classMethodId)
 		{
+			_conn.HeartbeatReceived(); // all incoming frames update "last received heartbeat" datetime
+
 			if (channel != 0)
 			{
 				return _conn.ResolveChannel(channel).HandleFrame(classMethodId);
 			}
 
 			return this.HandleFrame(classMethodId);
+		}
+
+		void IFrameProcessor.DispatchHeartbeat()
+		{
+			_conn.HeartbeatReceived();
 		}
 
 		#endregion
@@ -117,6 +124,14 @@ namespace RabbitMqNext.Io
 		internal override Task SendStartClose()
 		{
 			return __SendConnectionClose(AmqpConstants.ReplySuccess, "bye"); ;
+		}
+
+		internal void SendHeartbeat()
+		{
+			SendCommand(0, 0, 0, AmqpConnectionFrameWriter.ConnectionClose,
+				reply: null,
+				expectsReply: false,
+				optArg: AmqpConnectionFrameWriter.HeartbeatFrameWriter, immediately: false);
 		}
 
 		internal override async Task<bool> InitiateCleanClose(bool initiatedByServer, AmqpError error)
@@ -250,11 +265,11 @@ namespace RabbitMqNext.Io
 			}
 		}
 
-		internal async Task<bool> Handshake(string vhost, string username, string password, string connectionName, bool throwOnError)
+		internal async Task<bool> Handshake(string vhost, string username, string password, string connectionName, ushort heartbeat, bool throwOnError)
 		{
 			await __SendGreeting().ConfigureAwait(false);
 			await __SendConnectionStartOk(username, password, connectionName).ConfigureAwait(false);
-			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat: 0).ConfigureAwait(false); // disabling heartbeats for now
+			await __SendConnectionTuneOk(_channelMax, _frameMax, heartbeat).ConfigureAwait(false); // disabling heartbeats for now
 			_amqpWriter.FrameMaxSize = _frameMax;
 			KnownHosts = await __SendConnectionOpen(vhost).ConfigureAwait(false);
 

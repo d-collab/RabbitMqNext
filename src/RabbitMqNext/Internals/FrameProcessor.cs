@@ -6,5 +6,7 @@ namespace RabbitMqNext.Internals
 	public interface IFrameProcessor
 	{
 		Task DispatchMethod(ushort channel, int classMethodId);
+
+		void DispatchHeartbeat();
 	}
 }

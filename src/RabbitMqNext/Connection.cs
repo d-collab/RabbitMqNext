@@ -25,6 +25,8 @@
 		private CancellationTokenSource _channelCancellationTokenSource = new CancellationTokenSource();
 		private readonly List<Func<AmqpError, Task>> _errorsCallbacks = new List<Func<AmqpError, Task>>();
 
+		private Timer _heartbeatTimer;
+
 		public Connection()
 		{
 			_io = new ConnectionIO(this)
@@ -55,7 +57,8 @@
 
 		internal Task<bool> Connect(string hostname, string vhost, 
 									string username, string password, 
-									int port, string connectionName, bool throwOnError = true)
+									int port, string connectionName, 
+									ushort heartbeat, bool throwOnError = true)
 		{
 			// Saves info for reconnection scenarios
 			_connectionInfo = new ConnectionInfo 
@@ -65,7 +68,8 @@
 				username = username, 
 				password = password, 
 				port = port,
-				connectionName = connectionName
+				connectionName = connectionName,
+				heartbeat = heartbeat
 			};
 
 			return InternalConnect(hostname);
@@ -88,11 +92,16 @@
 			result = await _io.Handshake(_connectionInfo.vhost, 
 				_connectionInfo.username, 
 				_connectionInfo.password, 
-				_connectionInfo.connectionName, throwOnError).ConfigureAwait(false);
+				_connectionInfo.connectionName, _connectionInfo.heartbeat, throwOnError).ConfigureAwait(false);
 
 			if (result && this.Recovery != null)
 			{
 				this.Recovery.NotifyConnected(hostname);
+			}
+
+			if (_connectionInfo.heartbeat != 0)
+			{
+				SetupHeartbeat(_connectionInfo.heartbeat);
 			}
 
 			return result;
@@ -206,6 +215,8 @@
 
 		internal RecoveryAction NotifyAbruptClose(Exception reason)
 		{
+			StopHeartbeatTimerIfNeeded();
+
 			if (this.Recovery != null)
 				return this.Recovery.NotifyAbruptClose(reason);
 
@@ -214,6 +225,8 @@
 
 		internal RecoveryAction NotifyClosedByServer()
 		{
+			StopHeartbeatTimerIfNeeded();
+
 			if (this.Recovery != null)
 				return this.Recovery.NotifyCloseByServer();
 
@@ -234,6 +247,7 @@
 			internal string password;
 			internal string connectionName;
 			internal int port;
+			internal ushort heartbeat;
 		}
 
 		internal void BlockAllChannels(string reason)
@@ -268,6 +282,51 @@
 			{
 				ev();
 			}
+		}
+
+		private void SetupHeartbeat(ushort heartbeat)
+		{
+			StopHeartbeatTimerIfNeeded();
+
+			_lastHearbeatReceived = DateTime.Now;
+
+			_heartbeatTimer = new Timer(OnHeartbeatCallback, null, TimeSpan.FromMilliseconds(300), TimeSpan.FromSeconds(heartbeat / 2));
+		}
+
+		private void StopHeartbeatTimerIfNeeded()
+		{
+			if (_heartbeatTimer != null)
+			{
+				_heartbeatTimer.Dispose();
+				_heartbeatTimer = null;
+			}
+		}
+
+		private void OnHeartbeatCallback(object state)
+		{
+			var timeoutTs = TimeSpan.FromSeconds(_connectionInfo.heartbeat + _connectionInfo.heartbeat / 2); // timeout with some tolerance
+			var diff = DateTime.Now - _lastHearbeatReceived;
+
+			// is past timeout?
+			if (diff > timeoutTs)
+			{
+				// yes, so we assume connection is dead
+
+				this._io.InitiateCleanClose(true, new AmqpError() { ReplyText = "Heartbeat timeout"}).IntentionallyNotAwaited();
+
+				return;
+			}
+
+			// If we got here, all is good, we need to send our hearbeat
+			_io.SendHeartbeat();
+		}
+
+		private DateTime _lastHearbeatReceived;
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void HeartbeatReceived()
+		{
+			_lastHearbeatReceived = DateTime.Now;
 		}
 	}
 }

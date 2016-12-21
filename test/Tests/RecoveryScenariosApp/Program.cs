@@ -64,7 +64,7 @@
 					.Connect(_host, _vhost,
 							 _username, _password, 
 							 recoverySettings: AutoRecoverySettings.All, 
-							 connectionName: "main");
+							 connectionName: "main", heartbeat: 60);
 
 //			conn.RecoveryCompleted += () =>
 //			{

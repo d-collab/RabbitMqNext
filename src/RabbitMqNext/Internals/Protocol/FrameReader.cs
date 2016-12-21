@@ -57,6 +57,8 @@ namespace RabbitMqNext.Internals
 				{
 					if (LogAdapter.ProtocolLevelLogEnabled)
 						LogAdapter.LogDebug(LogSource, "Received FrameHeartbeat");
+
+					_frameProcessor.DispatchHeartbeat();
 				}
 
 				byte frameEndMarker = _reader.ReadByte();

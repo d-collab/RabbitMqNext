@@ -9,6 +9,8 @@
 	{
 		private const string LogSource = "AmqpConnectionFrameWriter";
 
+		public static readonly HeartbeatFrame HeartbeatFrameWriter = new HeartbeatFrame();
+
 		private static readonly byte[] GreetingPayload;
 
 		static AmqpConnectionFrameWriter()
@@ -21,6 +23,15 @@
 			GreetingPayload[5] = 0; // major
 			GreetingPayload[6] = 9; // minor 
 			GreetingPayload[7] = 1; // revision
+		}
+
+		internal class HeartbeatFrame : IFrameContentWriter
+		{
+			public void Write(AmqpPrimitivesWriter writer, ushort channel, ushort classId, ushort methodId, object optionalArg)
+			{
+				writer.WriteFrameStart(AmqpConstants.FrameHeartbeat, 0, 0, null, null);
+				writer.WriteOctet(AmqpConstants.FrameEnd);
+			}
 		}
 
 		public static WriterDelegate Greeting()

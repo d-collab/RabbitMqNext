@@ -26,7 +26,7 @@
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672, 
 			AutoRecoverySettings recoverySettings = null, string connectionName = null, 
-			int maxChannels = 30)
+			int maxChannels = 30, ushort heartbeat = 0)
 		{
 			recoverySettings = recoverySettings ?? AutoRecoverySettings.Off;
 			connectionName = connectionName ?? DefaultConnectionName;
@@ -39,7 +39,7 @@
 				{
 					var successful = 
 						await conn.Connect(hostname, vhost, 
-										   username, password, port, connectionName, 
+										   username, password, port, connectionName, heartbeat, 
 										   throwOnError: false).ConfigureAwait(false);
 					if (successful)
 					{
@@ -69,7 +69,7 @@
 			string vhost = "/", string username = "guest",
 			string password = "guest", int port = 5672,
 			AutoRecoverySettings recoverySettings = null, string connectionName = null, 
-			int maxChannels = 30)
+			int maxChannels = 30, ushort heartbeat = 0)
 		{
 			recoverySettings = recoverySettings ?? AutoRecoverySettings.Off;
 			connectionName = connectionName ?? DefaultConnectionName;
@@ -79,7 +79,7 @@
 			try
 			{
 				await conn
-					.Connect(hostname, vhost, username, password, port, connectionName, throwOnError: true)
+					.Connect(hostname, vhost, username, password, port, connectionName, heartbeat, throwOnError: true)
 					.ConfigureAwait(false);
 
 				conn.SetMaxChannels(maxChannels);
