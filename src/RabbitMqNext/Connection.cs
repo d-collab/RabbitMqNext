@@ -25,6 +25,7 @@
 		private CancellationTokenSource _channelCancellationTokenSource = new CancellationTokenSource();
 		private readonly List<Func<AmqpError, Task>> _errorsCallbacks = new List<Func<AmqpError, Task>>();
 
+		private DateTime _lastHearbeatReceived;
 		private Timer _heartbeatTimer;
 
 		public Connection()
@@ -304,24 +305,21 @@
 
 		private void OnHeartbeatCallback(object state)
 		{
-			var timeoutTs = TimeSpan.FromSeconds(_connectionInfo.heartbeat + _connectionInfo.heartbeat / 2); // timeout with some tolerance
+			var timeoutTs = TimeSpan.FromSeconds(_connectionInfo.heartbeat * 1.5); // timeout with some tolerance
 			var diff = DateTime.Now - _lastHearbeatReceived;
-
-			// is past timeout?
-			if (diff > timeoutTs)
+			
+			if (diff > timeoutTs) // is past timeout?
 			{
-				// yes, so we assume connection is dead
+				// yes, so we assume connection is dead. autorecovery might still kick in
 
-				this._io.InitiateCleanClose(true, new AmqpError() { ReplyText = "Heartbeat timeout"}).IntentionallyNotAwaited();
+				this._io.InitiateCleanClose(true, new AmqpError() { ReplyText = "Heartbeat timeout" }).IntentionallyNotAwaited();
 
 				return;
 			}
 
-			// If we got here, all is good, we need to send our hearbeat
+			// If we got here, all is good and we need to send our hearbeat
 			_io.SendHeartbeat();
 		}
-
-		private DateTime _lastHearbeatReceived;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void HeartbeatReceived()
