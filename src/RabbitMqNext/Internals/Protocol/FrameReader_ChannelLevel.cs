@@ -45,6 +45,8 @@ namespace RabbitMqNext.Internals
 			string exchange = _amqpReader.ReadShortStr(internIt: true);
 			string routingKey = _amqpReader.ReadShortStr(internIt: true);
 
+			channelImpl.InternalUpdateDeliveryTag(deliveryTag);
+
 			byte frameEndMarker = _amqpReader.ReadOctet();
 			if (frameEndMarker != AmqpConstants.FrameEnd) throw new Exception("Expecting frameend!");
 

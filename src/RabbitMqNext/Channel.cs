@@ -15,7 +15,7 @@
 	using RabbitMqNext.Io;
 	using Utils;
 
-	public sealed class Channel : IChannel
+	public sealed class Channel : IChannel, IInternalChannel
 	{
 		private const string LogSource = "Channel";
 
@@ -24,9 +24,9 @@
 		private readonly CancellationToken _cancellationToken;
 
 		internal readonly ChannelIO _io;
-		internal MessagesPendingConfirmationKeeper _confirmationKeeper;
 		internal readonly ChannelOptions _options;
 		internal readonly TaskScheduler _schedulerToDeliverMessages;
+		internal MessagesPendingConfirmationKeeper _confirmationKeeper;
 
 		private readonly ConcurrentDictionary<string, BasicConsumerSubscriptionInfo> _consumerSubscriptions;
 		private readonly ObjectPoolArray<BasicProperties> _propertiesPool;
@@ -53,6 +53,15 @@
 
 			_propertiesPool = new ObjectPoolArray<BasicProperties>(() => new BasicProperties(isFrozen: false, reusable: true), 100, preInitialize: false);
 		}
+
+		#region IInternalChannel
+
+		private ulong _deliveryTagOffset, _maxDelTagSeen;
+
+		public ulong DeliveryTagOffset { get { return _deliveryTagOffset; } set { _deliveryTagOffset = value; } }
+		public ulong MaxDeliveryTagSeen { get { return _maxDelTagSeen; } set { _maxDelTagSeen = value; } }
+
+		#endregion
 
 		public event Action<string> ChannelBlocked;
 
@@ -112,14 +121,14 @@
 		{
 			EnsureOpen();
 
-			_io.__BasicAck(deliveryTag, multiple);
+			_io.__BasicAck(deliveryTag - _deliveryTagOffset, multiple);
 		}
 
 		public void BasicNAck(ulong deliveryTag, bool multiple, bool requeue)
 		{
 			EnsureOpen();
 
-			_io.__BasicNAck(deliveryTag, multiple, requeue);
+			_io.__BasicNAck(deliveryTag - _deliveryTagOffset, multiple, requeue);
 		}
 
 		public Task ExchangeDeclare(string exchange, string type, bool durable, bool autoDelete,
@@ -363,7 +372,7 @@
 				bodySize = bodySize,
 				properties = properties,
 				routingKey = routingKey,
-				deliveryTag = deliveryTag,
+				deliveryTag = deliveryTag + this._deliveryTagOffset, // adds tag offset
 				redelivered = redelivered,
 			};
 
@@ -686,6 +695,11 @@
 			}
 		}
 
+		internal void ComputeOffsets(Channel replacementChannel)
+		{
+			replacementChannel.DeliveryTagOffset = this.MaxDeliveryTagSeen + this.DeliveryTagOffset;
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal void BlockChannel(string reason)
 		{
@@ -718,20 +732,20 @@
 			}
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void WaitIfChannelBlock()
-		{
-			// if the the BasicPublish is in response of a consumed 
-			// message, and the ConsumerMode is SingleThreaded, this will inevitably be true!
-
-			Asserts.AssertNotReadFrameThread("Do not call BasicPublishFast from the Read frame thread. " + 
-											 "See https://github.com/clearctvm/RabbitMqNext/wiki/AssertNotReadFrameThread "); // otherwise we'll be up to a nice deadlock
-
-			if (_publishingBlocked == 1)
-			{
-				_publishingBlockedWaiter.Wait(_cancellationToken);
-			}
-		}
+//		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+//		private void WaitIfChannelBlock()
+//		{
+//			// if the the BasicPublish is in response of a consumed 
+//			// message, and the ConsumerMode is SingleThreaded, this will inevitably be true!
+//
+//			Asserts.AssertNotReadFrameThread("Do not call BasicPublishFast from the Read frame thread. " + 
+//											 "See https://github.com/clearctvm/RabbitMqNext/wiki/AssertNotReadFrameThread "); // otherwise we'll be up to a nice deadlock
+//
+//			if (_publishingBlocked == 1)
+//			{
+//				_publishingBlockedWaiter.Wait(_cancellationToken);
+//			}
+//		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private async Task WaitIfChannelBlockAndSwitchThreadIfNeeded()
@@ -746,6 +760,15 @@
 				// "safe" to block this other thread (sort of) as if 
 				// it's a threadpool thread, we shouldnt take long
 				_publishingBlockedWaiter.Wait(_cancellationToken);
+			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal void InternalUpdateDeliveryTag(ulong deliveryTag)
+		{
+			if (deliveryTag > _maxDelTagSeen)
+			{
+				_maxDelTagSeen = deliveryTag;
 			}
 		}
 	}

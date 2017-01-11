@@ -105,4 +105,10 @@ namespace RabbitMqNext
 		
 		Task Close();
 	}
+
+	internal interface IInternalChannel
+	{
+		ulong DeliveryTagOffset { get; }
+		ulong MaxDeliveryTagSeen { get; }
+	}
 }

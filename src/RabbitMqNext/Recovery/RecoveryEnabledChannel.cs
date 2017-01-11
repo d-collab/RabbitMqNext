@@ -354,6 +354,7 @@
 
 				// copy delegate pointers from old to new
 				_channel.CopyDelegates(replacementChannel);
+				_channel.ComputeOffsets(replacementChannel);
 
 				// 0. QoS
 				await RecoverQos(replacementChannel).ConfigureAwait(false);
