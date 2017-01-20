@@ -76,13 +76,13 @@ namespace RabbitMqNext
 
 		protected TaskCompletionSource<T> SecureSpotAndUniqueCorrelationId(bool runContinuationsAsynchronously, out long pos, out uint correlationId)
 		{
-			var taskCreationOpts = runContinuationsAsynchronously
+			var taskCreationOpts = TaskCreationOptions.AttachedToParent | (runContinuationsAsynchronously
 				? TaskCreationOptions.RunContinuationsAsynchronously
-				: TaskCreationOptions.None;
+				: TaskCreationOptions.None);
 
 			var tcs = new TaskCompletionSource<T>(taskCreationOpts);
 
-			if (tcs.Task.Id == 0) // wrap protection
+			while (tcs.Task.Id == 0) // wrap protection
 				tcs = new TaskCompletionSource<T>(taskCreationOpts);
 
 			correlationId = 0;
