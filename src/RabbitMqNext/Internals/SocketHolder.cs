@@ -57,6 +57,8 @@ namespace RabbitMqNext.Internals
 			_index = index;
 			var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
 			socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
+			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, 16384);
+			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer, 16384);
 
 
 			IPAddress[] addresses;
