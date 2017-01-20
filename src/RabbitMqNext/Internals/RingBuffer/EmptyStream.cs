@@ -27,7 +27,6 @@
 
 		public override void Write(byte[] buffer, int offset, int count)
 		{
-			throw new NotImplementedException();
 		}
 
 		public override void Flush()
@@ -48,7 +47,7 @@
 
 		public override bool CanWrite
 		{
-			get { return false; }
+			get { return true; }
 		}
 
 		protected override void Dispose(bool disposing)
