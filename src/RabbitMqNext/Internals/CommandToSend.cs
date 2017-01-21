@@ -86,7 +86,6 @@
 						ReplyText = ex.Message
 					};
 					AmqpIOBase.SetException(Tcs, error, classMethodId);
-//					AmqpIOBase.SetException(TcsSlim, error, classMethodId);
 
 					throw;
 				}
@@ -96,14 +95,11 @@
 				if (error != null)
 				{
 					AmqpIOBase.SetException(Tcs, error, classMethodId);
-//					AmqpIOBase.SetException(TcsSlim, error, classMethodId);
 				}
 				else
 				{
 					if (Tcs != null)
 						Tcs.SetResult(true);
-//					if (TcsSlim != null)
-//						TcsSlim.TrySetCompleted();
 				}
 			}
 
