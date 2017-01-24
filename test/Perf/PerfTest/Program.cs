@@ -283,14 +283,12 @@
 				};
 				prop.Headers["serialization"] = 0;
 
-				newChannel.MessageUndeliveredHandler = (undelivered) =>
+				newChannel.MessageUndeliveredHandler += (undelivered) =>
 				{
 					Console.WriteLine("\t(Ops, message not routed: " + 
 						undelivered.replyCode + " " + 
 						undelivered.replyText + " " + 
 						undelivered.routingKey + ")");
-
-					return Task.CompletedTask;
 				};
 
 				Console.WriteLine("Started Publishing...");

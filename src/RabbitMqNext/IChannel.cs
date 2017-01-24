@@ -21,7 +21,7 @@ namespace RabbitMqNext
 		/// </summary>
 		event Action ChannelUnblocked;
 
-		Func<UndeliveredMessage, Task> MessageUndeliveredHandler { get; set; }
+		event Action<UndeliveredMessage> MessageUndeliveredHandler;
 
 		bool IsConfirmationEnabled { get; }
 		

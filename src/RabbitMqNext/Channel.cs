@@ -67,6 +67,8 @@
 
 		public event Action ChannelUnblocked;
 
+		public event Action<UndeliveredMessage> MessageUndeliveredHandler;
+
 		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
 			if (errorCallback == null) throw new ArgumentNullException("errorCallback");
@@ -92,8 +94,6 @@
 		}
 
 		public bool IsClosed { get { return _io.IsClosed; } }
-
-		public Func<UndeliveredMessage, Task> MessageUndeliveredHandler { get; set; }
 
 		public BasicProperties RentBasicProperties()
 		{
@@ -347,7 +347,7 @@
 			this._io.Dispose();
 		}
 
-		internal async Task DispatchDeliveredMessage(
+		internal void DispatchDeliveredMessage(
 			string consumerTag, ulong deliveryTag, bool redelivered,
 			string exchange, string routingKey, int bodySize,
 			BasicProperties properties, BaseLightStream lightStream)
@@ -392,9 +392,9 @@
 				try
 				{
 					if (cb != null)
-						await cb(delivery).ConfigureAwait(false);
+						cb(delivery).GetAwaiter().GetResult();
 					else
-						await consumerInstance.Consume(delivery).ConfigureAwait(false);
+						consumerInstance.Consume(delivery).GetAwaiter().GetResult();
 				}
 				finally
 				{
@@ -409,7 +409,7 @@
 			}
 			else 
 			{
-				// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and more forward
+				// parallel mode. it cannot hold the frame handler, so we copy the buffer (yuck) and move forward
 
 				if (mode == ConsumeMode.ParallelWithBufferCopy || 
 					mode == ConsumeMode.SerializedWithBufferCopy)
@@ -511,7 +511,7 @@
 				LogAdapter.LogDebug(LogSource, "Consumer exiting. Tag " + consumer.ConsumerTag);
 		}
 
-		internal async Task DispatchBasicReturn(ushort replyCode, string replyText, 
+		internal void DispatchBasicReturn(ushort replyCode, string replyText, 
 			string exchange, string routingKey, int bodySize,
 			BasicProperties properties, BaseLightStream ringBufferStream)
 		{
@@ -533,7 +533,7 @@
 						exchange = exchange
 					};
 
-					await ev(inst).ConfigureAwait(false);
+					ev(inst);
 				}
 			}
 			finally
@@ -568,7 +568,7 @@
 			_io.__SendChannelFlowOk(isActive);
 		}
 
-		internal Task HandleCancelConsumerByServer(string consumerTag, byte noWait)
+		internal void HandleCancelConsumerByServer(string consumerTag, byte noWait)
 		{
 			BasicConsumerSubscriptionInfo subscription;
 			if (_consumerSubscriptions.TryRemove(consumerTag, out subscription))
@@ -580,8 +580,6 @@
 			{
 				// TODO: Sends back CancelOk
 			}
-
-			return Task.CompletedTask;
 		}
 
 		internal Task EnableConfirmation(int maxunconfirmedMessages)

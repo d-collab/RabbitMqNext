@@ -23,7 +23,6 @@ namespace RabbitMqNext.IntegrationTests
 			channel.MessageUndeliveredHandler += message =>
 			{
 				undelivered = message;
-				return Task.CompletedTask;
 			};
 
 			await channel.ExchangeDeclare("test_direct", "direct", true, false, null, waitConfirmation: true);

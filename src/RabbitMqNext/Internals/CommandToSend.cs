@@ -23,12 +23,11 @@
 		public ushort ClassId;
 		public ushort MethodId;
 		public Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandGenerator;
-		public Func<ushort, int, AmqpError, Task> ReplyAction;
+		public Action<ushort, int, AmqpError> ReplyAction;
 		public Action PrepareAction;
 		public bool ExpectsReply;
 		public object OptionalArg;
 		public TaskCompletionSource<bool> Tcs;
-//		public TaskSlim TcsSlim;
 		public bool Immediately;
 
 		private ManualResetEventSlim _whenReplyReceived;
@@ -44,7 +43,7 @@
 			if (PrepareAction != null) PrepareAction();
 		}
 
-		public async Task RunReplyAction(ushort channel, int classMethodId, AmqpError error)
+		public void RunReplyAction(ushort channel, int classMethodId, AmqpError error)
 		{
 			AssertCanBeUsed();
 
@@ -77,7 +76,7 @@
 			{
 				try
 				{
-					await this.ReplyAction(channel, classMethodId, error).ConfigureAwait(false);
+					this.ReplyAction(channel, classMethodId, error);
 				}
 				catch (Exception ex)
 				{
@@ -115,7 +114,6 @@
 			OptionalArg = null;
 			PrepareAction = null;
 			Tcs = null;
-//			TcsSlim = null;
 			_whenReplyReceived = null;
 
 			if (Interlocked.CompareExchange(ref _inUse, value: 0, comparand: 1) != 1)

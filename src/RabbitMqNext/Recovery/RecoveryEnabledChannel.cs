@@ -52,6 +52,12 @@
 			remove { _channel.ChannelUnblocked -= value; }
 		}
 
+		public event Action<UndeliveredMessage> MessageUndeliveredHandler
+		{
+			add { _channel.MessageUndeliveredHandler += value; }
+			remove { _channel.MessageUndeliveredHandler -= value; }
+		}
+
 		public void AddErrorCallback(Func<AmqpError, Task> errorCallback)
 		{
 			_channel.AddErrorCallback(errorCallback);
@@ -62,12 +68,6 @@
 			_channel.RemoveErrorCallback(errorCallback);
 		}
 
-		public Func<UndeliveredMessage, Task> MessageUndeliveredHandler 
-		{ 
-			get { return _channel.MessageUndeliveredHandler; } 
-			set { _channel.MessageUndeliveredHandler = value; } 
-		}
-		
 		public bool IsConfirmationEnabled
 		{
 			get { return _channel.IsConfirmationEnabled; }

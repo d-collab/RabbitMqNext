@@ -9,7 +9,7 @@ namespace RabbitMqNext.Internals
 	{
 		private const string LogSource = "FrameReader";
 
-		public async Task Read_QueueDeclareOk(Func<string, uint, uint, Task> continuation)
+		public void Read_QueueDeclareOk(Action<string, uint, uint> continuation)
 		{
 			string queue = _amqpReader.ReadShortStr();
 			uint messageCount = _amqpReader.ReadLong();
@@ -18,7 +18,7 @@ namespace RabbitMqNext.Internals
 			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug(LogSource, "< QueueDeclareOk " + queue);
 
-			await continuation(queue, messageCount, consumerCount).ConfigureAwait(false);
+			continuation(queue, messageCount, consumerCount);
 		}
 
 		public async void Read_Channel_Close2(Func<AmqpError, Task<bool>> continuation)
@@ -34,7 +34,7 @@ namespace RabbitMqNext.Internals
 			await continuation(new AmqpError() { ClassId = classId, MethodId = methodId, ReplyText = replyText, ReplyCode = replyCode }).ConfigureAwait(false);
 		}
 
-		public async Task Read_BasicDelivery(
+		public void Read_BasicDelivery(
 			// Func<string, ulong, bool, string, string, int, BasicProperties, BaseLightStream, Task> continuation, 
 			Channel channelImpl,
 			BasicProperties properties)
@@ -92,20 +92,20 @@ namespace RabbitMqNext.Internals
 
 					// _reader._ringBufferStream.EnsureAvailableToRead(bodySize);
 
-					await channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange,
-						routingKey, (int)length, properties, _reader._ringBufferStream).ConfigureAwait(false);
+					channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange,
+						routingKey, (int)length, properties, _reader._ringBufferStream);
 				}
 				else
 				{
-					await channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange,
-						routingKey, (int)bodySize, properties, new MultiBodyStreamWrapper(_reader._ringBufferStream, (int)length, bodySize)).ConfigureAwait(false);
+					channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange,
+						routingKey, (int)bodySize, properties, new MultiBodyStreamWrapper(_reader._ringBufferStream, (int)length, bodySize));
 				}
 			}
 			else
 			{
 				// Empty body size
 
-				await channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, null).ConfigureAwait(false);
+				channelImpl.DispatchDeliveredMessage(consumerTag, deliveryTag, redelivered, exchange, routingKey, 0, properties, null);
 			}
 		}
 
@@ -149,12 +149,10 @@ namespace RabbitMqNext.Internals
 		{
 			var consumerTag = _amqpReader.ReadShortStr();
 
-			// Console.WriteLine("< BasicConsumeOk  " + consumerTag);
-
 			continuation(consumerTag);
 		}
 
-		public async Task Read_BasicReturn(Channel channelImpl,
+		public void Read_BasicReturn(Channel channelImpl,
 			// Func<ushort, string, string, string, int, BasicProperties, BaseLightStream, Task> continuation, 
 			BasicProperties properties)
 		{
@@ -167,7 +165,6 @@ namespace RabbitMqNext.Internals
 			if (frameEndMarker != AmqpConstants.FrameEnd)
 			{
 				LogAdapter.LogError(LogSource, "Expecting FrameEnd but got " + frameEndMarker);
-
 				throw new Exception("Expecting frameend!");
 			}
 
@@ -177,7 +174,6 @@ namespace RabbitMqNext.Internals
 			if (frameHeaderStart != AmqpConstants.FrameHeader)
 			{
 				LogAdapter.LogError(LogSource, "Expecting FrameHeader but got " + frameHeaderStart);
-
 				throw new Exception("Expecting Frame Header");
 			}
 
@@ -201,7 +197,8 @@ namespace RabbitMqNext.Internals
 					throw new Exception("Expecting Frame Body");
 				}
 
-				await _reader.SkipBy(2).ConfigureAwait(false); // channel = _reader.ReadUInt16();
+				// await _reader.SkipBy(2).ConfigureAwait(false); // channel = _reader.ReadUInt16();
+				_reader.SkipBy(2); // channel = _reader.ReadUInt16();
 				uint length = _reader.ReadUInt32();
 
 				// must leave pending Frame end
@@ -213,20 +210,19 @@ namespace RabbitMqNext.Internals
 
 					// _reader._ringBufferStream.EnsureAvailableToRead(bodySize);
 
-					await channelImpl.DispatchBasicReturn(replyCode, replyText, exchange,
-						routingKey, (int)length, properties, _reader._ringBufferStream).ConfigureAwait(false);
+					channelImpl.DispatchBasicReturn(replyCode, replyText, exchange,
+						routingKey, (int)length, properties, _reader._ringBufferStream);
 				}
 				else
 				{
-					await channelImpl.DispatchBasicReturn(replyCode, replyText, exchange,
-						routingKey, (int)bodySize, properties, new MultiBodyStreamWrapper(_reader._ringBufferStream, (int)length, bodySize)).ConfigureAwait(false);
+					channelImpl.DispatchBasicReturn(replyCode, replyText, exchange,
+						routingKey, (int)bodySize, properties, new MultiBodyStreamWrapper(_reader._ringBufferStream, (int)length, bodySize));
 				}
 			}
 			else
 			{
 				// no body
-
-				await channelImpl.DispatchBasicReturn(replyCode, replyText, exchange, routingKey, 0, properties, null).ConfigureAwait(false);
+				channelImpl.DispatchBasicReturn(replyCode, replyText, exchange, routingKey, 0, properties, null);
 			}
 		}
 
@@ -273,17 +269,17 @@ namespace RabbitMqNext.Internals
 			continuation(consumerTag);
 		}
 
-		public Task Read_GenericMessageCount(Func<uint, Task> continuation)
+		public void Read_GenericMessageCount(Action<uint> continuation)
 		{
 			uint messageCount = _amqpReader.ReadLong();
 
 			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug(LogSource, "< GenericMessageCount : " + messageCount);
 
-			return continuation(messageCount);
+			continuation(messageCount);
 		}
 
-		public Task Read_BasicCancel(Func<string, byte, Task> continuation)
+		public void Read_BasicCancel(Action<string, byte> continuation)
 		{
 			string consumerTag = _amqpReader.ReadShortStr();
 			var noWait = _amqpReader.ReadBits();
@@ -291,7 +287,7 @@ namespace RabbitMqNext.Internals
 			if (LogAdapter.ProtocolLevelLogEnabled)
 				LogAdapter.LogDebug(LogSource, "< BasicCancel : " + consumerTag + " bits " + noWait);
 
-			return continuation(consumerTag, noWait);
+			continuation(consumerTag, noWait);
 		}
 	}
 }

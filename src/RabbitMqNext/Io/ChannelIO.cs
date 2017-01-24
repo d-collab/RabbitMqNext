@@ -42,11 +42,11 @@ namespace RabbitMqNext.Io
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicDeliver:
-					await _connectionIo._frameReader.Read_BasicDelivery(_channel, _channel.RentBasicProperties()).ConfigureAwait(false);
+					_connectionIo._frameReader.Read_BasicDelivery(_channel, _channel.RentBasicProperties());
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicReturn:
-					await _connectionIo._frameReader.Read_BasicReturn(_channel, _channel.RentBasicProperties()).ConfigureAwait(false);
+					_connectionIo._frameReader.Read_BasicReturn(_channel, _channel.RentBasicProperties());
 					break;
 
 				// Basic Ack and NAck will be sent by the server if we enabled confirmation for this channel
@@ -63,11 +63,11 @@ namespace RabbitMqNext.Io
 					break;
 
 				case AmqpClassMethodChannelLevelConstants.BasicCancel:
-					await _connectionIo._frameReader.Read_BasicCancel(_channel.HandleCancelConsumerByServer).ConfigureAwait(false);
+					_connectionIo._frameReader.Read_BasicCancel(_channel.HandleCancelConsumerByServer);
 					break;
 
 				default:
-					await base.HandReplyToAwaitingQueue(classMethodId).ConfigureAwait(false);
+					base.HandReplyToAwaitingQueue(classMethodId);
 					break;
 			}
 		}
@@ -116,7 +116,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				}, expectsReply: true);
 
 			return tcs.Task;
@@ -140,7 +139,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				},
 				expectsReply: true,
 				optArg: new FrameParameters.CloseParams()
@@ -189,7 +187,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				},
 				expectsReply: true,
 				tcs: tcs);
@@ -215,7 +212,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				}, expectsReply: true);
 
 			return tcs.Task;
@@ -223,7 +219,7 @@ namespace RabbitMqNext.Io
 
 		internal void __BasicAck(ulong deliveryTag, bool multiple)
 		{
-			var args = new FrameParameters.BasicAckArgs() { deliveryTag = deliveryTag, multiple = multiple };
+			var args = new FrameParameters.BasicAckArgs { deliveryTag = deliveryTag, multiple = multiple };
 
 			_connectionIo.SendCommand(_channelNum, 60, 80,
 				null, // writer
@@ -266,7 +262,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				}, 
 				expectsReply: waitConfirmation);
 
@@ -283,11 +278,11 @@ namespace RabbitMqNext.Io
 
 			_connectionIo.SendCommand(_channelNum, 50, 10, 
 				writer,
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueueDeclareOk)
 					{
-						await _connectionIo._frameReader.Read_QueueDeclareOk((queueName, messageCount, consumerCount) =>
+						_connectionIo._frameReader.Read_QueueDeclareOk((queueName, messageCount, consumerCount) =>
 						{
 						    tcs.SetResult(new AmqpQueueInfo()
 						    {
@@ -295,9 +290,7 @@ namespace RabbitMqNext.Io
 						        Consumers = consumerCount,
 						        Messages = messageCount
 						    });
-
-						    return Task.CompletedTask;
-						}).ConfigureAwait(false);
+						});
 					}
 					else if (!waitConfirmation)
 					{
@@ -312,8 +305,7 @@ namespace RabbitMqNext.Io
 			return tcs.Task;
 		}
 
-		internal Task __QueueBind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments,
-			bool waitConfirmation)
+		internal Task __QueueBind(string queue, string exchange, string routingKey, IDictionary<string, object> arguments, bool waitConfirmation)
 		{
 			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -331,14 +323,14 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				}, expectsReply: waitConfirmation);
 
 			return tcs.Task;
 		}
 
 		internal Task<string> __BasicConsume(ConsumeMode mode, string queue, string consumerTag, bool withoutAcks, 
-			bool exclusive, IDictionary<string, object> arguments, bool waitConfirmation, Action<string> confirmConsumerTag)
+											 bool exclusive, IDictionary<string, object> arguments,
+											 bool waitConfirmation, Action<string> confirmConsumerTag)
 		{
 			var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -376,8 +368,6 @@ namespace RabbitMqNext.Io
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
 
-					return Task.CompletedTask;
-
 				}, expectsReply: waitConfirmation);
 
 			return tcs.Task;
@@ -410,8 +400,6 @@ namespace RabbitMqNext.Io
 						tcs.TrySetResult(true);
 					else
 						AmqpIOBase.SetException(tcs, error, classMethodId);
-
-					return Task.CompletedTask;
 				},
 				expectsReply: false,
 //				tcsL: null,
@@ -451,8 +439,6 @@ namespace RabbitMqNext.Io
 
 					if (error != null)
 						AmqpIOBase.SetException(tcs, error, classMethodId);
-
-					return Task.CompletedTask;
 				},
 				expectsReply: false,
 //				tcsL: null, 
@@ -482,8 +468,6 @@ namespace RabbitMqNext.Io
 					{
 						_channel.Return(properties);
 					}
-
-					return Task.CompletedTask;
 				},
 				expectsReply: false,
 				optArg: args);
@@ -512,8 +496,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-
-					return Task.CompletedTask;
 				}, 
 				expectsReply: waitConfirmation);
 
@@ -536,7 +518,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				},
 				expectsReply: true,
 				tcs: tcs);
@@ -567,7 +548,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				},
 				expectsReply: waitConfirmation);
 
@@ -596,7 +576,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				},
 				expectsReply: waitConfirmation);
 
@@ -624,7 +603,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				},
 				expectsReply: waitConfirmation);
 
@@ -654,7 +632,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				},
 				expectsReply: true);
 
@@ -670,18 +647,17 @@ namespace RabbitMqNext.Io
 			_connectionIo.SendCommand(_channelNum,
 				Amqp.Channel.Queue.ClassId, Amqp.Channel.Queue.Methods.QueueDelete,
 				writer,
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueuePurgeOk)
 					{
-						await _connectionIo._frameReader.Read_GenericMessageCount(count =>
+						_connectionIo._frameReader.Read_GenericMessageCount(count =>
 						{
 							if (LogAdapter.ProtocolLevelLogEnabled)
 								LogAdapter.LogDebug(LogSource, "< QueueDeleteOk " + queue);
 
 							tcs.SetResult(count);
-							return Task.CompletedTask;
-						}).ConfigureAwait(false);
+						});
 					}
 					else if (!waitConfirmation)
 					{
@@ -706,18 +682,17 @@ namespace RabbitMqNext.Io
 			_connectionIo.SendCommand(_channelNum,
 				Amqp.Channel.Queue.ClassId, Amqp.Channel.Queue.Methods.QueuePurge,
 				writer,
-				reply: async (channel, classMethodId, error) =>
+				reply: (channel, classMethodId, error) =>
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.QueuePurgeOk)
 					{
-						await _connectionIo._frameReader.Read_GenericMessageCount(count =>
+						_connectionIo._frameReader.Read_GenericMessageCount(count =>
 						{
 							if (LogAdapter.ProtocolLevelLogEnabled)
 								LogAdapter.LogDebug(LogSource, "< QueuePurgeOk " + queue);
 
 							tcs.SetResult(count);
-							return Task.CompletedTask;
-						}).ConfigureAwait(false);
+						});
 					}
 					else if (!waitConfirmation)
 					{

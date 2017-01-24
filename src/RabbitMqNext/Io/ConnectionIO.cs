@@ -110,7 +110,8 @@ namespace RabbitMqNext.Io
 
 				default:
 					// Any other connection level method?
-					return base.HandReplyToAwaitingQueue(classMethodId);
+					base.HandReplyToAwaitingQueue(classMethodId);
+					break;
 			}
 
 			return Task.CompletedTask;
@@ -327,7 +328,7 @@ namespace RabbitMqNext.Io
 			// if writing to socket is enough, set as complete
 			if (!cmdToSend.ExpectsReply)
 			{
-				cmdToSend.RunReplyAction(0, 0, null).IntentionallyNotAwaited();
+				cmdToSend.RunReplyAction(0, 0, null);
 			}
 		}
 
@@ -414,7 +415,7 @@ namespace RabbitMqNext.Io
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
 			Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
-			Func<ushort, int, AmqpError, Task> reply,
+			Action<ushort, int, AmqpError> reply,
 			bool expectsReply, TaskCompletionSource<bool> tcs = null,
 			object optArg = null, /*TaskSlim tcsL = null,*/ Action prepare = null, 
 			bool immediately = false)
@@ -453,8 +454,8 @@ namespace RabbitMqNext.Io
 //				FlushCommand(cmd);
 		}
 
-		private void SetErrorResultIfErrorPending(bool expectsReply, Func<ushort, int, AmqpError, Task> replyFn, 
-												  TaskCompletionSource<bool> tcs /*, TaskSlim taskSlim*/)
+		private void SetErrorResultIfErrorPending(bool expectsReply, Action<ushort, int, AmqpError> replyFn, 
+												  TaskCompletionSource<bool> tcs)
 		{
 			if (expectsReply)
 			{
@@ -477,7 +478,7 @@ namespace RabbitMqNext.Io
 			CommandToSend cmdToSend;
 			while (_commandOutbox.TryDequeue(out cmdToSend))
 			{
-				cmdToSend.RunReplyAction(0, 0, error).IntentionallyNotAwaited();
+				cmdToSend.RunReplyAction(0, 0, error);
 			}
 		}
 
@@ -512,7 +513,6 @@ namespace RabbitMqNext.Io
 						// Unexpected
 						tcs.SetException(new Exception("Unexpected result. Got " + classMethodId));
 					}
-					return Task.CompletedTask;
 
 				}, expectsReply: true, immediately: true);
 
@@ -558,7 +558,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				}, expectsReply: true, immediately: true);
 
 			return tcs.Task;
@@ -608,7 +607,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				}, expectsReply: true, immediately: true);
 
 			return tcs.Task;
@@ -635,7 +633,6 @@ namespace RabbitMqNext.Io
 					{
 						AmqpIOBase.SetException(tcs, error, classMethodId);
 					}
-					return Task.CompletedTask;
 				},
 				expectsReply: true,
 				optArg: new FrameParameters.CloseParams()

@@ -93,21 +93,19 @@
 			return true;
 		}
 
-		internal Task HandReplyToAwaitingQueue(int classMethodId)
+		internal void HandReplyToAwaitingQueue(int classMethodId)
 		{
 			CommandToSend sent;
 
 			if (_awaitingReplyQueue.TryDequeue(out sent))
 			{
-				return sent.RunReplyAction(_channelNum, classMethodId, null);
+				sent.RunReplyAction(_channelNum, classMethodId, null);
 			}
 			// else
 			{
 				// nothing was really waiting for a reply.. exception? wtf?
 				// TODO: log
 			}
-
-			return Task.CompletedTask;
 		}
 
 		// A disconnect may be expected coz we send a connection close, etc.. 
@@ -138,12 +136,12 @@
 				if (error != null && sent.ClassId == error.ClassId && sent.MethodId == error.MethodId)
 				{
 					// if we find the "offending" command, then it gets a better error message
-					sent.RunReplyAction(0, 0, error).IntentionallyNotAwaited();
+					sent.RunReplyAction(0, 0, error);
 				}
 				else
 				{
 					// any other task dies with a generic error.
-					sent.RunReplyAction(0, 0, null).IntentionallyNotAwaited();
+					sent.RunReplyAction(0, 0, null);
 				}
 			}
 		}

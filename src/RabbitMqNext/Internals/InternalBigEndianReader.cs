@@ -93,9 +93,9 @@ namespace RabbitMqNext.Internals
 			return BitConverter.ToUInt64(_eightByteArray, 0);
 		}
 
-		public Task SkipBy(int offset)
+		public void SkipBy(int offset)
 		{
-			return _ringBufferStream._ringBuffer.Skip(offset);
+			_ringBufferStream._ringBuffer.Skip(offset);
 		}
 
 		public decimal ReadDecimal()
