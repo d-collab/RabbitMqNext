@@ -128,6 +128,9 @@ namespace RabbitMqNext.Io
 
 		internal void SendHeartbeat()
 		{
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogWarn(LogSource, "Sending Heartbeat");
+
 			SendCommand(0, 0, 0, AmqpConnectionFrameWriter.ConnectionClose,
 				reply: null,
 				expectsReply: false,
