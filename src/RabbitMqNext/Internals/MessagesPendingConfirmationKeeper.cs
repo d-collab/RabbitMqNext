@@ -94,23 +94,31 @@ namespace RabbitMqNext.Internals
 
 		public void DrainDueToFailure(AmqpError error)
 		{
+			Exception exception = null;
 			for (int i = 0; i < _tasks.Length; i++)
 			{
 				var tcs = Interlocked.Exchange(ref _tasks[i], null);
 				if (tcs == null) continue;
 
-				tcs.TrySetException(new Exception("Cancelled due to error " + error.ToErrorString()));
+				if (exception == null)
+					exception = new Exception("Cancelled due to error " + error.ToErrorString());
+
+				tcs.TrySetException(exception);
 			}
 		}
 
 		public void DrainDueToShutdown()
 		{
+			Exception exception = null;
 			for (int i = 0; i < _tasks.Length; i++)
 			{
 				var tcs = Interlocked.Exchange(ref _tasks[i], null);
 				if (tcs == null) continue;
 
-				tcs.TrySetException(new Exception("Cancelled due to shutdown"));
+				if (exception == null)
+					exception = new Exception("Cancelled due to shutdown");
+
+				tcs.TrySetException(exception);
 			}
 		}
 

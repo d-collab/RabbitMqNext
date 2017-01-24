@@ -387,11 +387,8 @@ namespace RabbitMqNext.Io
 			BasicProperties properties, ArraySegment<byte> buffer)
 		{
 			if (properties == null)
-			{
 				properties = BasicProperties.Empty;
-			}
 
-//			TaskSlim tcs = _taskLightPool.GetObject();
 			var tcs = new TaskCompletionSource<bool>();
 			var args = _basicPubArgsPool.GetObject();
 			args.exchange = exchange;
@@ -408,7 +405,12 @@ namespace RabbitMqNext.Io
 					{
 						_channel.Return(properties); // the tcs is left for the confirmation keeper
 					}
-					tcs.TrySetResult(true);
+
+					if (error == null)
+						tcs.TrySetResult(true);
+					else
+						AmqpIOBase.SetException(tcs, error, classMethodId);
+
 					return Task.CompletedTask;
 				},
 				expectsReply: false,
@@ -428,7 +430,6 @@ namespace RabbitMqNext.Io
 
 			var confirmationKeeper = _channel._confirmationKeeper;
 
-//			TaskSlim tcs = _taskLightPool.GetObject();
 			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 			confirmationKeeper.WaitForSemaphore(); // make sure we're not over the limit
 			
@@ -447,6 +448,10 @@ namespace RabbitMqNext.Io
 					{
 						_channel.Return(properties); // the tcs is left for the confirmation keeper
 					}
+
+					if (error != null)
+						AmqpIOBase.SetException(tcs, error, classMethodId);
+
 					return Task.CompletedTask;
 				},
 				expectsReply: false,
@@ -475,8 +480,9 @@ namespace RabbitMqNext.Io
 				{
 					if (properties.IsReusable)
 					{
-						_channel.Return(properties); // the tcs is left for the confirmation keeper
+						_channel.Return(properties);
 					}
+
 					return Task.CompletedTask;
 				},
 				expectsReply: false,
@@ -493,7 +499,7 @@ namespace RabbitMqNext.Io
 				{
 					if (waitConfirmation && classMethodId == AmqpClassMethodChannelLevelConstants.CancelOk)
 					{
-						_connectionIo._frameReader.Read_CancelOk((_) =>
+						_connectionIo._frameReader.Read_CancelOk(_ =>
 						{
 							tcs.SetResult(true);
 						});
@@ -539,7 +545,7 @@ namespace RabbitMqNext.Io
 		}
 
 		internal Task __ExchangeBind(string source, string destination, string routingKey, 
-			IDictionary<string, object> arguments, bool waitConfirmation)
+									 IDictionary<string, object> arguments, bool waitConfirmation)
 		{
 			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -626,7 +632,7 @@ namespace RabbitMqNext.Io
 		}
 
 		internal Task __QueueUnbind(string queue, string exchange, string routingKey, 
-			IDictionary<string, object> arguments)
+									IDictionary<string, object> arguments)
 		{
 			var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
