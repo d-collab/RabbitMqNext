@@ -78,7 +78,11 @@
 
 				Console.WriteLine("[qInfo] " + qInfo);
 
-				await newChannel.QueueBind("rpc1", "test_ex", "rpc1", null, true);
+				for (int i = 0; i < 100; i++)
+				{
+					await newChannel.QueueBind("rpc1", "test_ex", "rpc" + i, null, true);
+				}
+//				await newChannel.QueueBind("rpc1", "test_ex", "rpc1", null, true);
 
 				// when
 				// ConsumeMode.SingleThreaded -> invoked from the readframeloop thread

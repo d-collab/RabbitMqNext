@@ -106,15 +106,17 @@
 
 		private Func<MessageDelivery, Task> BuildConsumerFn(IChannel channel)
 		{
-			return async delivery =>
+			return delivery =>
 			{
 				var message = (MessageWithTick) ProtoBuf.Meta.RuntimeTypeModel.Default.Deserialize(delivery.stream, null, typeof(MessageWithTick), delivery.bodySize);
 
 				channel.BasicAck(delivery.deliveryTag, false);
 
-				if (message.IsWarmUp) return;
+				if (message.IsWarmUp) return Task.CompletedTask;
 
 				var diff = Stopwatch.GetTimestamp() - message.SentAtInTicks;
+
+				return Task.CompletedTask;
 
 //				lock (_hdrHistogram)
 //					_hdrHistogram.RecordValue(diff * TickFreq);

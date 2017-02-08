@@ -130,7 +130,7 @@ namespace RabbitMqNext.Io
 		internal void SendHeartbeat()
 		{
 			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogWarn(LogSource, "Sending Heartbeat");
+				LogAdapter.LogDebug(LogSource, "Sending Heartbeat");
 
 			SendCommand(0, 0, 0, AmqpConnectionFrameWriter.ConnectionClose,
 				reply: null,
@@ -435,7 +435,6 @@ namespace RabbitMqNext.Io
 			}
 
 			var cmd = _cmdToSendObjPool.GetObject();
-			// var cmd = new CommandToSend(null);
 			cmd.Channel = channel;
 			cmd.ClassId = classId;
 			cmd.MethodId = methodId;
@@ -443,7 +442,6 @@ namespace RabbitMqNext.Io
 			cmd.commandGenerator = commandWriter;
 			cmd.ExpectsReply = expectsReply;
 			cmd.Tcs = tcs;
-//			cmd.TcsSlim = tcsL;
 			cmd.OptionalArg = optArg;
 			cmd.PrepareAction = prepare;
 			cmd.Immediately = immediately;

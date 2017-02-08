@@ -31,7 +31,7 @@
 		public bool Immediately;
 
 		private ManualResetEventSlim _whenReplyReceived;
-		private int _inUse = 0;
+		private volatile int _inUse = 0;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal void Prepare(ManualResetEventSlim whenReplyReceived)

@@ -16,7 +16,7 @@
 	{
 		private ManualResetEventSlim _startSync;
 		private LongHistogram _hdrHistogram;
-		private SemaphoreSlim _completionSemaphore;
+		private CountdownEvent _completionSemaphore;
 
 		static void Main(string[] args)
 		{
@@ -34,7 +34,7 @@
 			LogAdapter.ProtocolLevelLogEnabled = false;
 			LogAdapter.LogDebugFn = (s, s1, arg3) => { };
 
-			_hdrHistogram = new LongHistogram(1, 1000 * 10, 5);
+			_hdrHistogram = new LongHistogram(1, 1000*10, 5);
 
 			var host = ConfigurationManager.AppSettings["rabbit.host"];
 			var user = ConfigurationManager.AppSettings["rabbit.admuser"];
@@ -43,66 +43,100 @@
 
 			var postWarmupDelay = TimeSpan.FromSeconds(5);
 
-			int howManyQueues = 3;
+			int howManyQueues = 1;
 			bool exclusiveConnections = ConfigurationManager.AppSettings["exclusiveConnections"] == "true";
 			bool useOfficialClient = ConfigurationManager.AppSettings["useOfficialClient"] == "true";
 
 			var howManyCalls = 50000;
-			_completionSemaphore = new SemaphoreSlim(0, howManyQueues);
+//			var howManyCalls = 100;
+			_completionSemaphore = new CountdownEvent(howManyQueues);
 			_startSync = new ManualResetEventSlim(false);
 
-			if (useOfficialClient)
+//			if (useOfficialClient)
+//			{
+//				// Warm up
+//				{
+//					var connFac = new RabbitMQ.Client.ConnectionFactory()
+//					{
+//						HostName = host,
+//						UserName = user,
+//						Password = pwd,
+//						VirtualHost = vhost,
+//						AutomaticRecoveryEnabled = false
+//					};
+//					var conn2 = connFac.CreateConnection();
+//					var channel2 = conn2.CreateModel();
+//					var q = "q." + 0;
+//					SendLegacyCalls(q, channel2, howManyCalls/4, isWarmUp: true);
+//					channel2.Dispose();
+//					conn2.Dispose();
+//				}
+//
+//				await WarmupComplete(postWarmupDelay);
+//
+//				RabbitMQ.Client.IConnection conn = null;
+//				RabbitMQ.Client.IModel channel = null;
+//
+//				for (int i = 0; i < howManyQueues; i++)
+//				{
+//					var connFac = new RabbitMQ.Client.ConnectionFactory()
+//					{
+//						HostName = host,
+//						UserName = user,
+//						Password = pwd,
+//						VirtualHost = vhost,
+//						AutomaticRecoveryEnabled = false
+//					};
+//
+//					if (exclusiveConnections || conn == null)
+//					{
+//						conn = connFac.CreateConnection();
+//						channel = conn.CreateModel();
+//					}
+//
+//					var q = "q." + i;
+//
+//					new Thread(() =>
+//					{
+//						SendLegacyCalls(q, channel, howManyCalls, isWarmUp: false);
+//					}) {IsBackground = true}.Start();
+//
+//				}
+//			}
+//			else
 			{
+				RabbitMqNext.LogAdapter.LogErrorFn = (scope, message, exc) =>
+				{
+					Console.WriteLine("[Error] " + scope + " - " + message + " exception " + exc);
+				};
+				RabbitMqNext.LogAdapter.LogWarnFn = (scope, message, exc) =>
+				{
+					Console.WriteLine("[Warn] " + scope + " - " + message + " exception " + exc);
+				};
+				RabbitMqNext.LogAdapter.LogDebugFn = (scope, message, exc) =>
+				{
+					Console.WriteLine("[Dbg] " + scope + " - " + message + " exception " + exc);
+				};
+
 				// Warm up
-				{
-					var connFac = new RabbitMQ.Client.ConnectionFactory() { HostName = host, UserName = user, Password = pwd, VirtualHost = vhost, AutomaticRecoveryEnabled = false };
-					var conn2 = connFac.CreateConnection();
-					var channel2 = conn2.CreateModel();
-					var q = "q." + 0;
-					SendLegacyCalls(q, channel2, howManyCalls / 4, isWarmUp: true);
-					channel2.Dispose();
-					conn2.Dispose();
-				}
+//				{
+//					var conn2 =
+//						await
+//							RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null,
+//								connectionName: "perf_client");
+//
+//					var channel2 = await conn2.CreateChannel();
+//					var q = "q." + 0;
+//					await Task.Delay(1); // Thread switch
+//					await SendModernCalls(q, channel2, howManyCalls/4, isWarmUp: true);
+//					await Task.Delay(1); // Thread switch
+//					channel2.Dispose();
+//					conn2.Dispose();
+//				}
+//
+//				await WarmupComplete(postWarmupDelay);
 
-				await WarmupComplete(postWarmupDelay);
-
-				RabbitMQ.Client.IConnection conn = null;
-				RabbitMQ.Client.IModel channel = null;
-
-				for (int i = 0; i < howManyQueues; i++)
-				{
-					var connFac = new RabbitMQ.Client.ConnectionFactory() { HostName = host, UserName = user, Password = pwd, VirtualHost = vhost, AutomaticRecoveryEnabled = false };
-
-					if (exclusiveConnections || conn == null)
-					{
-						conn = connFac.CreateConnection();
-						channel = conn.CreateModel();
-					}
-
-					var q = "q." + i;
-
-					new Thread(() =>
-					{
-						SendLegacyCalls(q, channel, howManyCalls, isWarmUp: false);
-					}) { IsBackground = true }.Start();
-
-				}
-			}
-			else
-			{
-				// Warm up
-				{
-					var conn2 = await RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null, connectionName: "perf_client");
-					var channel2 = await conn2.CreateChannel();
-					var q = "q." + 0;
-					await Task.Delay(1); // Thread switch
-					SendModernCalls(q, channel2, howManyCalls / 4, isWarmUp: true);
-					await Task.Delay(1); // Thread switch
-					channel2.Dispose();
-					conn2.Dispose();
-				}
-
-				await WarmupComplete(postWarmupDelay);
+				Console.WriteLine("Will initiate...");
 
 				RabbitMqNext.IConnection conn = null;
 				RabbitMqNext.IChannel channel = null;
@@ -111,15 +145,18 @@
 				{
 					if (exclusiveConnections || conn == null)
 					{
-						conn = await RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null, connectionName: "perf_client");
+						conn =
+							await
+								RabbitMqNext.ConnectionFactory.Connect(host, vhost, user, pwd, recoverySettings: null,
+									connectionName: "perf_client");
 						channel = await conn.CreateChannel();
 					}
 
 					var q = "q." + i;
 
-					new Thread(() =>
+					new Thread(async () =>
 					{
-						SendModernCalls(q, channel, howManyCalls, isWarmUp: false);
+						await SendModernCalls(q, channel, howManyCalls, isWarmUp: false);
 
 					}) {IsBackground = true}.Start();
 				}
@@ -129,12 +166,13 @@
 
 			Console.WriteLine("Waiting completion");
 
-			for (int i = 0; i < howManyQueues; i++)
-				_completionSemaphore.Wait();
+			await Task.Delay(1); // switch
 
+			_completionSemaphore.Wait();
 
 			Console.WriteLine("Done\r\n");
-			Console.WriteLine("howManyQueues {0} exclusive Connections: {1} official client: {2} count {3}", howManyQueues, exclusiveConnections, useOfficialClient, _hdrHistogram.TotalCount);
+			Console.WriteLine("howManyQueues {0} exclusive Connections: {1} official client: {2} count {3}", howManyQueues,
+				exclusiveConnections, useOfficialClient, _hdrHistogram.TotalCount);
 			Console.WriteLine("\r\n");
 
 			_hdrHistogram.OutputPercentileDistribution(Console.Out);
@@ -142,24 +180,32 @@
 			Console.ReadKey();
 		}
 
-		private async void SendModernCalls(string queue, IChannel channel, int howManyCalls, bool isWarmUp)
+		private async Task SendModernCalls(string queue, IChannel channel, int howManyCalls, bool isWarmUp)
 		{
-			if (!isWarmUp) _startSync.Wait();
-
-			var helper = await channel.CreateRpcHelper(ConsumeMode.SingleThreaded, null);
-			var buffer = Encoding.UTF8.GetBytes("Some content not too big or too short I think");
-			var watch = new Stopwatch();
-
-			for (int i = 0; i < howManyCalls; i++)
+			try
 			{
-				watch.Restart();
-				await helper.Call("", queue, BasicProperties.Empty, new ArraySegment<byte>(buffer), false);
-				watch.Stop();
+				if (!isWarmUp) _startSync.Wait();
 
-				if (!isWarmUp) RecordValue(watch);
+				var helper = await channel.CreateRpcHelper(ConsumeMode.SingleThreaded, null);
+				var buffer = Encoding.UTF8.GetBytes("Some content not too big or too short I think");
+				var watch = new Stopwatch();
+
+				for (int i = 0; i < howManyCalls; i++)
+				{
+//					Console.WriteLine("Calling " + i);
+					watch.Restart();
+					await helper.Call("", queue, channel.RentBasicProperties(), new ArraySegment<byte>(buffer), false);
+					watch.Stop();
+
+					if (!isWarmUp) RecordValue(watch);
+				}
+
+				if (!isWarmUp) _completionSemaphore.Signal();
 			}
-
-			if (!isWarmUp) _completionSemaphore.Release();
+			catch (Exception ex)
+			{
+				Console.WriteLine(ex);
+			}
 		}
 
 		private void SendLegacyCalls(string queue, IModel channel, int howManyCalls, bool isWarmUp)
@@ -196,7 +242,7 @@
 
 			if (!isWarmUp)
 			{
-				_completionSemaphore.Release();
+				_completionSemaphore.Signal();
 			}
 		}
 

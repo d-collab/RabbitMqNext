@@ -28,33 +28,46 @@
 			LogAdapter.ProtocolLevelLogEnabled = false;
 
 
-			int howManyQueues = 3;
+			int howManyQueues = 1;
 			bool exclusiveConnections = ConfigurationManager.AppSettings["exclusiveConnections"] == "true";
 			bool useOfficialClient = ConfigurationManager.AppSettings["useOfficialClient"] == "true";
 
-			if (useOfficialClient)
+//			if (useOfficialClient)
+//			{
+//				RabbitMQ.Client.IConnection conn = null;
+//				RabbitMQ.Client.IModel channel = null;
+//
+//				for (int i = 0; i < howManyQueues; i++)
+//				{
+//					var connFac = new RabbitMQ.Client.ConnectionFactory { HostName = host, UserName = user, Password = pwd, VirtualHost = vhost, AutomaticRecoveryEnabled = false };
+//					
+//					if (exclusiveConnections || conn == null)
+//					{
+//						conn = connFac.CreateConnection();
+//						channel = conn.CreateModel();
+//					}
+//
+//					var q = "q." + i;
+//					channel.QueueDeclareNoWait(q, durable: true, exclusive: false, autoDelete: false, arguments: null);
+//
+//					channel.BasicConsume(q, false, "con_" + q, arguments: null, consumer: new Consumer(channel));
+//				}
+//			}
+//			else
 			{
-				RabbitMQ.Client.IConnection conn = null;
-				RabbitMQ.Client.IModel channel = null;
-
-				for (int i = 0; i < howManyQueues; i++)
+				RabbitMqNext.LogAdapter.LogErrorFn = (scope, message, exc) =>
 				{
-					var connFac = new RabbitMQ.Client.ConnectionFactory() { HostName = host, UserName = user, Password = pwd, VirtualHost = vhost, AutomaticRecoveryEnabled = false };
-					
-					if (exclusiveConnections || conn == null)
-					{
-						conn = connFac.CreateConnection();
-						channel = conn.CreateModel();
-					}
+					Console.WriteLine("[Error] " + scope + " - " + message + " exception " + exc);
+				};
+				RabbitMqNext.LogAdapter.LogWarnFn = (scope, message, exc) =>
+				{
+					Console.WriteLine("[Warn] " + scope + " - " + message + " exception " + exc);
+				};
+				RabbitMqNext.LogAdapter.LogDebugFn = (scope, message, exc) =>
+				{
+					Console.WriteLine("[Dbg] " + scope + " - " + message + " exception " + exc);
+				};
 
-					var q = "q." + i;
-					channel.QueueDeclareNoWait(q, durable: true, exclusive: false, autoDelete: false, arguments: null);
-
-					channel.BasicConsume(q, false, "con_" + q, arguments: null, consumer: new Consumer(channel));
-				}
-			}
-			else
-			{
 				RabbitMqNext.IConnection conn = null;
 				RabbitMqNext.IChannel channel = null;
 
@@ -71,6 +84,13 @@
 					await channel.QueueDeclare(q, passive: false, durable: true, exclusive: false, autoDelete: false, arguments: null,
 						waitConfirmation: false);
 
+					await channel.ExchangeDeclare("exctemp", "direct", durable: true, autoDelete: false, arguments:null, waitConfirmation: true);
+
+					for (int j = 0; j < 1000; j++)
+					{
+						await channel.QueueBind(q, "exctemp", "routing_" + j, arguments: null, waitConfirmation: (j % 2 == 0));
+					}
+
 					// TODO: test with parallel buffer copy + serialized too
 					await channel.BasicConsume(ConsumeMode.ParallelWithBufferCopy, BuildConsumerFn(channel), q, "consumer_" + q, 
 											   false, true, arguments: null, waitConfirmation: false);
@@ -86,7 +106,7 @@
 
 		private Func<MessageDelivery, Task> BuildConsumerFn(IChannel channel)
 		{
-			return async delivery =>
+			return delivery =>
 			{
 				var data = new byte[1024];
 				var read = 0;
@@ -101,6 +121,8 @@
 				channel.BasicPublishFast("", delivery.properties.ReplyTo, false, prop, new ArraySegment<byte>(data, 0, read));
 
 				channel.BasicAck(delivery.deliveryTag, false);
+
+				return Task.CompletedTask;
 			};
 		}
 	}
