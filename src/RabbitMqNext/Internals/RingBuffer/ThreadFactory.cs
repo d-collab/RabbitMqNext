@@ -4,7 +4,7 @@ namespace RabbitMqNext.Internals.RingBuffer
 	using System.Threading;
 	using TplExtensions;
 
-	internal class ThreadFactory
+	public class ThreadFactory
 	{
 		public static Thread BackgroundThread<T>(Action<T> procStart, string name, T param)
 		{

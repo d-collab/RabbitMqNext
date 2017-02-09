@@ -68,6 +68,7 @@
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="IChannel.cs" />
     <Compile Include="IConnection.cs" />
+    <Compile Include="Internals\CommandToSendExtensions.cs" />
     <Compile Include="Internals\RingBuffer\EmptyStream.cs" />
     <Compile Include="Internals\RingBuffer\MemoryStream2.cs" />
     <Compile Include="Internals\RingBuffer\MultiBodyStreamWrapper.cs" />

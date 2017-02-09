@@ -283,7 +283,7 @@ namespace RabbitMqNext.Io
 			return true;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+//		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void FlushCommand(CommandToSend cmdToSend)
 		{
 			if (_threadCancelToken.IsCancellationRequested)
@@ -321,8 +321,7 @@ namespace RabbitMqNext.Io
 			}
 			else
 			{
-				cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId,
-					cmdToSend.OptionalArg);
+				cmdToSend.commandGenerator(_amqpWriter, cmdToSend.Channel, cmdToSend.ClassId, cmdToSend.MethodId, cmdToSend.OptionalArg);
 			}
 
 			// if writing to socket is enough, set as complete
@@ -415,10 +414,8 @@ namespace RabbitMqNext.Io
 
 		internal void SendCommand(ushort channel, ushort classId, ushort methodId,
 			Action<AmqpPrimitivesWriter, ushort, ushort, ushort, object> commandWriter,
-			Action<ushort, int, AmqpError> reply,
-			bool expectsReply, TaskCompletionSource<bool> tcs = null,
-			object optArg = null, /*TaskSlim tcsL = null,*/ Action prepare = null, 
-			bool immediately = false)
+			Action<ushort, int, AmqpError> reply, bool expectsReply, TaskCompletionSource<bool> tcs = null,
+			object optArg = null, Action prepare = null, bool immediately = false)
 		{
 			if (_lastError != null)
 			{
@@ -448,8 +445,6 @@ namespace RabbitMqNext.Io
 
 			_commandOutbox.Enqueue(cmd);
 			_commandOutboxEvent.Set();
-//			lock(this) // bad
-//				FlushCommand(cmd);
 		}
 
 		private void SetErrorResultIfErrorPending(bool expectsReply, Action<ushort, int, AmqpError> replyFn, 

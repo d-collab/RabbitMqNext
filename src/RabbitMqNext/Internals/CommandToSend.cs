@@ -31,9 +31,9 @@
 		public bool Immediately;
 
 		private ManualResetEventSlim _whenReplyReceived;
-		private volatile int _inUse = 0;
+		private int _inUse = 0;
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+//		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal void Prepare(ManualResetEventSlim whenReplyReceived)
 		{
 			AssertCanBeUsed();
@@ -64,45 +64,50 @@
 				}
 			}
 #endif
-
-			// Allows more commands to be sent. This contention is sadly required by the amqp/rabbitmq
-			if (_whenReplyReceived != null)
+			try
 			{
-				_whenReplyReceived.Set();
-			}
-			// ---
 
-			if (this.ReplyAction != null)
-			{
-				try
+				// Allows more commands to be sent. This contention is sadly required by the amqp/rabbitmq
+				if (_whenReplyReceived != null)
 				{
-					this.ReplyAction(channel, classMethodId, error);
+					_whenReplyReceived.Set();
 				}
-				catch (Exception ex)
+				// ---
+
+				if (this.ReplyAction != null)
 				{
-					error = new AmqpError
+					try
 					{
-						ReplyText = ex.Message
-					};
-					AmqpIOBase.SetException(Tcs, error, classMethodId);
+						this.ReplyAction(channel, classMethodId, error);
+					}
+					catch (Exception ex)
+					{
+						error = new AmqpError
+						{
+							ReplyText = ex.Message
+						};
+						AmqpIOBase.SetException(Tcs, error, classMethodId);
 
-					throw;
-				}
-			}
-			else
-			{
-				if (error != null)
-				{
-					AmqpIOBase.SetException(Tcs, error, classMethodId);
+						throw;
+					}
 				}
 				else
 				{
-					if (Tcs != null)
-						Tcs.SetResult(true);
+					if (error != null)
+					{
+						AmqpIOBase.SetException(Tcs, error, classMethodId);
+					}
+					else
+					{
+						if (Tcs != null)
+							Tcs.TrySetResult(true);
+					}
 				}
 			}
-
-			if (_recycler != null) _recycler(this);
+			finally
+			{
+				if (_recycler != null) _recycler(this);
+			}
 		}
 
 		public void Dispose()
@@ -116,21 +121,20 @@
 			Tcs = null;
 			_whenReplyReceived = null;
 
-			if (Interlocked.CompareExchange(ref _inUse, value: 0, comparand: 1) != 1)
-			{
+			if (Interlocked.CompareExchange(ref _inUse, value: NotInUseConst, comparand: InUseConst) != InUseConst)
 				throw new Exception("CommandToSend being shared inadvertently 1");
-			}
 		}
 
 		// ISupportInitialize start
 
 		public void BeginInit()
 		{
-			if (Interlocked.CompareExchange(ref _inUse, value: 1, comparand: 0) != 0)
-			{
+			if (Interlocked.CompareExchange(ref _inUse, value: InUseConst, comparand: NotInUseConst) != NotInUseConst)
 				throw new Exception("CommandToSend being shared inadvertently 2");
-			}
 		}
+
+		private const int InUseConst = 1;
+		private const int NotInUseConst = 0;
 
 		public void EndInit()
 		{
@@ -141,20 +145,13 @@
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void AssertCanBeUsed()
 		{
-			if (Volatile.Read(ref _inUse) != 1)
+			if (Volatile.Read(ref _inUse) != InUseConst)
 			{
-				throw new Exception("Cannot use a recycled obj");
+				throw new Exception("Cannot use a recycled obj - Channel " + this.Channel + 
+					" Class " + this.ClassId + 
+					" Method " + this.MethodId + 
+					" Opt: " + this.OptionalArg);
 			}
-		}
-	}
-
-	internal static class CommandToSendExtensions
-	{
-		internal static string ToDebugInfo(this CommandToSend source)
-		{
-			if (source == null) return string.Empty;
-
-			return "[Channel_" + source.Channel + "] Class " + source.ClassId + " Method " + source.MethodId + " Opt: " + source.OptionalArg + "";
 		}
 	}
 }

@@ -13,6 +13,9 @@
 		private readonly int _capacity;
 		private readonly bool _ignoreDispose;
 
+//		private int _inUseConcurrent;
+//		private int _maxInUse;
+
 		public ObjectPoolArray(Func<T> objectGenerator, int capacity = DefaultCapacity, 
 			bool preInitialize = false, bool ignoreDispose = false)
 		{
@@ -40,6 +43,9 @@
 				var v = Interlocked.Exchange(ref _array[i], null); 
 				if (v != null)
 				{
+//					Interlocked.Increment(ref _inUseConcurrent);
+//					_maxInUse = Math.Max(_maxInUse, _inUseConcurrent);
+
 					// Console.WriteLine("Pool " + typeof(T).Name + " GetObject at index " + i);
 
 					var initer = v as ISupportInitialize;
@@ -69,9 +75,15 @@
 				var v = Interlocked.CompareExchange(ref _array[i], item, null);
 				if (v == null)
 				{
+//					Interlocked.Decrement(ref _inUseConcurrent);
 					return; // found spot. done
 				}
 			}
+		}
+
+		public void DumpDiagnostics()
+		{
+//			Console.WriteLine("In use " + _inUseConcurrent + " max is " + _maxInUse);
 		}
 	}
 }
