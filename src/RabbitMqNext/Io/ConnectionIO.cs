@@ -431,7 +431,10 @@ namespace RabbitMqNext.Io
 				}
 			}
 
-			var cmd = _cmdToSendObjPool.GetObject();
+			// var cmd = _cmdToSendObjPool.GetObject();
+			var cmd = new CommandToSend(null);
+			cmd.BeginInit();
+
 			cmd.Channel = channel;
 			cmd.ClassId = classId;
 			cmd.MethodId = methodId;
