@@ -100,6 +100,8 @@ namespace RabbitMqNext
 				{
 					_pendingCalls[pos].started = DateTime.Now.Ticks;
 					_pendingCalls[pos].tcs = tcs;
+					_pendingCalls[pos].destinationExchange = destExchange;
+					_pendingCalls[pos].destinationRouting = destRouting;
 
 					correlationId = correlationIndex;
 
