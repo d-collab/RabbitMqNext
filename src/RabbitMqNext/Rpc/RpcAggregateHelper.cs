@@ -69,7 +69,7 @@ namespace RabbitMqNext
 
 			uint correlationId;
 			long pos;
-			var tcs = SecureSpotAndUniqueCorrelationId(runContinuationsAsynchronously, out pos, out correlationId);
+			var tcs = SecureSpotAndUniqueCorrelationId(runContinuationsAsynchronously, exchange, routing, out pos, out correlationId);
 			if (tcs == null)
 			{
 				_semaphoreSlim.Release();
@@ -195,6 +195,15 @@ namespace RabbitMqNext
 			}
 
 			return Task.CompletedTask;
+		}
+
+		protected override string BuildInformativeTimeoutErrorMessage(PendingCallState pendingCall)
+		{
+			var aggState = _pendingAggregationState[pendingCall.pos];
+			var repliesCount = aggState.received.Count;
+			var waitingCount = aggState.waitingCount;
+			return "Rpc call to " + pendingCall.destinationExchange + "|" + pendingCall.destinationRouting + " timed out. " + 
+				   "Replies received: " + repliesCount + " waiting count " + waitingCount;
 		}
 	}
 }

@@ -24,9 +24,11 @@ namespace RabbitMqNext
 
 		protected class PendingCallState
 		{
+			public int pos;
 			public int cookie;
 			public TaskCompletionSource<T> tcs;
 			public long started;
+			public string destinationExchange, destinationRouting;
 		}
 
 		protected BaseRpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
@@ -44,7 +46,7 @@ namespace RabbitMqNext
 			_pendingCalls = new PendingCallState[maxConcurrentCalls];
 			for (int i = 0; i < maxConcurrentCalls; i++)
 			{
-				_pendingCalls[i] = new PendingCallState();
+				_pendingCalls[i] = new PendingCallState { pos = i };
 			}
 		}
 
@@ -73,7 +75,8 @@ namespace RabbitMqNext
 			DrainPendingCalls();
 		}
 
-		protected TaskCompletionSource<T> SecureSpotAndUniqueCorrelationId(bool runContinuationsAsynchronously, out long pos, out uint correlationId)
+		protected TaskCompletionSource<T> SecureSpotAndUniqueCorrelationId(bool runContinuationsAsynchronously, string destExchange, string destRouting, 
+																		   out long pos, out uint correlationId)
 		{
 			var taskCreationOpts = /*TaskCreationOptions.AttachedToParent |*/ (runContinuationsAsynchronously
 				? TaskCreationOptions.RunContinuationsAsynchronously
@@ -197,16 +200,20 @@ namespace RabbitMqNext
 
 				if (tcs != null && now - started > _timeoutInTicks)
 				{
-//					if (LogAdapter.ExtendedLogEnabled)
-//						LogAdapter.LogDebug(LogSource, "Timeout'ing item " + pendingCall.cookie);
+					// if (LogAdapter.ExtendedLogEnabled)
+					//    LogAdapter.LogDebug(LogSource, "Timeout'ing item " + pendingCall.cookie);
+
+					var errorMessage = BuildInformativeTimeoutErrorMessage(pendingCall);
 
 					if (ReleaseSpot(i, cookie))
 					{
 						_semaphoreSlim.Release();
-						tcs.TrySetException(new Exception("Rpc call timeout"));
+						tcs.TrySetException(new Exception(errorMessage));
 					}
 				}
 			}
 		}
+
+		protected abstract string BuildInformativeTimeoutErrorMessage(PendingCallState pendingCall);
 	}
 }
