@@ -3,6 +3,7 @@
 	using System;
 	using System.Collections.Generic;
 	using System.Threading.Tasks;
+	using Internals;
 
 
 	internal class QueueConsumerRecovery
@@ -50,21 +51,24 @@
 			_consumerTag = consumerTag;
 		}
 
-		public async Task Apply(Channel channel)
+		public async Task Apply(Channel channel, IDictionary<string, string> reservedNamesMapping)
 		{
+			var queueNameToUse =
+				_queue.StartsWith(AmqpConstants.AmqpReservedPrefix, StringComparison.Ordinal) ? reservedNamesMapping[_queue] : _queue;
+
 			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("Recovery", "Recovering consumer " + _consumerTag + " for queue " + _queue);
+				LogAdapter.LogDebug("Recovery", "Recovering consumer " + _consumerTag + " for queue " + queueNameToUse);
 
 			if (_consumer2 != null)
 			{
-				await channel.BasicConsume(_mode, _consumer2, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true).ConfigureAwait(false);
+				await channel.BasicConsume(_mode, _consumer2, queueNameToUse, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true).ConfigureAwait(false);
 				
 				_consumer2.Recovered();
 
 				return;
 			}
 
-			await channel.BasicConsume(_mode, _consumer, _queue, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true).ConfigureAwait(false);
+			await channel.BasicConsume(_mode, _consumer, queueNameToUse, _consumerTag, _withoutAcks, _exclusive, _arguments, waitConfirmation: true).ConfigureAwait(false);
 		}
 
 		public void SignalBlocked()

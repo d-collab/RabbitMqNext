@@ -1,6 +1,8 @@
 namespace RabbitMqNext
 {
 	using System;
+	using System.Collections.Generic;
+	using System.ServiceModel.PeerResolvers;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -15,7 +17,7 @@ namespace RabbitMqNext
 		protected readonly int _maxConcurrentCalls;
 
 		protected AmqpQueueInfo _replyQueueName;
-		protected string _subscription;
+//		protected string _subscription;
 
 		protected bool _operational;
 
@@ -51,11 +53,14 @@ namespace RabbitMqNext
 		/// <summary>
 		/// Called once a new healthy channel has been created.
 		/// </summary>
-		public Task SignalRecovered(Channel newChannel)
+		public Task SignalRecovered(Channel newChannel, IDictionary<string, string> reservedNamesMapping)
 		{
 			this._channel = newChannel;
 
-			return Setup();
+			// return Setup();
+			UpdateInfo(reservedNamesMapping);
+
+			return Task.CompletedTask;
 		}
 
 		// end recovery support
@@ -68,11 +73,18 @@ namespace RabbitMqNext
 				false, false, exclusive: true, autoDelete: true,
 				waitConfirmation: true, arguments: null).ConfigureAwait(this.CaptureContext);
 
-			_subscription = await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name,
+			/*_subscription =*/ await _channel.BasicConsume(_mode, OnReplyReceived, _replyQueueName.Name,
 				consumerTag: "",
 				withoutAcks: true, exclusive: true, arguments: null, waitConfirmation: true).ConfigureAwait(this.CaptureContext);
 
 			_operational = true; 
+		}
+
+		protected void UpdateInfo(IDictionary<string, string> reservedNamesMapping)
+		{
+			_replyQueueName = new AmqpQueueInfo { Name = reservedNamesMapping[_replyQueueName.Name]  };
+
+			_operational = true;
 		}
 
 		protected abstract Task OnReplyReceived(MessageDelivery delivery);

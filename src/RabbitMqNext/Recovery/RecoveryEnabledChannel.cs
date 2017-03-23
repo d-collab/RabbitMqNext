@@ -168,10 +168,10 @@
 			var result = await _channel.QueueDeclare(queue, passive, durable, exclusive, autoDelete, arguments, waitConfirmation).ConfigureAwait(false);
 
 			// We can't try to restore an entity with a reserved name (will happen for temporary queues)
-			if (result != null && result.Name.StartsWith(AmqpConstants.AmqpReservedPrefix, StringComparison.Ordinal))
-			{
-				return result;
-			}
+//			if (result != null && result.Name.StartsWith(AmqpConstants.AmqpReservedPrefix, StringComparison.Ordinal))
+//			{
+//				return result;
+//			}
 
 			lock (_declaredQueues) _declaredQueues.Add(new QueueDeclaredRecovery(result.Name, passive, durable, exclusive, autoDelete, arguments));
 
@@ -350,6 +350,8 @@
 
 				var replacementChannel = (Channel) await connection.InternalCreateChannel(_channel._options, this.ChannelNumber, maxUnconfirmed, this.IsConfirmationEnabled).ConfigureAwait(false);
 
+				var specialNamesMapping = new Dictionary<string,string>(StringComparer.Ordinal);
+
 				// _channel.Dispose(); need to dispose in a way that consumers do not receive the cancellation signal, but drain any pending task
 
 				// copy delegate pointers from old to new
@@ -363,18 +365,18 @@
 				await RecoverExchanges(replacementChannel).ConfigureAwait(false);
 
 				// 2. Recover queues
-				await RecoverQueues(replacementChannel).ConfigureAwait(false);
+				await RecoverQueues(replacementChannel, specialNamesMapping).ConfigureAwait(false);
 
 				// 3. Recover bindings (queue and exchanges)
-				await RecoverBindings(replacementChannel).ConfigureAwait(false);
+				await RecoverBindings(replacementChannel, specialNamesMapping).ConfigureAwait(false);
 
 				// 4. Recover consumers 
-				await RecoverConsumers(replacementChannel).ConfigureAwait(false);
+				await RecoverConsumers(replacementChannel, specialNamesMapping).ConfigureAwait(false);
 
 				// (+ rpc lifecycle)
 				foreach (var helper in _rpcHelpers)
 				{
-					await helper.SignalRecovered(replacementChannel).ConfigureAwait(false);
+					await helper.SignalRecovered(replacementChannel, specialNamesMapping).ConfigureAwait(false);
 				}
 			
 				_channel = replacementChannel;
@@ -397,15 +399,15 @@
 			}
 		}
 
-		private async Task RecoverConsumers(Channel newChannel)
+		private async Task RecoverQueues(Channel newChannel, IDictionary<string, string> reservedNamesMapping)
 		{
-			foreach (var consumer in _consumersRegistered)
+			foreach (var declaredQueue in _declaredQueues)
 			{
-				await consumer.Apply(newChannel).ConfigureAwait(false);
+				await declaredQueue.Apply(newChannel, reservedNamesMapping).ConfigureAwait(false);
 			}
 		}
 
-		private async Task RecoverBindings(Channel newChannel)
+		private async Task RecoverBindings(Channel newChannel, IDictionary<string, string> reservedNamesMapping)
 		{
 			// 3. Recover bindings (exchanges)
 			foreach (var binding in _boundExchanges)
@@ -416,15 +418,15 @@
 			// 3. Recover bindings (queues)
 			foreach (var binding in _boundQueues)
 			{
-				await binding.Apply(newChannel).ConfigureAwait(false);
+				await binding.Apply(newChannel, reservedNamesMapping).ConfigureAwait(false);
 			}
 		}
 
-		private async Task RecoverQueues(Channel newChannel)
+		private async Task RecoverConsumers(Channel newChannel, IDictionary<string, string> reservedNamesMapping)
 		{
-			foreach (var declaredQueue in _declaredQueues)
+			foreach (var consumer in _consumersRegistered)
 			{
-				await declaredQueue.Apply(newChannel).ConfigureAwait(false);
+				await consumer.Apply(newChannel, reservedNamesMapping).ConfigureAwait(false);
 			}
 		}
 

@@ -60,17 +60,17 @@ namespace RabbitMqNext
 				this._timeoutTimer.Dispose();
 			}
 
-			if (!string.IsNullOrEmpty(_subscription))
-			{
-				try
-				{
-					_channel.BasicCancel(_subscription, false).Wait();
-				}
-				catch (Exception)
-				{
-					// no problem!
-				}
-			}
+//			if (!string.IsNullOrEmpty(_subscription))
+//			{
+//				try
+//				{
+//					_channel.BasicCancel(_subscription, false).Wait();
+//				}
+//				catch (Exception)
+//				{
+//					// no problem!
+//				}
+//			}
 
 			DrainPendingCalls();
 		}

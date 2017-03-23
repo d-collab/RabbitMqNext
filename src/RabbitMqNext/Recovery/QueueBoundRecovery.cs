@@ -3,6 +3,7 @@
 	using System;
 	using System.Collections.Generic;
 	using System.Threading.Tasks;
+	using Internals;
 
 	internal class QueueBoundRecovery
 	{
@@ -19,12 +20,15 @@
 			_arguments = arguments;
 		}
 
-		public Task Apply(Channel channel)
+		public Task Apply(Channel channel, IDictionary<string, string> reservedNamesMapping)
 		{
-			if (LogAdapter.ExtendedLogEnabled)
-				LogAdapter.LogDebug("Recovery", "Recovering binding queue: " + _queue + " ex: " + _exchange + " routing: " + _routingKey);
+			var queueNameToUse =
+				_queue.StartsWith(AmqpConstants.AmqpReservedPrefix, StringComparison.Ordinal) ? reservedNamesMapping[_queue] : _queue;
 
-			return channel.QueueBind(_queue, _exchange, _routingKey, _arguments, waitConfirmation: true);
+			if (LogAdapter.ExtendedLogEnabled)
+				LogAdapter.LogDebug("Recovery", "Recovering binding queue: " + queueNameToUse + " ex: " + _exchange + " routing: " + _routingKey);
+
+			return channel.QueueBind(queueNameToUse, _exchange, _routingKey, _arguments, waitConfirmation: true);
 		}
 
 		protected bool Equals(QueueBoundRecovery other)

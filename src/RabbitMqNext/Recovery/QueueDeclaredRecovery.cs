@@ -3,6 +3,7 @@
 	using System;
 	using System.Collections.Generic;
 	using System.Threading.Tasks;
+	using Internals;
 
 	internal class QueueDeclaredRecovery
 	{
@@ -28,12 +29,22 @@
 			_queue = queue;
 		}
 
-		public Task Apply(Channel channel)
+		public async Task Apply(Channel channel, IDictionary<string,string> reservedNamesMapping)
 		{
+			var queueNameToUse = 
+				_queue.StartsWith(AmqpConstants.AmqpReservedPrefix, StringComparison.Ordinal) ? string.Empty : _queue;
+
 			if (LogAdapter.ExtendedLogEnabled)
 				LogAdapter.LogDebug("Recovery", "Recovering queue " + _queue);
 
-			return channel.QueueDeclare(_queue, _passive, _durable, _exclusive, _autoDelete, _arguments, waitConfirmation: !_passive);
+			var queueDeclareResult = await channel.QueueDeclare(queueNameToUse, _passive, _durable, _exclusive, _autoDelete, _arguments, waitConfirmation: !_passive)
+				.ConfigureAwait(false);
+
+			if (queueDeclareResult.Name.StartsWith(AmqpConstants.AmqpReservedPrefix, StringComparison.Ordinal))
+			{
+				// Special name: let's map the old to the new name. This needs to cascade to binds and consumers
+				reservedNamesMapping[_queue] = queueDeclareResult.Name;
+			}
 		}
 
 		protected bool Equals(QueueDeclaredRecovery other)
