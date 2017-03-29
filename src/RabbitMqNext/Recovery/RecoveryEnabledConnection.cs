@@ -98,7 +98,7 @@
 
 		internal RecoveryAction NotifyCloseByServer()
 		{
-			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "NotifyClosedByServer ");
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "NotifyClosedByServer");
 
 			// TODO: Block RecoveryChannels? So new operations are blocked. also should fire notifications to indicate recovery in progress
 
@@ -111,7 +111,7 @@
 		{
 			_disableRecovery = true;
 
-			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "NotifyClosedByUser ");
+			if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "NotifyClosedByUser");
 		}
 
 		#region Implementation of IConnection
@@ -166,7 +166,7 @@
 		{
 			if (Interlocked.CompareExchange(ref _inRecovery, 1, 0) == 0)
 			{
-				if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "TryInitiateRecovery starting recovery process");
+				if (LogAdapter.IsWarningEnabled) LogAdapter.LogWarn(LogSource, "TryInitiateRecovery starting recovery process");
 
 				// block all channels
 
@@ -182,11 +182,11 @@
 				{
 					try
 					{
-						if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Starting Recovery. Waiting for connection clean up");
+						if (LogAdapter.IsWarningEnabled) LogAdapter.LogWarn(LogSource, "Starting Recovery. Waiting for connection clean up");
 
 						await pthis.AwaitConnectionReset();
 
-						if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Connection is ready");
+						if (LogAdapter.IsWarningEnabled) LogAdapter.LogWarn(LogSource, "Connection is ready");
 
 						pthis.FireWillRecover();
 
@@ -200,17 +200,17 @@
 							return;
 						}
 
-						if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Reconnected");
+						if (LogAdapter.IsWarningEnabled) LogAdapter.LogWarn(LogSource, "Reconnected");
 
 						await pthis.Recover().ConfigureAwait(false);
 
 						pthis.FireRecoveryCompleted();
 
-						if (LogAdapter.IsDebugEnabled) LogAdapter.LogDebug(LogSource, "Completed");
+						if (LogAdapter.IsWarningEnabled) LogAdapter.LogWarn(LogSource, "Completed");
 					}
 					catch (Exception ex)
 					{
-						if (LogAdapter.IsErrorEnabled) LogAdapter.LogError(LogSource, "TryInitiateRecovery error", ex);
+						if (LogAdapter.IsWarningEnabled) LogAdapter.LogWarn(LogSource, "TryInitiateRecovery error", ex);
 						
 						pthis.HandleRecoveryFatalError(ex);
 						
@@ -251,6 +251,8 @@
 					firstRun = false;
 					continue;
 				}
+
+				if (LogAdapter.IsWarningEnabled) LogAdapter.LogWarn(LogSource, "Trying to re-connect to " + hostToTry);
 
 				var succeeded = await _connection.InternalConnect(hostToTry, throwOnError: false).ConfigureAwait(false);
 				if (succeeded) return true;
