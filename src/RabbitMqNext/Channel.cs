@@ -310,20 +310,12 @@
 
 		public Task<RpcHelper> CreateRpcHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls, bool captureContext)
 		{
-			EnsureOpen();
-
-			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
-
-			return RpcHelper.Create(this, maxConcurrentCalls, mode, captureContext, timeoutInMs);
+			return CreateRpcHelper(this, mode, timeoutInMs, maxConcurrentCalls, captureContext);
 		}
 
 		public Task<RpcAggregateHelper> CreateRpcAggregateHelper(ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls, bool captureContext)
 		{
-			EnsureOpen();
-
-			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
-
-			return RpcAggregateHelper.Create(this, maxConcurrentCalls, mode, captureContext, timeoutInMs);
+			return CreateRpcAggregateHelper(this, mode, timeoutInMs, maxConcurrentCalls, captureContext);
 		}
 
 		public async Task Close()
@@ -540,6 +532,26 @@
 			{
 				marker.EnsureConsumed(bodySize);
 			}
+		}
+
+		internal Task<RpcHelper> CreateRpcHelper(IChannel targetChannel, ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls,
+			bool captureContext)
+		{
+			EnsureOpen();
+
+			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
+
+			return RpcHelper.Create(targetChannel, maxConcurrentCalls, mode, captureContext, timeoutInMs);
+		}
+
+		internal Task<RpcAggregateHelper> CreateRpcAggregateHelper(IChannel targetChannel, ConsumeMode mode, int? timeoutInMs, int maxConcurrentCalls,
+			bool captureContext)
+		{
+			EnsureOpen();
+
+			if (_confirmationKeeper != null) throw new Exception("This channel is set up for confirmations");
+
+			return RpcAggregateHelper.Create(targetChannel, maxConcurrentCalls, mode, captureContext, timeoutInMs);
 		}
 
 		internal void ProcessAcks(ulong deliveryTags, bool multiple)

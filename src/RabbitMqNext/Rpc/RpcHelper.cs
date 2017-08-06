@@ -10,12 +10,12 @@ namespace RabbitMqNext
 	{
 		const string LogSource = "RpcHelper";
 
-		private RpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
+		private RpcHelper(IChannel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
 			: base(channel, maxConcurrentCalls, mode, timeoutInMs)
 		{
 		}
 
-		public static async Task<RpcHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode, 
+		public static async Task<RpcHelper> Create(IChannel channel, int maxConcurrentCalls, ConsumeMode mode, 
 												   bool captureContext = false, int? timeoutInMs = null)
 		{
 			var instance = new RpcHelper(channel, maxConcurrentCalls, mode, timeoutInMs)

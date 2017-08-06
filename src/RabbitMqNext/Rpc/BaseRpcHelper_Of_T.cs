@@ -9,8 +9,6 @@ namespace RabbitMqNext
 
 	public abstract class BaseRpcHelper<T> : BaseRpcHelper, IDisposable
 	{
-//		private const string LogSource = "BaseRpcHelper";
-
 		protected const string SeparatorStr = "_";
 		private const char Zero = '0';
 
@@ -31,7 +29,7 @@ namespace RabbitMqNext
 			public string destinationExchange, destinationRouting;
 		}
 
-		protected BaseRpcHelper(Channel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
+		protected BaseRpcHelper(IChannel channel, int maxConcurrentCalls, ConsumeMode mode, int? timeoutInMs)
 			: base(mode, channel, maxConcurrentCalls)
 		{
 			_timeoutInMs = timeoutInMs;

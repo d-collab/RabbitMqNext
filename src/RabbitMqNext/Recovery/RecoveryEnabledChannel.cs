@@ -288,7 +288,7 @@
 
 			if (this.IsConfirmationEnabled) throw new Exception("This channel is set up for confirmations");
 
-			var helper = await _channel.CreateRpcHelper(mode, timeoutInMs, maxConcurrentCalls, captureContext).ConfigureAwait(false);
+			var helper = await _channel.CreateRpcHelper(this, mode, timeoutInMs, maxConcurrentCalls, captureContext).ConfigureAwait(false);
 
 			lock (_rpcHelpers) _rpcHelpers.Add(helper);
 
@@ -299,7 +299,7 @@
 		{
 			ThrowIfRecoveryInProcess();
 
-			var helper = await _channel.CreateRpcAggregateHelper(mode, timeoutInMs, maxConcurrentCalls, captureContext).ConfigureAwait(false);
+			var helper = await _channel.CreateRpcAggregateHelper(this, mode, timeoutInMs, maxConcurrentCalls, captureContext).ConfigureAwait(false);
 
 			lock (_rpcHelpers) _rpcHelpers.Add(helper);
 
@@ -376,7 +376,7 @@
 				// (+ rpc lifecycle)
 				foreach (var helper in _rpcHelpers)
 				{
-					await helper.SignalRecovered(replacementChannel, specialNamesMapping).ConfigureAwait(false);
+					await helper.SignalRecovered(specialNamesMapping).ConfigureAwait(false);
 				}
 			
 				_channel = replacementChannel;

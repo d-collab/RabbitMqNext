@@ -31,7 +31,7 @@ namespace RabbitMqNext
 		// protected by the SecureSpotAndUniqueCorrelationId() guard
 		private readonly AggState[] _pendingAggregationState;
 
-		private RpcAggregateHelper(Channel channel, int maxConcurrentCalls, 
+		private RpcAggregateHelper(IChannel channel, int maxConcurrentCalls, 
 								   ConsumeMode mode, int? timeoutInMs)
 			: base(channel, maxConcurrentCalls, mode, timeoutInMs)
 		{
@@ -43,7 +43,7 @@ namespace RabbitMqNext
 			}
 		}
 
-		public static async Task<RpcAggregateHelper> Create(Channel channel, int maxConcurrentCalls, ConsumeMode mode, 
+		public static async Task<RpcAggregateHelper> Create(IChannel channel, int maxConcurrentCalls, ConsumeMode mode, 
 															bool captureContext = false, int? timeoutInMs = null)
 		{
 			var instance = new RpcAggregateHelper(channel, maxConcurrentCalls, mode, timeoutInMs)

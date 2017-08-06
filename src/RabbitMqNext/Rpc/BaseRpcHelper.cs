@@ -11,7 +11,7 @@ namespace RabbitMqNext
 	{
 		protected static readonly Random Rnd = new Random();
 
-		protected Channel _channel;
+		protected IChannel _channel;
 		protected readonly ConsumeMode _mode;
 		protected readonly SemaphoreSlim _semaphoreSlim;
 		protected readonly int _maxConcurrentCalls;
@@ -26,7 +26,7 @@ namespace RabbitMqNext
 		/// </summary>
 		public bool CaptureContext;
 
-		protected BaseRpcHelper(ConsumeMode mode, Channel channel, int maxConcurrentCalls)
+		protected BaseRpcHelper(ConsumeMode mode, IChannel channel, int maxConcurrentCalls)
 		{
 			if (maxConcurrentCalls <= 0) throw new ArgumentOutOfRangeException("maxConcurrentCalls");
 
@@ -53,10 +53,8 @@ namespace RabbitMqNext
 		/// <summary>
 		/// Called once a new healthy channel has been created.
 		/// </summary>
-		public Task SignalRecovered(Channel newChannel, IDictionary<string, string> reservedNamesMapping)
+		public Task SignalRecovered(IDictionary<string, string> reservedNamesMapping)
 		{
-			this._channel = newChannel;
-
 			// return Setup();
 			UpdateInfo(reservedNamesMapping);
 
